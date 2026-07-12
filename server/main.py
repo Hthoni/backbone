@@ -13,8 +13,8 @@ CORS(app)
 
 # ── Cadastro de consumidor ────────────────────────────────────
 
-@app.route("/cadastro/<bar>/<telefone>/<nome>/<dia>/<mes>/<ano>/<time>")
-def cadastro(bar, telefone, nome, dia, mes, ano, time):
+@app.route("/cadastro/<bar>/<telefone>/<nome>/<dia>/<mes>/<time>")
+def cadastro(bar, telefone, nome, dia, mes, time):
     """
     Recebe os dados do consumidor via URL gerada pelo BotConversa.
     Cria o perfil se não existir. Retorna status do cadastro.
@@ -36,7 +36,7 @@ def cadastro(bar, telefone, nome, dia, mes, ano, time):
         "bar_origem":    bar,
         "nascimento_dia": dia,
         "nascimento_mes": mes,
-        "nascimento_ano": ano,
+        
         "time":          time,
         "punches":       0,
         "recompensas_disponiveis": 1,   # chopp grátis de boas-vindas
