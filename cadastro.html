@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Clube Backbone</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #1a1a1a;
+    color: #fff;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .card {
+    background: #262626;
+    border-radius: 16px;
+    padding: 40px 30px;
+    max-width: 400px;
+    width: 100%;
+    text-align: center;
+    border: 1px solid #333;
+  }
+  .logo {
+    font-size: 28px;
+    font-weight: 800;
+    color: #E8530A;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+  }
+  .sub {
+    font-size: 13px;
+    color: #999;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 30px;
+  }
+  h1 {
+    font-size: 22px;
+    margin-bottom: 12px;
+  }
+  p {
+    font-size: 15px;
+    color: #ccc;
+    line-height: 1.5;
+    margin-bottom: 8px;
+  }
+  .destaque {
+    background: #E8530A22;
+    border: 1px solid #E8530A;
+    border-radius: 12px;
+    padding: 16px;
+    margin: 24px 0;
+  }
+  .destaque .emoji { font-size: 32px; }
+  .destaque .txt {
+    font-size: 16px;
+    font-weight: 600;
+    color: #E8530A;
+    margin-top: 8px;
+  }
+  .btn {
+    display: none;
+    width: 100%;
+    padding: 16px;
+    border: none;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 10px;
+    text-decoration: none;
+  }
+  .btn-apple {
+    background: #000;
+    color: #fff;
+    border: 1px solid #555;
+  }
+  .btn-google {
+    background: #fff;
+    color: #1a1a1a;
+  }
+  .btn.mostrar { display: block; }
+  .erro {
+    color: #ff6b6b;
+    font-size: 14px;
+    margin-top: 20px;
+    display: none;
+  }
+  .carregando {
+    color: #999;
+    font-size: 14px;
+  }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">BACKBONE</div>
+    <div class="sub">Clube de Fidelidade</div>
+
+    <div id="conteudo">
+      <p class="carregando">Carregando...</p>
+    </div>
+  </div>
+
+<script>
+const SERVER_URL = "https://backbone-650557630362.us-central1.run.app";
+
+// URL esperada: .../cadastro.html?bar=backbone-pub&tel=5521999887766&nome=Henrique&dia=12&mes=07&time=Flamengo
+const params = new URLSearchParams(window.location.search);
+const bar  = params.get("bar");
+const tel  = params.get("tel");
+const nome = params.get("nome");
+const dia  = params.get("dia");
+const mes  = params.get("mes");
+const time = params.get("time");
+
+const conteudo = document.getElementById("conteudo");
+
+function ehIOS() {
+  return /iPhone|iPad|iPod/.test(navigator.userAgent);
+}
+
+async function iniciar() {
+  if (!bar || !tel || !nome) {
+    conteudo.innerHTML = "<p class='erro' style='display:block'>Link inválido. Volte ao WhatsApp e tente novamente.</p>";
+    return;
+  }
+
+  try {
+    const resp = await fetch(`${SERVER_URL}/cadastro/${bar}/${tel}/${encodeURIComponent(nome)}/${dia}/${mes}/${encodeURIComponent(time)}`);
+    const dados = await resp.json();
+
+    if (dados.status === "cadastrado" || dados.status === "ja_cadastrado") {
+      const c = dados.consumidor;
+      const btnClass = ehIOS() ? "btn-apple" : "btn-google";
+      const btnTexto = ehIOS() ? " Adicionar ao Apple Wallet" : "Adicionar ao Google Wallet";
+
+      conteudo.innerHTML = `
+        <h1>Bem-vindo, ${c.nome}! 🍺</h1>
+        <p>Seu cadastro no Clube Backbone está confirmado.</p>
+
+        <div class="destaque">
+          <div class="emoji">🍺</div>
+          <div class="txt">Você ganhou 1 chopp grátis!</div>
+        </div>
+
+        <p>Adicione seu cartão à carteira do celular e apresente ao garçom para resgatar.</p>
+
+        <a class="btn ${btnClass} mostrar" href="${SERVER_URL}/cartao/${c.telefone}">
+          ${btnTexto}
+        </a>
+      `;
+    } else {
+      conteudo.innerHTML = "<p class='erro' style='display:block'>Não foi possível completar o cadastro. Tente novamente.</p>";
+    }
+  } catch (e) {
+    conteudo.innerHTML = "<p class='erro' style='display:block'>Erro de conexão. Verifique sua internet e tente novamente.</p>";
+  }
+}
+
+iniciar();
+</script>
+</body>
+</html>
