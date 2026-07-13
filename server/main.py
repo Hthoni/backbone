@@ -1,4 +1,4 @@
-# Backbone Beer — Sistema de Fidelização de Consumidores.
+# Backbone Beer - Sistema de Fidelizacao de Consumidores.
 
 import os
 import json
@@ -11,35 +11,34 @@ import storage
 app = Flask(__name__)
 CORS(app)
 
-# ── Cadastro de consumidor ────────────────────────────────────
+def _count_disponiveis(consumidor):
+    return len([r for r in consumidor.get("recompensas", []) if not r.get("resgatada")])
+
+def _garcom_pertence_bar(garcom, bar):
+    return garcom.get("bar_id") == bar
 
 @app.route("/cadastro/<bar>/<telefone>/<nome>/<dia>/<mes>/<time>")
 def cadastro(bar, telefone, nome, dia, mes, time):
-    """
-    Recebe os dados do consumidor via URL gerada pelo BotConversa.
-    Cria o perfil se não existir. Retorna status do cadastro.
-    """
     from urllib.parse import unquote
     nome = unquote(nome)
     bar  = unquote(bar)
     time = unquote(time)
 
-    # Verifica se já existe
     existente = storage.carregar_consumidor(telefone)
     if existente:
         return jsonify({"status": "ja_cadastrado", "consumidor": existente})
 
-    # Cria perfil novo
     consumidor = {
         "telefone":      telefone,
         "nome":          nome,
         "bar_origem":    bar,
         "nascimento_dia": dia,
         "nascimento_mes": mes,
-        
         "time":          time,
         "punches":       0,
-        "recompensas_disponiveis": 1,   # chopp grátis de boas-vindas
+        "recompensas": [
+            {"tipo": "boas_vindas", "gerada_em": datetime.now(timezone.utc).isoformat(), "resgatada": False}
+        ],
         "recompensas_total": 0,
         "ultimo_punch":  None,
         "cadastro_em":   datetime.now(timezone.utc).isoformat(),
@@ -48,7 +47,6 @@ def cadastro(bar, telefone, nome, dia, mes, time):
 
     storage.salvar_consumidor(consumidor)
 
-    # Registra evento de cadastro
     evento = {
         "id":        str(uuid.uuid4()),
         "tipo":      "cadastro",
@@ -61,26 +59,18 @@ def cadastro(bar, telefone, nome, dia, mes, time):
 
     return jsonify({"status": "cadastrado", "consumidor": consumidor})
 
-# ── Consulta de consumidor ────────────────────────────────────
-
 @app.route("/consumidor/<telefone>")
 def consultar_consumidor(telefone):
-    """Retorna o perfil completo de um consumidor."""
     c = storage.carregar_consumidor(telefone)
     if not c:
         return jsonify({"erro": "nao_encontrado"}), 404
     config = storage.carregar_config()
     c["punches_para_recompensa"] = config["punches_para_recompensa"]
+    c["recompensas_disponiveis"] = _count_disponiveis(c)
     return jsonify(c)
-
-# ── Punch (garçom escaneia cartão do cliente) ─────────────────
 
 @app.route("/punch", methods=["POST"])
 def punch():
-    """
-    Registra um punch.
-    Body JSON: { telefone, garcom_id, bar }
-    """
     dados = request.get_json()
     telefone  = dados.get("telefone")
     garcom_id = dados.get("garcom_id")
@@ -97,28 +87,31 @@ def punch():
     if not garcom:
         return jsonify({"erro": "garcom_nao_encontrado"}), 404
 
-    # Garçom só pode pontuar consumidores do seu bar
-    if garcom.get("bar_id") != bar:
+    if not _garcom_pertence_bar(garcom, bar):
         return jsonify({"erro": "bar_diferente"}), 403
 
     config = storage.carregar_config()
     punches_para_recompensa = config.get("punches_para_recompensa", 10)
 
-    # Incrementa punches
+    if "recompensas" not in consumidor:
+        consumidor["recompensas"] = []
+
     consumidor["punches"] = consumidor.get("punches", 0) + 1
     consumidor["ultimo_punch"] = datetime.now(timezone.utc).isoformat()
 
-    # Verifica se atingiu recompensa
     recompensa_gerada = False
     if consumidor["punches"] >= punches_para_recompensa:
         consumidor["punches"] = 0
-        consumidor["recompensas_disponiveis"] = consumidor.get("recompensas_disponiveis", 0) + 1
+        consumidor["recompensas"].append({
+            "tipo": "punch",
+            "gerada_em": datetime.now(timezone.utc).isoformat(),
+            "resgatada": False
+        })
         consumidor["recompensas_total"] = consumidor.get("recompensas_total", 0) + 1
         recompensa_gerada = True
 
     storage.salvar_consumidor(consumidor)
 
-    # Registra evento
     evento = {
         "id":               str(uuid.uuid4()),
         "tipo":             "punch",
@@ -134,19 +127,13 @@ def punch():
         "status":            "ok",
         "punches":           consumidor["punches"],
         "punches_para_recompensa": punches_para_recompensa,
-        "recompensas_disponiveis": consumidor["recompensas_disponiveis"],
+        "recompensas_disponiveis": _count_disponiveis(consumidor),
         "recompensa_gerada": recompensa_gerada,
         "nome":              consumidor["nome"]
     })
 
-# ── Resgate de recompensa ─────────────────────────────────────
-
 @app.route("/resgatar", methods=["POST"])
 def resgatar():
-    """
-    Registra o resgate de um chopp grátis.
-    Body JSON: { telefone, garcom_id, bar }
-    """
     dados = request.get_json()
     telefone  = dados.get("telefone")
     garcom_id = dados.get("garcom_id")
@@ -156,52 +143,60 @@ def resgatar():
     if not consumidor:
         return jsonify({"erro": "consumidor_nao_encontrado"}), 404
 
-    if consumidor.get("recompensas_disponiveis", 0) < 1:
+    disponiveis = [r for r in consumidor.get("recompensas", []) if not r.get("resgatada")]
+    if not disponiveis:
         return jsonify({"erro": "sem_recompensa"}), 400
 
-    config = storage.carregar_config()
-    delay_horas = config.get("delay_resgate_horas", 24)
+    # Prioriza boas_vindas (sem delay), depois punch (com delay)
+    disponiveis.sort(key=lambda r: 0 if r.get("tipo") == "boas_vindas" else 1)
+    recompensa = disponiveis[0]
 
-    # Verifica delay mínimo desde último punch
-    ultimo_punch = consumidor.get("ultimo_punch")
-    if ultimo_punch:
-        ultimo = datetime.fromisoformat(ultimo_punch)
-        agora  = datetime.now(timezone.utc)
-        horas_passadas = (agora - ultimo).total_seconds() / 3600
-        if horas_passadas < delay_horas:
-            horas_faltam = round(delay_horas - horas_passadas, 1)
-            return jsonify({
-                "erro": "delay_nao_atingido",
-                "horas_faltam": horas_faltam
-            }), 400
+    if recompensa.get("tipo") == "punch":
+        config = storage.carregar_config()
+        delay_horas = config.get("delay_resgate_horas", 24)
 
-    consumidor["recompensas_disponiveis"] -= 1
+        ultimo_punch = consumidor.get("ultimo_punch")
+        if ultimo_punch:
+            ultimo = datetime.fromisoformat(ultimo_punch)
+            agora  = datetime.now(timezone.utc)
+            horas_passadas = (agora - ultimo).total_seconds() / 3600
+            if horas_passadas < delay_horas:
+                horas_faltam = round(delay_horas - horas_passadas, 1)
+                return jsonify({
+                    "erro": "delay_nao_atingido",
+                    "horas_faltam": horas_faltam
+                }), 400
+
+    for r in consumidor["recompensas"]:
+        if r is recompensa:
+            r["resgatada"] = True
+            r["resgatada_em"] = datetime.now(timezone.utc).isoformat()
+            r["resgatada_bar"] = bar
+            r["resgatada_garcom"] = garcom_id
+            break
+
     storage.salvar_consumidor(consumidor)
 
     evento = {
-        "id":        str(uuid.uuid4()),
-        "tipo":      "resgate",
-        "telefone":  telefone,
-        "bar":       bar,
-        "garcom_id": garcom_id,
-        "data":      datetime.now(timezone.utc).isoformat()
+        "id":              str(uuid.uuid4()),
+        "tipo":            "resgate",
+        "tipo_recompensa": recompensa.get("tipo"),
+        "telefone":        telefone,
+        "bar":             bar,
+        "garcom_id":       garcom_id,
+        "data":            datetime.now(timezone.utc).isoformat()
     }
     storage.salvar_evento(evento)
 
     return jsonify({
         "status": "ok",
-        "recompensas_disponiveis": consumidor["recompensas_disponiveis"],
+        "recompensas_disponiveis": _count_disponiveis(consumidor),
+        "tipo_resgatado": recompensa.get("tipo"),
         "nome": consumidor["nome"]
     })
 
-# ── Login do garçom ───────────────────────────────────────────
-
 @app.route("/login", methods=["POST"])
 def login():
-    """
-    Login do garçom.
-    Body JSON: { id, senha }
-    """
     dados = request.get_json()
     garcom_id = dados.get("id")
     senha     = dados.get("senha")
@@ -221,8 +216,6 @@ def login():
         "bar_nome": garcom.get("bar_nome", "")
     })
 
-# ── Admin — Bares ─────────────────────────────────────────────
-
 @app.route("/admin/bares")
 def admin_bares():
     return jsonify(storage.listar_bares())
@@ -234,8 +227,6 @@ def admin_criar_bar():
         dados["id"] = str(uuid.uuid4())[:8]
     storage.salvar_bar(dados)
     return jsonify({"status": "ok", "bar": dados})
-
-# ── Admin — Garçons ───────────────────────────────────────────
 
 @app.route("/admin/garcons")
 def admin_garcons():
@@ -249,17 +240,15 @@ def admin_criar_garcom():
     storage.salvar_garcom(dados)
     return jsonify({"status": "ok", "garcom": dados})
 
-# ── Admin — Consumidores ──────────────────────────────────────
-
 @app.route("/admin/consumidores")
 def admin_consumidores():
     bar_filtro = request.args.get("bar")
     todos = storage.listar_consumidores()
     if bar_filtro:
         todos = [c for c in todos if c.get("bar_origem") == bar_filtro]
+    for c in todos:
+        c["recompensas_disponiveis"] = _count_disponiveis(c)
     return jsonify(todos)
-
-# ── Admin — Config ────────────────────────────────────────────
 
 @app.route("/admin/config")
 def admin_config():
@@ -270,8 +259,6 @@ def admin_salvar_config():
     dados = request.get_json()
     storage.salvar_config(dados)
     return jsonify({"status": "ok"})
-
-# ── Health check ──────────────────────────────────────────────
 
 @app.route("/")
 def health():
