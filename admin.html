@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Backbone</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #1a1a1a;
+    color: #fff;
+    min-height: 100vh;
+  }
+  .header {
+    background: #262626;
+    padding: 16px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #333;
+  }
+  .header .logo {
+    font-size: 20px;
+    font-weight: 800;
+    color: #E8530A;
+    letter-spacing: 1px;
+  }
+  .header .sub { font-size: 12px; color: #999; letter-spacing: 2px; }
+
+  .container {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 24px;
+  }
+
+  .tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 24px;
+    border-bottom: 1px solid #333;
+  }
+  .tab {
+    padding: 12px 20px;
+    cursor: pointer;
+    color: #999;
+    font-size: 14px;
+    font-weight: 600;
+    border-bottom: 2px solid transparent;
+  }
+  .tab.ativa {
+    color: #E8530A;
+    border-bottom-color: #E8530A;
+  }
+
+  .painel { display: none; }
+  .painel.ativo { display: block; }
+
+  .card {
+    background: #262626;
+    border: 1px solid #333;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .card h3 { margin-bottom: 16px; font-size: 16px; }
+
+  .form-linha {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+  }
+  .form-linha input, .form-linha select {
+    flex: 1;
+    min-width: 150px;
+    padding: 10px 12px;
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 8px;
+    color: #fff;
+    font-size: 14px;
+  }
+  .form-linha button {
+    padding: 10px 20px;
+    background: #E8530A;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .lista { list-style: none; }
+  .item {
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .item-info { flex: 1; }
+  .item-titulo { font-weight: 600; margin-bottom: 4px; }
+  .item-sub { font-size: 12px; color: #999; }
+  .item-tags {
+    display: flex;
+    gap: 6px;
+    margin-top: 6px;
+  }
+  .tag {
+    background: #E8530A22;
+    color: #E8530A;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .msg {
+    padding: 12px;
+    border-radius: 8px;
+    margin-top: 12px;
+    font-size: 14px;
+    display: none;
+  }
+  .msg.mostrar { display: block; }
+  .msg.sucesso { background: #4caf5022; color: #4caf50; border: 1px solid #4caf50; }
+  .msg.erro { background: #ff6b6b22; color: #ff6b6b; border: 1px solid #ff6b6b; }
+
+  .stat {
+    display: inline-block;
+    background: #1a1a1a;
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin-right: 10px;
+    margin-bottom: 10px;
+  }
+  .stat-num { font-size: 24px; font-weight: 800; color: #E8530A; }
+  .stat-label { font-size: 12px; color: #999; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="logo">BACKBONE</div>
+    <div class="sub">PAINEL ADMIN</div>
+  </div>
+</div>
+
+<div class="container">
+
+  <div class="tabs">
+    <div class="tab ativa" onclick="mostrarPainel('bares', this)">Bares</div>
+    <div class="tab" onclick="mostrarPainel('garcons', this)">Garçons</div>
+    <div class="tab" onclick="mostrarPainel('consumidores', this)">Consumidores</div>
+    <div class="tab" onclick="mostrarPainel('config', this)">Configurações</div>
+  </div>
+
+  <!-- Painel Bares -->
+  <div id="painel-bares" class="painel ativo">
+    <div class="card">
+      <h3>Adicionar bar parceiro</h3>
+      <div class="form-linha">
+        <input type="text" id="bar-id" placeholder="ID (ex: backbone-pub)">
+        <input type="text" id="bar-nome" placeholder="Nome do bar">
+        <input type="text" id="bar-cidade" placeholder="Cidade">
+        <button onclick="criarBar()">Adicionar</button>
+      </div>
+      <div id="bar-msg" class="msg"></div>
+    </div>
+
+    <div class="card">
+      <h3>Bares cadastrados</h3>
+      <ul id="lista-bares" class="lista"></ul>
+    </div>
+  </div>
+
+  <!-- Painel Garçons -->
+  <div id="painel-garcons" class="painel">
+    <div class="card">
+      <h3>Adicionar garçom</h3>
+      <div class="form-linha">
+        <input type="text" id="garcom-id" placeholder="ID (ex: joao123)">
+        <input type="text" id="garcom-nome" placeholder="Nome do garçom">
+        <input type="password" id="garcom-senha" placeholder="Senha">
+        <select id="garcom-bar">
+          <option value="">Selecione o bar</option>
+        </select>
+        <button onclick="criarGarcom()">Adicionar</button>
+      </div>
+      <div id="garcom-msg" class="msg"></div>
+    </div>
+
+    <div class="card">
+      <h3>Garçons cadastrados</h3>
+      <ul id="lista-garcons" class="lista"></ul>
+    </div>
+  </div>
+
+  <!-- Painel Consumidores -->
+  <div id="painel-consumidores" class="painel">
+    <div class="card">
+      <div id="stats-consumidores"></div>
+    </div>
+
+    <div class="card">
+      <h3>Consumidores cadastrados</h3>
+      <div style="margin-bottom:16px">
+        <select id="filtro-bar" onchange="carregarConsumidores()">
+          <option value="">Todos os bares</option>
+        </select>
+      </div>
+      <ul id="lista-consumidores" class="lista"></ul>
+    </div>
+  </div>
+
+  <!-- Painel Config -->
+  <div id="painel-config" class="painel">
+    <div class="card">
+      <h3>Regras do programa</h3>
+      <div class="form-linha">
+        <input type="number" id="config-punches" placeholder="Punches para recompensa" min="1" max="50">
+        <input type="number" id="config-delay" placeholder="Delay para resgate (horas)" min="1" max="720">
+        <button onclick="salvarConfig()">Salvar</button>
+      </div>
+      <div id="config-msg" class="msg"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const SERVER_URL = "https://backbone-650557630362.us-central1.run.app";
+
+function mostrarPainel(nome, tab) {
+  document.querySelectorAll('.painel').forEach(p => p.classList.remove('ativo'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('ativa'));
+  document.getElementById('painel-' + nome).classList.add('ativo');
+  tab.classList.add('ativa');
+
+  if (nome === 'bares') carregarBares();
+  if (nome === 'garcons') carregarGarcons();
+  if (nome === 'consumidores') carregarConsumidores();
+  if (nome === 'config') carregarConfig();
+}
+
+function msg(id, tipo, texto) {
+  const el = document.getElementById(id);
+  el.className = 'msg mostrar ' + tipo;
+  el.textContent = texto;
+  setTimeout(() => el.classList.remove('mostrar'), 4000);
+}
+
+// ── Bares ────────────────────────────────────
+
+async function criarBar() {
+  const id     = document.getElementById('bar-id').value.trim();
+  const nome   = document.getElementById('bar-nome').value.trim();
+  const cidade = document.getElementById('bar-cidade').value.trim();
+
+  if (!id || !nome) {
+    msg('bar-msg', 'erro', 'Preencha ID e nome');
+    return;
+  }
+
+  try {
+    const resp = await fetch(`${SERVER_URL}/admin/bares`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, nome, cidade, criado_em: new Date().toISOString() })
+    });
+    const dados = await resp.json();
+    if (dados.status === 'ok') {
+      msg('bar-msg', 'sucesso', 'Bar adicionado!');
+      document.getElementById('bar-id').value = '';
+      document.getElementById('bar-nome').value = '';
+      document.getElementById('bar-cidade').value = '';
+      carregarBares();
+    } else {
+      msg('bar-msg', 'erro', 'Erro ao adicionar');
+    }
+  } catch (e) {
+    msg('bar-msg', 'erro', 'Erro de conexão');
+  }
+}
+
+async function carregarBares() {
+  try {
+    const resp = await fetch(`${SERVER_URL}/admin/bares`);
+    const bares = await resp.json();
+    const lista = document.getElementById('lista-bares');
+    if (bares.length === 0) {
+      lista.innerHTML = '<div style="color:#666;padding:20px;text-align:center">Nenhum bar cadastrado</div>';
+    } else {
+      lista.innerHTML = bares.map(b => `
+        <li class="item">
+          <div class="item-info">
+            <div class="item-titulo">${b.nome}</div>
+            <div class="item-sub">ID: ${b.id}${b.cidade ? ' · ' + b.cidade : ''}</div>
+          </div>
+        </li>
+      `).join('');
+    }
+
+    // Atualiza dropdowns
+    const selects = document.querySelectorAll('#garcom-bar, #filtro-bar');
+    selects.forEach(sel => {
+      const val = sel.value;
+      const primeiraOp = sel.querySelector('option:first-child').outerHTML;
+      sel.innerHTML = primeiraOp + bares.map(b => `<option value="${b.id}">${b.nome}</option>`).join('');
+      sel.value = val;
+    });
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+// ── Garçons ──────────────────────────────────
+
+async function criarGarcom() {
+  const id     = document.getElementById('garcom-id').value.trim();
+  const nome   = document.getElementById('garcom-nome').value.trim();
+  const senha  = document.getElementById('garcom-senha').value.trim();
+  const bar_id = document.getElementById('garcom-bar').value;
+
+  if (!id || !nome || !senha || !bar_id) {
+    msg('garcom-msg', 'erro', 'Preencha todos os campos');
+    return;
+  }
+
+  // Busca nome do bar
+  const respB = await fetch(`${SERVER_URL}/admin/bares`);
+  const bares = await respB.json();
+  const bar = bares.find(b => b.id === bar_id);
+
+  try {
+    const resp = await fetch(`${SERVER_URL}/admin/garcons`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id, nome, senha,
+        bar_id,
+        bar_nome: bar ? bar.nome : '',
+        ativo: true,
+        criado_em: new Date().toISOString()
+      })
+    });
+    const dados = await resp.json();
+    if (dados.status === 'ok') {
+      msg('garcom-msg', 'sucesso', 'Garçom adicionado!');
+      document.getElementById('garcom-id').value = '';
+      document.getElementById('garcom-nome').value = '';
+      document.getElementById('garcom-senha').value = '';
+      document.getElementById('garcom-bar').value = '';
+      carregarGarcons();
+    } else {
+      msg('garcom-msg', 'erro', 'Erro ao adicionar');
+    }
+  } catch (e) {
+    msg('garcom-msg', 'erro', 'Erro de conexão');
+  }
+}
+
+async function carregarGarcons() {
+  await carregarBares();
+  try {
+    const resp = await fetch(`${SERVER_URL}/admin/garcons`);
+    const garcons = await resp.json();
+    const lista = document.getElementById('lista-garcons');
+    if (garcons.length === 0) {
+      lista.innerHTML = '<div style="color:#666;padding:20px;text-align:center">Nenhum garçom cadastrado</div>';
+    } else {
+      lista.innerHTML = garcons.map(g => `
+        <li class="item">
+          <div class="item-info">
+            <div class="item-titulo">${g.nome}</div>
+            <div class="item-sub">ID: ${g.id} · ${g.bar_nome || g.bar_id}</div>
+          </div>
+        </li>
+      `).join('');
+    }
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+// ── Consumidores ─────────────────────────────
+
+async function carregarConsumidores() {
+  await carregarBares();
+  const filtro = document.getElementById('filtro-bar').value;
+  try {
+    const url = filtro
+      ? `${SERVER_URL}/admin/consumidores?bar=${encodeURIComponent(filtro)}`
+      : `${SERVER_URL}/admin/consumidores`;
+    const resp = await fetch(url);
+    const consumidores = await resp.json();
+
+    // Stats
+    const totalPunches = consumidores.reduce((s, c) => s + (c.punches || 0), 0);
+    const totalResg = consumidores.reduce((s, c) => s + (c.recompensas_total || 0), 0);
+    document.getElementById('stats-consumidores').innerHTML = `
+      <div class="stat">
+        <div class="stat-num">${consumidores.length}</div>
+        <div class="stat-label">Consumidores</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">${totalPunches}</div>
+        <div class="stat-label">Punches ativos</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">${totalResg}</div>
+        <div class="stat-label">Chopps resgatados</div>
+      </div>
+    `;
+
+    const lista = document.getElementById('lista-consumidores');
+    if (consumidores.length === 0) {
+      lista.innerHTML = '<div style="color:#666;padding:20px;text-align:center">Nenhum consumidor</div>';
+    } else {
+      lista.innerHTML = consumidores.map(c => {
+        const tags = [];
+        if (c.time) tags.push(`<span class="tag">${c.time}</span>`);
+        if (c.recompensas_disponiveis > 0) tags.push(`<span class="tag" style="background:#4caf5022;color:#4caf50">${c.recompensas_disponiveis} chopp(s) disponível(is)</span>`);
+        return `
+          <li class="item">
+            <div class="item-info">
+              <div class="item-titulo">${c.nome}</div>
+              <div class="item-sub">${c.telefone} · ${c.bar_origem} · ${c.nascimento_dia}/${c.nascimento_mes} · Punches: ${c.punches || 0}</div>
+              <div class="item-tags">${tags.join('')}</div>
+            </div>
+          </li>
+        `;
+      }).join('');
+    }
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+// ── Config ───────────────────────────────────
+
+async function carregarConfig() {
+  try {
+    const resp = await fetch(`${SERVER_URL}/admin/config`);
+    const cfg = await resp.json();
+    document.getElementById('config-punches').value = cfg.punches_para_recompensa;
+    document.getElementById('config-delay').value = cfg.delay_resgate_horas;
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+async function salvarConfig() {
+  const punches = parseInt(document.getElementById('config-punches').value);
+  const delay   = parseInt(document.getElementById('config-delay').value);
+
+  if (!punches || !delay) {
+    msg('config-msg', 'erro', 'Preencha os campos');
+    return;
+  }
+
+  try {
+    const resp = await fetch(`${SERVER_URL}/admin/config`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        punches_para_recompensa: punches,
+        delay_resgate_horas: delay
+      })
+    });
+    const dados = await resp.json();
+    if (dados.status === 'ok') {
+      msg('config-msg', 'sucesso', 'Configurações salvas!');
+    } else {
+      msg('config-msg', 'erro', 'Erro ao salvar');
+    }
+  } catch (e) {
+    msg('config-msg', 'erro', 'Erro de conexão');
+  }
+}
+
+// Inicia
+carregarBares();
+</script>
+</body>
+</html>
