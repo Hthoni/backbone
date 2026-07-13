@@ -23,7 +23,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 16px;
+    padding: 8px;
   }
 
   .cartao {
@@ -31,7 +31,7 @@
     border-radius: 24px;
     max-width: 420px;
     width: 100%;
-    padding: 30px 24px;
+    padding: 20px 24px;
     box-shadow: 0 4px 20px rgba(0,0,0,0.1);
     text-align: center;
   }
@@ -40,16 +40,16 @@
     max-width: 260px;
     width: 100%;
     height: auto;
-    margin: 0 auto 20px;
+    margin: 0 auto 14px;
     display: block;
   }
 
   .qr-container {
     background: #fff;
-    padding: 12px;
-    border-radius: 12px;
-    margin: 0 auto 20px;
-    max-width: 260px;
+    padding: 10px;
+    border-radius: 10px;
+    margin: 0 auto 16px;
+    max-width: 200px;
   }
   .qr-container canvas, .qr-container img {
     width: 100%;
@@ -58,19 +58,19 @@
   }
 
   .promo-nome {
-    max-width: 260px;
+    max-width: 340px;
     width: 100%;
     height: auto;
-    margin: 0 auto 24px;
+    margin: 0 auto 20px;
     display: block;
   }
 
   .copos {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 6px;
-    max-width: 340px;
-    margin: 0 auto 24px;
+    gap: 4px;
+    max-width: 380px;
+    margin: 0 auto 20px;
   }
   .copo {
     aspect-ratio: 1;
@@ -222,8 +222,9 @@ function renderizar() {
       coposHTML += `<div class="copo"><img src="img/copo_${i}.png" alt="Chopp ${i}"></div>`;
     }
   }
-  // Copo do prêmio: desbloqueado se tem recompensa disponível
-  const copoP = disponiveis > 0
+  // Copo do prêmio: desbloqueado só se tem punches suficientes E recompensa de punch pendente
+  const temRecompensaPunch = (consumidor.recompensas || []).some(r => r.tipo === 'punch' && !r.resgatada);
+  const copoP = temRecompensaPunch
     ? '<div class="copo"><img src="img/copo_premio_liberado.png" alt="Prêmio disponível"></div>'
     : '<div class="copo"><img src="img/copo_premio_pendente.png" alt="Prêmio a conquistar"></div>';
   coposHTML += copoP;
