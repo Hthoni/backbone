@@ -186,7 +186,13 @@ const SERVER_URL = "https://backbone-650557630362.us-central1.run.app";
 const PUNCHES_META = 7;
 
 const params = new URLSearchParams(window.location.search);
-const telefone = params.get("tel");
+// Remove caracteres nao numericos do telefone (+, espacos, hifens)
+const telefone = (params.get("tel") || "").replace(/\D/g, '');
+const bar   = params.get("bar");
+const nome  = params.get("nome");
+const dia   = params.get("dia");
+const mes   = params.get("mes");
+const time  = params.get("time");
 
 const MESES = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
 
@@ -199,11 +205,24 @@ async function carregar() {
   }
 
   try {
-    const resp = await fetch(`${SERVER_URL}/consumidor/${telefone}`);
+    // Tenta buscar
+    let resp = await fetch(`${SERVER_URL}/consumidor/${telefone}`);
+
+    // Se nao existe MAS temos os parametros de cadastro, cadastra automaticamente
+    if (!resp.ok && bar && nome && dia && mes && time) {
+      const url = `${SERVER_URL}/cadastro/${encodeURIComponent(bar)}/${telefone}/${encodeURIComponent(nome)}/${dia}/${mes}/${encodeURIComponent(time)}`;
+      const cad = await fetch(url);
+      if (cad.ok) {
+        // Depois de cadastrar, busca de novo
+        resp = await fetch(`${SERVER_URL}/consumidor/${telefone}`);
+      }
+    }
+
     if (!resp.ok) {
       document.getElementById('conteudo').innerHTML = '<div class="erro">Cartão não encontrado. Faça seu cadastro pelo WhatsApp da Backbone.</div>';
       return;
     }
+
     consumidor = await resp.json();
     renderizar();
   } catch (e) {
