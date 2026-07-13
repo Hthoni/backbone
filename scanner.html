@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scanner Backbone</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #1a1a1a;
+    color: #fff;
+    min-height: 100vh;
+  }
+
+  /* Cabeçalho */
+  .header {
+    background: #262626;
+    padding: 12px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #333;
+  }
+  .header .logo {
+    font-size: 18px;
+    font-weight: 800;
+    color: #E8530A;
+    letter-spacing: 1px;
+  }
+  .header .info {
+    text-align: right;
+    font-size: 12px;
+    color: #999;
+  }
+  .header .info strong { color: #fff; display: block; font-size: 13px; }
+
+  /* Login */
+  .login {
+    padding: 40px 20px;
+    max-width: 400px;
+    margin: 0 auto;
+  }
+  .login h1 {
+    font-size: 20px;
+    margin-bottom: 20px;
+    text-align: center;
+  }
+  .login input {
+    width: 100%;
+    padding: 14px;
+    margin-bottom: 12px;
+    background: #262626;
+    border: 1px solid #333;
+    border-radius: 10px;
+    color: #fff;
+    font-size: 16px;
+  }
+  .login button {
+    width: 100%;
+    padding: 14px;
+    background: #E8530A;
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .login .erro {
+    color: #ff6b6b;
+    text-align: center;
+    margin-top: 12px;
+    font-size: 14px;
+  }
+
+  /* Scanner */
+  .scanner-area {
+    padding: 20px;
+  }
+  #reader {
+    max-width: 100%;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #000;
+  }
+  #reader video { width: 100%; }
+
+  .instrucoes {
+    text-align: center;
+    padding: 20px;
+    color: #999;
+    font-size: 14px;
+  }
+
+  /* Resultado */
+  .resultado {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.95);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    z-index: 100;
+  }
+  .resultado.mostrar { display: flex; }
+  .resultado-card {
+    background: #262626;
+    border-radius: 16px;
+    padding: 30px 24px;
+    max-width: 400px;
+    width: 100%;
+    text-align: center;
+    border: 2px solid #333;
+  }
+  .resultado-card.sucesso { border-color: #4caf50; }
+  .resultado-card.recompensa { border-color: #E8530A; }
+  .resultado-card.erro { border-color: #ff6b6b; }
+
+  .resultado-emoji { font-size: 48px; margin-bottom: 12px; }
+  .resultado h2 { font-size: 22px; margin-bottom: 8px; }
+  .resultado .nome-cliente { font-size: 16px; color: #ccc; margin-bottom: 20px; }
+
+  .progresso {
+    background: #1a1a1a;
+    border-radius: 10px;
+    height: 24px;
+    margin: 16px 0;
+    overflow: hidden;
+    position: relative;
+  }
+  .progresso-barra {
+    background: #E8530A;
+    height: 100%;
+    transition: width 0.3s;
+  }
+  .progresso-texto {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%,-50%);
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .destaque-recompensa {
+    background: #E8530A22;
+    border: 1px solid #E8530A;
+    border-radius: 12px;
+    padding: 16px;
+    margin: 16px 0;
+  }
+  .destaque-recompensa .emoji { font-size: 36px; }
+  .destaque-recompensa .txt {
+    color: #E8530A;
+    font-weight: 700;
+    margin-top: 8px;
+  }
+
+  .btns {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+  }
+  .btn {
+    flex: 1;
+    padding: 14px;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .btn-primario { background: #E8530A; color: #fff; }
+  .btn-secundario { background: #333; color: #fff; }
+  .btn-resgatar { background: #4caf50; color: #fff; margin-bottom: 10px; width: 100%; }
+
+  .sair {
+    text-align: center;
+    padding: 12px;
+    color: #666;
+    font-size: 13px;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+
+<div id="tela-login" class="login">
+  <div style="text-align:center;margin-bottom:30px;">
+    <div style="font-size:32px;font-weight:800;color:#E8530A;letter-spacing:1px;">BACKBONE</div>
+    <div style="font-size:12px;color:#999;letter-spacing:2px;">SCANNER</div>
+  </div>
+  <h1>Login do garçom</h1>
+  <input type="text" id="input-id" placeholder="Seu ID" autocomplete="username">
+  <input type="password" id="input-senha" placeholder="Senha" autocomplete="current-password">
+  <button onclick="fazerLogin()">Entrar</button>
+  <div id="erro-login" class="erro"></div>
+</div>
+
+<div id="tela-scanner" style="display:none">
+  <div class="header">
+    <div class="logo">BACKBONE</div>
+    <div class="info">
+      <strong id="garcom-nome"></strong>
+      <span id="bar-nome"></span>
+    </div>
+  </div>
+  <div class="scanner-area">
+    <div id="reader"></div>
+    <div class="instrucoes">Aponte a câmera para o QR code do cartão do cliente</div>
+    <div class="sair" onclick="sair()">Sair</div>
+  </div>
+</div>
+
+<div id="resultado" class="resultado"></div>
+
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script>
+const SERVER_URL = "https://backbone-650557630362.us-central1.run.app";
+let garcom = null;
+let scanner = null;
+let processando = false;
+
+// Restaurar sessão
+window.addEventListener('DOMContentLoaded', () => {
+  const salvo = localStorage.getItem('garcom_backbone');
+  if (salvo) {
+    garcom = JSON.parse(salvo);
+    iniciarScanner();
+  }
+});
+
+async function fazerLogin() {
+  const id = document.getElementById('input-id').value.trim();
+  const senha = document.getElementById('input-senha').value.trim();
+  const erro = document.getElementById('erro-login');
+
+  if (!id || !senha) {
+    erro.textContent = 'Preencha ID e senha';
+    return;
+  }
+
+  try {
+    const resp = await fetch(`${SERVER_URL}/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, senha })
+    });
+    const dados = await resp.json();
+
+    if (dados.status === 'ok') {
+      garcom = dados;
+      localStorage.setItem('garcom_backbone', JSON.stringify(garcom));
+      iniciarScanner();
+    } else {
+      erro.textContent = 'ID ou senha inválidos';
+    }
+  } catch (e) {
+    erro.textContent = 'Erro de conexão';
+  }
+}
+
+function iniciarScanner() {
+  document.getElementById('tela-login').style.display = 'none';
+  document.getElementById('tela-scanner').style.display = 'block';
+  document.getElementById('garcom-nome').textContent = garcom.nome;
+  document.getElementById('bar-nome').textContent = garcom.bar_nome;
+
+  scanner = new Html5Qrcode("reader");
+  scanner.start(
+    { facingMode: "environment" },
+    { fps: 10, qrbox: { width: 250, height: 250 } },
+    onScanSucesso,
+    () => {}
+  ).catch(err => {
+    document.getElementById('reader').innerHTML = '<div style="padding:40px;text-align:center;color:#ff6b6b;">Erro ao acessar a câmera. Verifique as permissões.</div>';
+  });
+}
+
+async function onScanSucesso(codigo) {
+  if (processando) return;
+  processando = true;
+
+  // O QR do cartão do cliente contém o telefone
+  // Formato esperado: apenas o número, ex "5521999887766"
+  const telefone = codigo.trim();
+
+  try {
+    const resp = await fetch(`${SERVER_URL}/punch`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        telefone,
+        garcom_id: garcom.garcom_id,
+        bar: garcom.bar_id
+      })
+    });
+    const dados = await resp.json();
+
+    if (dados.status === 'ok') {
+      mostrarResultado(dados, telefone);
+    } else {
+      mostrarErro(dados.erro || 'Erro desconhecido');
+    }
+  } catch (e) {
+    mostrarErro('Erro de conexão');
+  }
+}
+
+function mostrarResultado(dados, telefone) {
+  const total = dados.punches_para_recompensa;
+  const atual = dados.punches;
+  const pct = (atual / total) * 100;
+
+  const box = document.getElementById('resultado');
+  const classeCard = dados.recompensa_gerada ? 'recompensa' : 'sucesso';
+  const emoji = dados.recompensa_gerada ? '🎉' : '✅';
+  const titulo = dados.recompensa_gerada ? 'Recompensa desbloqueada!' : 'Ponto registrado';
+
+  let recompensaHTML = '';
+  if (dados.recompensa_gerada) {
+    recompensaHTML = `
+      <div class="destaque-recompensa">
+        <div class="emoji">🍺</div>
+        <div class="txt">Chopp grátis disponível na próxima visita</div>
+      </div>
+    `;
+  }
+
+  let resgateHTML = '';
+  if (dados.recompensas_disponiveis > 0 && !dados.recompensa_gerada) {
+    resgateHTML = `<button class="btn btn-resgatar" onclick="resgatar('${telefone}')">🍺 Cliente tem ${dados.recompensas_disponiveis} chopp(s) grátis — resgatar</button>`;
+  }
+
+  box.innerHTML = `
+    <div class="resultado-card ${classeCard}">
+      <div class="resultado-emoji">${emoji}</div>
+      <h2>${titulo}</h2>
+      <div class="nome-cliente">${dados.nome}</div>
+      <div class="progresso">
+        <div class="progresso-barra" style="width:${pct}%"></div>
+        <div class="progresso-texto">${atual} / ${total}</div>
+      </div>
+      ${recompensaHTML}
+      ${resgateHTML}
+      <div class="btns">
+        <button class="btn btn-primario" onclick="fecharResultado()">Próximo cliente</button>
+      </div>
+    </div>
+  `;
+  box.classList.add('mostrar');
+}
+
+function mostrarErro(erro) {
+  const mensagens = {
+    'consumidor_nao_encontrado': 'Cartão não encontrado. Peça ao cliente para fazer o cadastro.',
+    'garcom_nao_encontrado': 'Sua sessão expirou. Faça login novamente.',
+    'bar_diferente': 'Este cartão é de outro bar. Não é possível pontuar aqui.',
+    'dados_incompletos': 'QR code inválido.',
+    'sem_recompensa': 'Este cliente não tem recompensa disponível.',
+    'delay_nao_atingido': 'Aguarde 24h desde a última visita para resgatar.'
+  };
+  const msg = mensagens[erro] || `Erro: ${erro}`;
+
+  const box = document.getElementById('resultado');
+  box.innerHTML = `
+    <div class="resultado-card erro">
+      <div class="resultado-emoji">⚠️</div>
+      <h2>Ops!</h2>
+      <div class="nome-cliente">${msg}</div>
+      <div class="btns">
+        <button class="btn btn-primario" onclick="fecharResultado()">Entendi</button>
+      </div>
+    </div>
+  `;
+  box.classList.add('mostrar');
+}
+
+async function resgatar(telefone) {
+  try {
+    const resp = await fetch(`${SERVER_URL}/resgatar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        telefone,
+        garcom_id: garcom.garcom_id,
+        bar: garcom.bar_id
+      })
+    });
+    const dados = await resp.json();
+
+    if (dados.status === 'ok') {
+      const box = document.getElementById('resultado');
+      box.innerHTML = `
+        <div class="resultado-card recompensa">
+          <div class="resultado-emoji">🍺</div>
+          <h2>Resgate registrado!</h2>
+          <div class="nome-cliente">${dados.nome}</div>
+          <div class="destaque-recompensa">
+            <div class="txt">Sirva 1 chopp grátis ao cliente</div>
+          </div>
+          <div class="btns">
+            <button class="btn btn-primario" onclick="fecharResultado()">Concluído</button>
+          </div>
+        </div>
+      `;
+    } else if (dados.erro === 'delay_nao_atingido') {
+      alert(`Aguarde ${dados.horas_faltam}h desde o último ponto para resgatar.`);
+    } else {
+      alert('Erro ao resgatar: ' + (dados.erro || 'desconhecido'));
+    }
+  } catch (e) {
+    alert('Erro de conexão');
+  }
+}
+
+function fecharResultado() {
+  document.getElementById('resultado').classList.remove('mostrar');
+  processando = false;
+}
+
+function sair() {
+  if (confirm('Sair da conta?')) {
+    localStorage.removeItem('garcom_backbone');
+    location.reload();
+  }
+}
+</script>
+</body>
+</html>
