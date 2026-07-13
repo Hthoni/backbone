@@ -179,7 +179,6 @@
   </div>
 </div>
 
-<script src="https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js"></script>
 <script>
 const SERVER_URL = "https://backbone-650557630362.us-central1.run.app";
 const PUNCHES_META = 7;
@@ -231,18 +230,15 @@ function renderizar() {
 
   document.getElementById('conteudo').innerHTML = `
     <div class="qr-container">
-      <canvas id="qr"></canvas>
+      <img id="qr" alt="QR do cartão">
     </div>
     <img src="img/back2back.png" alt="Back 2 Back" class="promo-nome">
     <div class="copos">${coposHTML}</div>
     <button class="btn-dados" onclick="abrirDados()">Dados do cartão</button>
   `;
 
-  QRCode.toCanvas(document.getElementById('qr'), consumidor.telefone, {
-    width: 260,
-    margin: 0,
-    color: { dark: '#000', light: '#FFF' }
-  });
+  document.getElementById('qr').src =
+    `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(consumidor.telefone)}&margin=0`;
 }
 
 function abrirDados() {
