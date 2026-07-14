@@ -4,180 +4,185 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="theme-color" content="#0A0A0A">
+<meta name="theme-color" content="#000000">
 <title>Clube Backbone — Scanner</title>
 <style>
   :root{
-    --ink:#0A0A0A; --ink-2:#161616; --line:#2A2A2A;
-    --paper:#F5F3EC; --mute:#8B8B85;
-    --ambar:#E8A317; --rubro:#D8232A; --verde:#2E7D4F;
-    --safe-b: env(safe-area-inset-bottom, 0px);
+    --preto:#000; --preto2:#141414; --linha:#333;
+    --branco:#FFF; --cinza-campo:#E4E2DA; --cinza-txt:#A8A8A2;
+    --ambar:#E8A317; --rubro:#D8232A; --verde:#1F7A47;
+    --sb: env(safe-area-inset-bottom, 0px);
   }
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
   html,body{height:100%}
   body{
-    background:var(--ink); color:var(--paper);
-    font:400 17px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    background:var(--preto); color:var(--branco);
+    font:400 20px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
     -webkit-font-smoothing:antialiased; overscroll-behavior:none;
   }
-  .serif{font-family:Georgia,"Times New Roman",serif}
-
   .tela{display:none; min-height:100dvh; flex-direction:column}
   .tela.on{display:flex}
 
-  /* ─── topo ─── */
-  header{
-    display:flex; align-items:center; justify-content:space-between; gap:12px;
-    padding:calc(env(safe-area-inset-top,0px) + 14px) 20px 14px;
-    border-bottom:1px solid var(--line);
+  /* ── HEADER: igual em todas as telas ── */
+  .cab{
+    display:flex; align-items:center; justify-content:space-between; gap:14px;
+    background:var(--preto); padding:calc(env(safe-area-inset-top,0px) + 12px) 18px 12px;
+    border-bottom:1px solid var(--linha); flex-shrink:0;
   }
-  .marca{font-family:Georgia,serif; font-weight:700; font-size:15px; letter-spacing:.14em}
-  .marca em{color:var(--rubro); font-style:normal}
-  .quem{font-size:12px; color:var(--mute); text-align:right; line-height:1.3}
-  .sair{
-    background:none; border:1px solid var(--line); color:var(--mute);
-    font-size:11px; letter-spacing:.08em; padding:7px 11px; border-radius:999px;
+  .cab img{height:40px; width:auto; display:block}
+  .cab .id{
+    font-size:17px; font-weight:700; color:var(--branco);
+    text-align:right; line-height:1.25; letter-spacing:.02em;
   }
+  .cab .id small{display:block; font-size:13px; font-weight:400; color:var(--cinza-txt)}
 
-  /* ─── login ─── */
-  .login{flex:1; display:flex; flex-direction:column; justify-content:center; padding:28px 24px calc(28px + var(--safe-b))}
-  .login h1{font-family:Georgia,serif; font-size:34px; line-height:1.1; margin-bottom:6px}
-  .login p{color:var(--mute); font-size:15px; margin-bottom:32px}
-  label{display:block; font-size:11px; letter-spacing:.12em; color:var(--mute); margin:0 0 7px 2px}
+  /* ── LOGIN ── */
+  .login{flex:1; display:flex; flex-direction:column; justify-content:center; padding:30px 22px calc(30px + var(--sb))}
+  .login h1{font-size:30px; font-weight:800; line-height:1.15; margin-bottom:34px}
+  label{display:block; font-size:17px; font-weight:700; letter-spacing:.06em; color:var(--branco); margin:0 0 8px 2px}
   input{
-    width:100%; background:var(--ink-2); border:1px solid var(--line); color:var(--paper);
-    font-size:18px; padding:16px; border-radius:12px; margin-bottom:18px;
+    width:100%; background:var(--cinza-campo); border:2px solid var(--cinza-campo); color:#111;
+    font-size:26px; font-weight:600; padding:20px; border-radius:14px; margin-bottom:22px;
   }
+  input::placeholder{color:#8A8880; font-weight:400}
   input:focus{outline:none; border-color:var(--ambar)}
 
   .btn{
-    width:100%; border:none; border-radius:14px; padding:19px;
-    font-size:17px; font-weight:600; letter-spacing:.01em;
+    width:100%; border:none; border-radius:16px; padding:24px;
+    font-size:24px; font-weight:800; letter-spacing:.01em;
   }
-  .btn-1{background:var(--paper); color:var(--ink)}
-  .btn-2{background:transparent; color:var(--paper); border:1px solid var(--line)}
-  .btn:active{transform:scale(.985)}
+  .btn-1{background:var(--branco); color:#000}
+  .btn-2{background:transparent; color:var(--branco); border:2px solid #555}
+  .btn:active{transform:scale(.98)}
   .btn[disabled]{opacity:.45}
+  .sair{
+    background:none; border:2px solid #444; color:var(--branco);
+    font-size:15px; font-weight:700; padding:10px 15px; border-radius:999px; flex-shrink:0;
+  }
 
-  /* ─── scanner ─── */
-  .scan{flex:1; display:flex; flex-direction:column; padding:20px 20px calc(20px + var(--safe-b))}
+  /* ── SCANNER ── */
+  .scan{flex:1; display:flex; flex-direction:column; padding:20px 18px calc(24px + var(--sb))}
   #cam{
-    width:100%; aspect-ratio:1; border-radius:20px; overflow:hidden;
-    background:var(--ink-2); border:1px solid var(--line); position:relative;
+    width:100%; aspect-ratio:1; border-radius:22px; overflow:hidden;
+    background:var(--preto2); border:2px solid var(--linha); position:relative;
   }
   #cam video{width:100%!important; height:100%!important; object-fit:cover}
   #cam::after{
-    content:""; position:absolute; inset:16%; border:2px solid rgba(232,163,23,.85);
-    border-radius:14px; pointer-events:none;
+    content:""; position:absolute; inset:14%; border:4px solid var(--ambar);
+    border-radius:16px; pointer-events:none;
   }
-  .dica{text-align:center; color:var(--mute); font-size:14px; margin:18px 0 auto}
-  .manual{display:flex; gap:10px; margin-top:20px}
-  .manual input{margin:0; flex:1; font-size:17px; padding:15px}
+  .dica{
+    text-align:center; font-size:30px; font-weight:800; line-height:1.25;
+    margin:auto 0; padding:26px 0;
+  }
 
-  /* ─── confirmação: a cor É a mensagem ─── */
-  .conf{flex:1; display:flex; flex-direction:column; padding:0}
+  /* ── CONFIRMAÇÃO ── */
   .flood{
     flex:1; display:flex; flex-direction:column; justify-content:center;
-    padding:calc(env(safe-area-inset-top,0px) + 34px) 26px 30px; text-align:center;
+    padding:28px 22px; text-align:center;
   }
-  .flood.pontuar{background:var(--ambar); color:#1A1200}
+  .flood.pontuar{background:var(--ambar); color:#150F00}
   .flood.resgatar{background:var(--rubro); color:#fff}
   .flood.boas{background:var(--verde); color:#fff}
+  .flood.neutro{background:var(--preto); color:var(--branco)}
 
-  .acao{font-size:12px; font-weight:700; letter-spacing:.22em; opacity:.72; margin-bottom:18px}
-  .nome{font-family:Georgia,serif; font-size:40px; line-height:1.05; margin-bottom:26px; word-break:break-word}
-  .frase{font-size:21px; line-height:1.35; font-weight:600; margin-bottom:22px}
+  .acao{font-size:24px; font-weight:900; letter-spacing:.14em; margin-bottom:18px}
+  .nome{font-size:46px; font-weight:800; line-height:1.05; margin-bottom:22px; word-break:break-word}
+  .frase{font-size:32px; line-height:1.25; font-weight:800; margin-bottom:20px}
   .avisinho{
-    font-size:13px; line-height:1.4; padding:12px 16px; border-radius:10px;
-    background:rgba(0,0,0,.16); display:inline-block;
+    font-size:23px; line-height:1.35; font-weight:700; padding:16px 18px;
+    border-radius:12px; background:rgba(0,0,0,.18); display:block;
   }
-
-  /* trilha de pontos: o garçom vê o progresso sem ler número */
-  .trilha{display:flex; flex-wrap:wrap; gap:7px; justify-content:center; margin:4px 0 24px}
-  .pt{width:15px; height:15px; border-radius:50%; border:2px solid currentColor; opacity:.42}
+  .trilha{display:flex; flex-wrap:wrap; gap:9px; justify-content:center; margin:0 0 26px}
+  .pt{width:22px; height:22px; border-radius:50%; border:3px solid currentColor; opacity:.4}
   .pt.cheio{background:currentColor; opacity:1}
-  .pt.novo{opacity:1; box-shadow:0 0 0 5px rgba(0,0,0,.14)}
+  .pt.novo{opacity:1; box-shadow:0 0 0 6px rgba(0,0,0,.2)}
 
-  .acoes{display:flex; gap:12px; padding:16px 20px calc(16px + var(--safe-b)); background:var(--ink)}
-  .acoes .btn{flex:1}
+  .acoes{display:flex; gap:12px; padding:16px 18px calc(18px + var(--sb)); background:var(--preto)}
+  .acoes .btn{flex:1; padding:26px 10px}
 
-  /* ─── resultado ─── */
-  .fim{flex:1; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; padding:30px 26px}
+  /* ── RESULTADO ── */
+  .fim{flex:1; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; padding:30px 22px}
   .selo{
-    width:96px; height:96px; border-radius:50%; display:flex; align-items:center; justify-content:center;
-    font-size:46px; margin-bottom:26px;
+    width:120px; height:120px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    font-size:64px; font-weight:700; margin-bottom:28px;
   }
-  .selo.ok{background:var(--verde)}
-  .selo.erro{background:var(--rubro)}
-  .fim h2{font-family:Georgia,serif; font-size:29px; line-height:1.2; margin-bottom:12px}
-  .fim p{color:var(--mute); font-size:16px; max-width:300px}
-  .rodape{padding:16px 20px calc(16px + var(--safe-b))}
+  .selo.ok{background:var(--verde); color:#fff}
+  .selo.erro{background:var(--rubro); color:#fff}
+  .fim h2{font-size:38px; font-weight:800; line-height:1.15; margin-bottom:16px}
+  .fim p{font-size:24px; font-weight:600; line-height:1.35; color:var(--branco); max-width:330px}
+  .rodape{padding:16px 18px calc(18px + var(--sb))}
 
-  .carregando{text-align:center; color:var(--mute); padding:60px 20px; font-size:15px}
-  .erro-msg{color:var(--rubro); font-size:14px; margin-bottom:14px; min-height:19px}
+  .erro-msg{color:#FF6B6B; font-size:19px; font-weight:700; margin-bottom:16px; min-height:24px}
+  .carregando{text-align:center; color:var(--cinza-txt); padding:60px 20px; font-size:20px; font-weight:600}
 </style>
 </head>
 <body>
 
 <!-- ══ LOGIN ══ -->
 <section id="t-login" class="tela on">
+  <div class="cab">
+    <img src="clube_logo.png" alt="Clube Backbone">
+    <div class="id">SCANNER</div>
+  </div>
   <div class="login">
-    <h1 class="serif"><em style="color:var(--rubro);font-style:normal">Clube</em><br>Backbone</h1>
-    <p>Entre para registrar chopps.</p>
+    <h1>Entre para registrar chopps.</h1>
     <label for="i-id">SEU CÓDIGO</label>
     <input id="i-id" type="text" autocapitalize="none" autocomplete="username" placeholder="ex.: g01">
     <label for="i-senha">SENHA</label>
     <input id="i-senha" type="password" autocomplete="current-password" placeholder="••••••">
     <div class="erro-msg" id="erro-login"></div>
-    <button class="btn btn-1" id="b-entrar">Entrar</button>
+    <button class="btn btn-1" id="b-entrar">ENTRAR</button>
   </div>
 </section>
 
 <!-- ══ SCANNER ══ -->
 <section id="t-scan" class="tela">
-  <header>
-    <div class="marca"><em>CLUBE</em> BACKBONE</div>
-    <div style="display:flex;align-items:center;gap:10px">
-      <div class="quem" id="quem"></div>
+  <div class="cab">
+    <img src="clube_logo.png" alt="Clube Backbone">
+    <div style="display:flex;align-items:center;gap:12px">
+      <div class="id" id="quem1"></div>
       <button class="sair" id="b-sair">SAIR</button>
     </div>
-  </header>
+  </div>
   <div class="scan">
     <div id="cam"></div>
-    <p class="dica">Aponte para o QR do cartão do cliente.</p>
-    <div class="manual">
-      <input id="i-tel" type="tel" inputmode="numeric" placeholder="Ou digite o telefone">
-      <button class="btn btn-2" style="width:auto;padding:15px 20px" id="b-tel">Ir</button>
-    </div>
+    <p class="dica">Aponte a câmera<br>para o QR do cliente</p>
   </div>
 </section>
 
 <!-- ══ CONFIRMAÇÃO ══ -->
 <section id="t-conf" class="tela">
-  <div class="conf">
-    <div class="flood" id="flood">
-      <div class="acao" id="c-acao"></div>
-      <div class="nome serif" id="c-nome"></div>
-      <div class="trilha" id="c-trilha"></div>
-      <div class="frase" id="c-frase"></div>
-      <div id="c-aviso"></div>
-    </div>
-    <div class="acoes">
-      <button class="btn btn-2" id="b-cancelar">Cancelar</button>
-      <button class="btn btn-1" id="b-confirmar">Confirmar</button>
-    </div>
+  <div class="cab">
+    <img src="clube_logo.png" alt="Clube Backbone">
+    <div class="id" id="quem2"></div>
+  </div>
+  <div class="flood" id="flood">
+    <div class="acao" id="c-acao"></div>
+    <div class="nome" id="c-nome"></div>
+    <div class="trilha" id="c-trilha"></div>
+    <div class="frase" id="c-frase"></div>
+    <div id="c-aviso"></div>
+  </div>
+  <div class="acoes">
+    <button class="btn btn-2" id="b-cancelar">CANCELAR</button>
+    <button class="btn btn-1" id="b-confirmar">CONFIRMAR</button>
   </div>
 </section>
 
 <!-- ══ RESULTADO ══ -->
 <section id="t-fim" class="tela">
+  <div class="cab">
+    <img src="clube_logo.png" alt="Clube Backbone">
+    <div class="id" id="quem3"></div>
+  </div>
   <div class="fim">
     <div class="selo" id="f-selo"></div>
-    <h2 class="serif" id="f-titulo"></h2>
+    <h2 id="f-titulo"></h2>
     <p id="f-texto"></p>
   </div>
   <div class="rodape">
-    <button class="btn btn-1" id="b-novo">Escanear o próximo</button>
+    <button class="btn btn-1" id="b-novo">ESCANEAR O PRÓXIMO</button>
   </div>
 </section>
 
@@ -185,9 +190,9 @@
 <script>
 const API = "https://backbone-650557630362.us-central1.run.app";
 
-let garcom = null;   // {garcom_id, nome, bar_id, bar_nome}
+let garcom = null;
 let leitor = null;
-let pendente = null; // consumidor + plano do que vai acontecer
+let pendente = null;
 
 const $ = id => document.getElementById(id);
 const digitos = s => (s || "").replace(/\D/g, "");
@@ -197,14 +202,14 @@ function mostrar(qual){
   $("t-" + qual).classList.add("on");
 }
 
-/* ─────────── LOGIN ─────────── */
+/* ── LOGIN ── */
 $("b-entrar").onclick = async () => {
   const id = $("i-id").value.trim();
   const senha = $("i-senha").value;
   if(!id || !senha){ $("erro-login").textContent = "Preencha o código e a senha."; return; }
 
   $("b-entrar").disabled = true;
-  $("b-entrar").textContent = "Entrando…";
+  $("b-entrar").textContent = "ENTRANDO…";
   try{
     const r = await fetch(API + "/login", {
       method:"POST", headers:{"Content-Type":"application/json"},
@@ -224,7 +229,7 @@ $("b-entrar").onclick = async () => {
     $("erro-login").textContent = "Sem conexão. Tente de novo.";
   }finally{
     $("b-entrar").disabled = false;
-    $("b-entrar").textContent = "Entrar";
+    $("b-entrar").textContent = "ENTRAR";
   }
 };
 
@@ -236,53 +241,44 @@ $("b-sair").onclick = () => {
 };
 
 function entrar(){
-  $("quem").innerHTML = garcom.nome + "<br>" + (garcom.bar_nome || garcom.bar_id);
+  const txt = garcom.nome + "<small>" + (garcom.bar_nome || garcom.bar_id) + "</small>";
+  ["quem1","quem2","quem3"].forEach(k => $(k).innerHTML = txt);
   mostrar("scan");
   iniciarCamera();
 }
 
-/* ─────────── CÂMERA ─────────── */
+/* ── CÂMERA ── */
 async function iniciarCamera(){
   if(leitor) return;
   leitor = new Html5Qrcode("cam", { verbose:false });
   try{
     await leitor.start(
       { facingMode: "environment" },
-      { fps:10, qrbox:{width:230, height:230} },
+      { fps:10, qrbox:{width:240, height:240} },
       texto => { pararCamera(); consultar(digitos(texto)); },
       () => {}
     );
   }catch(e){
-    $("cam").innerHTML = '<div class="carregando">Câmera indisponível.<br>Use o campo de telefone abaixo.</div>';
+    $("cam").innerHTML = '<div class="carregando">Câmera indisponível.<br>Libere o acesso à câmera e recarregue a página.</div>';
     leitor = null;
   }
 }
-
 function pararCamera(){
   if(!leitor) return;
   leitor.stop().catch(()=>{}).finally(() => { try{ leitor.clear(); }catch(e){} leitor = null; });
 }
 
-$("b-tel").onclick = () => {
-  const tel = digitos($("i-tel").value);
-  if(tel.length < 10) return;
-  pararCamera();
-  consultar(tel);
-};
-
-/* ─────────── CONSULTA E MONTA A CONFIRMAÇÃO ─────────── */
+/* ── CONSULTA ── */
 async function consultar(telefone){
   mostrar("conf");
-  $("flood").className = "flood";
+  $("flood").className = "flood neutro";
   $("c-acao").textContent = "";
   $("c-nome").textContent = "Consultando…";
-  $("c-trilha").innerHTML = "";
-  $("c-frase").textContent = "";
-  $("c-aviso").innerHTML = "";
+  $("c-trilha").innerHTML = ""; $("c-frase").textContent = ""; $("c-aviso").innerHTML = "";
 
   try{
     const r = await fetch(API + "/consumidor/" + telefone);
-    if(!r.ok){ falhar("Cartão não encontrado", "Esse número não está cadastrado no Clube."); return; }
+    if(!r.ok){ falhar("Cartão não encontrado", "Esse cliente não está cadastrado no Clube."); return; }
     const c = await r.json();
 
     const meta = c.meta || c.punches_para_recompensa || 10;
@@ -293,13 +289,15 @@ async function consultar(telefone){
     let plano;
     if(abertas.length && abertas[0].tipo === "boas_vindas"){
       plano = {
-        cor:"boas", acao:"CHOPP DE BOAS-VINDAS", frase:"Entregar o chopp de boas-vindas?",
+        cor:"boas", acao:"BOAS-VINDAS",
+        frase:"Entregue 1 chopp grátis",
         aviso:"É o chopp de cadastro. Não conta ponto na cartela.",
         pontos:{ cheios:punches, meta, novo:-1 }
       };
     } else if(abertas.length){
       plano = {
-        cor:"resgatar", acao:"RESGATE", frase:"Entregar o chopp grátis?",
+        cor:"resgatar", acao:"RESGATE",
+        frase:"Entregue 1 chopp grátis",
         aviso:"A cartela está cheia. Ao confirmar, ela zera e uma nova começa.",
         pontos:{ cheios:meta, meta, novo:-1 }
       };
@@ -308,13 +306,15 @@ async function consultar(telefone){
       const fecha = vira >= meta;
       plano = {
         cor:"pontuar", acao:"REGISTRAR CHOPP",
-        frase: fecha ? "Este chopp fecha a cartela!" : "Registrar mais um chopp?",
-        aviso: fecha ? "Ao confirmar, o cliente ganha um chopp grátis. Avise ele." : (meta - vira) + " para o chopp grátis.",
+        frase: fecha ? "Este chopp FECHA a cartela" : "Marcar o chopp " + vira + " de " + meta,
+        aviso: fecha
+          ? "Ao confirmar, o cliente ganha 1 chopp grátis. Avise ele."
+          : "Faltam " + (meta - vira) + " para o chopp grátis.",
         pontos:{ cheios:punches, meta, novo: vira - 1 }
       };
     }
 
-    pendente = { telefone, nome:c.nome, plano };
+    pendente = { telefone, plano };
     pintar(c.nome, plano);
   }catch(e){
     falhar("Sem conexão", "Verifique a internet e tente de novo.");
@@ -327,7 +327,6 @@ function pintar(nome, p){
   $("c-nome").textContent = nome;
   $("c-frase").textContent = p.frase;
   $("c-aviso").innerHTML = '<span class="avisinho">' + p.aviso + "</span>";
-
   let html = "";
   for(let i = 0; i < p.pontos.meta; i++){
     const cls = ["pt"];
@@ -340,34 +339,28 @@ function pintar(nome, p){
 
 $("b-cancelar").onclick = () => { pendente = null; mostrar("scan"); iniciarCamera(); };
 
-/* ─────────── CONFIRMA E GRAVA ─────────── */
+/* ── CONFIRMA ── */
 $("b-confirmar").onclick = async () => {
   if(!pendente) return;
   $("b-confirmar").disabled = true;
-  $("b-confirmar").textContent = "Gravando…";
+  $("b-confirmar").textContent = "GRAVANDO…";
   try{
     const r = await fetch(API + "/scan", {
       method:"POST", headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({
-        telefone: pendente.telefone,
-        garcom_id: garcom.garcom_id,
-        bar: garcom.bar_id
-      })
+      body: JSON.stringify({ telefone: pendente.telefone, garcom_id: garcom.garcom_id, bar: garcom.bar_id })
     });
     const d = await r.json();
     if(!r.ok){ falhar("Não deu certo", d.erro || "Tente novamente."); return; }
 
-    const resgate = d.acao === "resgate";
-    concluir(
-      resgate ? "ok" : "ok",
-      resgate ? "Entregue o chopp" : (d.recompensa_gerada ? "Cartela fechada!" : "Chopp registrado"),
-      d.mensagem_garcom || ""
-    );
+    concluir("ok",
+      d.acao === "resgate" ? "Entregue o chopp"
+        : (d.recompensa_gerada ? "Cartela fechada!" : "Chopp registrado"),
+      d.mensagem_garcom || "");
   }catch(e){
-    falhar("Sem conexão", "O chopp não foi registrado. Tente de novo.");
+    falhar("Sem conexão", "O chopp NÃO foi registrado. Tente de novo.");
   }finally{
     $("b-confirmar").disabled = false;
-    $("b-confirmar").textContent = "Confirmar";
+    $("b-confirmar").textContent = "CONFIRMAR";
   }
 };
 
@@ -379,17 +372,14 @@ function concluir(tipo, titulo, texto){
   pendente = null;
   mostrar("fim");
 }
+function falhar(t, x){ concluir("erro", t, x); }
 
-function falhar(titulo, texto){ concluir("erro", titulo, texto); }
+$("b-novo").onclick = () => { mostrar("scan"); iniciarCamera(); };
 
-$("b-novo").onclick = () => { $("i-tel").value = ""; mostrar("scan"); iniciarCamera(); };
-
-/* ─────────── INÍCIO ─────────── */
+/* ── INÍCIO ── */
 (function(){
   const salvo = localStorage.getItem("bb_garcom");
-  if(salvo){
-    try{ garcom = JSON.parse(salvo); entrar(); return; }catch(e){}
-  }
+  if(salvo){ try{ garcom = JSON.parse(salvo); entrar(); return; }catch(e){} }
   mostrar("login");
 })();
 </script>
