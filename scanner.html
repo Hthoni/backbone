@@ -1,431 +1,397 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Scanner Backbone</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0A0A0A">
+<title>Clube Backbone — Scanner</title>
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background: #1a1a1a;
-    color: #fff;
-    min-height: 100vh;
+  :root{
+    --ink:#0A0A0A; --ink-2:#161616; --line:#2A2A2A;
+    --paper:#F5F3EC; --mute:#8B8B85;
+    --ambar:#E8A317; --rubro:#D8232A; --verde:#2E7D4F;
+    --safe-b: env(safe-area-inset-bottom, 0px);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{
+    background:var(--ink); color:var(--paper);
+    font:400 17px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased; overscroll-behavior:none;
+  }
+  .serif{font-family:Georgia,"Times New Roman",serif}
+
+  .tela{display:none; min-height:100dvh; flex-direction:column}
+  .tela.on{display:flex}
+
+  /* ─── topo ─── */
+  header{
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    padding:calc(env(safe-area-inset-top,0px) + 14px) 20px 14px;
+    border-bottom:1px solid var(--line);
+  }
+  .marca{font-family:Georgia,serif; font-weight:700; font-size:15px; letter-spacing:.14em}
+  .marca em{color:var(--rubro); font-style:normal}
+  .quem{font-size:12px; color:var(--mute); text-align:right; line-height:1.3}
+  .sair{
+    background:none; border:1px solid var(--line); color:var(--mute);
+    font-size:11px; letter-spacing:.08em; padding:7px 11px; border-radius:999px;
   }
 
-  /* Cabeçalho */
-  .header {
-    background: #262626;
-    padding: 12px 16px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-bottom: 1px solid #333;
+  /* ─── login ─── */
+  .login{flex:1; display:flex; flex-direction:column; justify-content:center; padding:28px 24px calc(28px + var(--safe-b))}
+  .login h1{font-family:Georgia,serif; font-size:34px; line-height:1.1; margin-bottom:6px}
+  .login p{color:var(--mute); font-size:15px; margin-bottom:32px}
+  label{display:block; font-size:11px; letter-spacing:.12em; color:var(--mute); margin:0 0 7px 2px}
+  input{
+    width:100%; background:var(--ink-2); border:1px solid var(--line); color:var(--paper);
+    font-size:18px; padding:16px; border-radius:12px; margin-bottom:18px;
   }
-  .header .logo {
-    font-size: 18px;
-    font-weight: 800;
-    color: #E8530A;
-    letter-spacing: 1px;
-  }
-  .header .info {
-    text-align: right;
-    font-size: 12px;
-    color: #999;
-  }
-  .header .info strong { color: #fff; display: block; font-size: 13px; }
+  input:focus{outline:none; border-color:var(--ambar)}
 
-  /* Login */
-  .login {
-    padding: 40px 20px;
-    max-width: 400px;
-    margin: 0 auto;
+  .btn{
+    width:100%; border:none; border-radius:14px; padding:19px;
+    font-size:17px; font-weight:600; letter-spacing:.01em;
   }
-  .login h1 {
-    font-size: 20px;
-    margin-bottom: 20px;
-    text-align: center;
+  .btn-1{background:var(--paper); color:var(--ink)}
+  .btn-2{background:transparent; color:var(--paper); border:1px solid var(--line)}
+  .btn:active{transform:scale(.985)}
+  .btn[disabled]{opacity:.45}
+
+  /* ─── scanner ─── */
+  .scan{flex:1; display:flex; flex-direction:column; padding:20px 20px calc(20px + var(--safe-b))}
+  #cam{
+    width:100%; aspect-ratio:1; border-radius:20px; overflow:hidden;
+    background:var(--ink-2); border:1px solid var(--line); position:relative;
   }
-  .login input {
-    width: 100%;
-    padding: 14px;
-    margin-bottom: 12px;
-    background: #262626;
-    border: 1px solid #333;
-    border-radius: 10px;
-    color: #fff;
-    font-size: 16px;
+  #cam video{width:100%!important; height:100%!important; object-fit:cover}
+  #cam::after{
+    content:""; position:absolute; inset:16%; border:2px solid rgba(232,163,23,.85);
+    border-radius:14px; pointer-events:none;
   }
-  .login button {
-    width: 100%;
-    padding: 14px;
-    background: #E8530A;
-    color: #fff;
-    border: none;
-    border-radius: 10px;
-    font-size: 16px;
-    font-weight: 700;
-    cursor: pointer;
+  .dica{text-align:center; color:var(--mute); font-size:14px; margin:18px 0 auto}
+  .manual{display:flex; gap:10px; margin-top:20px}
+  .manual input{margin:0; flex:1; font-size:17px; padding:15px}
+
+  /* ─── confirmação: a cor É a mensagem ─── */
+  .conf{flex:1; display:flex; flex-direction:column; padding:0}
+  .flood{
+    flex:1; display:flex; flex-direction:column; justify-content:center;
+    padding:calc(env(safe-area-inset-top,0px) + 34px) 26px 30px; text-align:center;
   }
-  .login .erro {
-    color: #ff6b6b;
-    text-align: center;
-    margin-top: 12px;
-    font-size: 14px;
+  .flood.pontuar{background:var(--ambar); color:#1A1200}
+  .flood.resgatar{background:var(--rubro); color:#fff}
+  .flood.boas{background:var(--verde); color:#fff}
+
+  .acao{font-size:12px; font-weight:700; letter-spacing:.22em; opacity:.72; margin-bottom:18px}
+  .nome{font-family:Georgia,serif; font-size:40px; line-height:1.05; margin-bottom:26px; word-break:break-word}
+  .frase{font-size:21px; line-height:1.35; font-weight:600; margin-bottom:22px}
+  .avisinho{
+    font-size:13px; line-height:1.4; padding:12px 16px; border-radius:10px;
+    background:rgba(0,0,0,.16); display:inline-block;
   }
 
-  /* Scanner */
-  .scanner-area {
-    padding: 20px;
-  }
-  #reader {
-    max-width: 100%;
-    border-radius: 12px;
-    overflow: hidden;
-    background: #000;
-  }
-  #reader video { width: 100%; }
+  /* trilha de pontos: o garçom vê o progresso sem ler número */
+  .trilha{display:flex; flex-wrap:wrap; gap:7px; justify-content:center; margin:4px 0 24px}
+  .pt{width:15px; height:15px; border-radius:50%; border:2px solid currentColor; opacity:.42}
+  .pt.cheio{background:currentColor; opacity:1}
+  .pt.novo{opacity:1; box-shadow:0 0 0 5px rgba(0,0,0,.14)}
 
-  .instrucoes {
-    text-align: center;
-    padding: 20px;
-    color: #999;
-    font-size: 14px;
-  }
+  .acoes{display:flex; gap:12px; padding:16px 20px calc(16px + var(--safe-b)); background:var(--ink)}
+  .acoes .btn{flex:1}
 
-  /* Resultado */
-  .resultado {
-    position: fixed;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(0,0,0,0.95);
-    display: none;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
-    z-index: 100;
+  /* ─── resultado ─── */
+  .fim{flex:1; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; padding:30px 26px}
+  .selo{
+    width:96px; height:96px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    font-size:46px; margin-bottom:26px;
   }
-  .resultado.mostrar { display: flex; }
-  .resultado-card {
-    background: #262626;
-    border-radius: 16px;
-    padding: 30px 24px;
-    max-width: 400px;
-    width: 100%;
-    text-align: center;
-    border: 2px solid #333;
-  }
-  .resultado-card.sucesso { border-color: #4caf50; }
-  .resultado-card.recompensa { border-color: #E8530A; }
-  .resultado-card.erro { border-color: #ff6b6b; }
+  .selo.ok{background:var(--verde)}
+  .selo.erro{background:var(--rubro)}
+  .fim h2{font-family:Georgia,serif; font-size:29px; line-height:1.2; margin-bottom:12px}
+  .fim p{color:var(--mute); font-size:16px; max-width:300px}
+  .rodape{padding:16px 20px calc(16px + var(--safe-b))}
 
-  .resultado-emoji { font-size: 48px; margin-bottom: 12px; }
-  .resultado h2 { font-size: 22px; margin-bottom: 8px; }
-  .resultado .nome-cliente { font-size: 16px; color: #ccc; margin-bottom: 20px; }
-
-  .progresso {
-    background: #1a1a1a;
-    border-radius: 10px;
-    height: 24px;
-    margin: 16px 0;
-    overflow: hidden;
-    position: relative;
-  }
-  .progresso-barra {
-    background: #E8530A;
-    height: 100%;
-    transition: width 0.3s;
-  }
-  .progresso-texto {
-    position: absolute;
-    top: 50%; left: 50%;
-    transform: translate(-50%,-50%);
-    font-size: 13px;
-    font-weight: 600;
-  }
-
-  .destaque-recompensa {
-    background: #E8530A22;
-    border: 1px solid #E8530A;
-    border-radius: 12px;
-    padding: 16px;
-    margin: 16px 0;
-  }
-  .destaque-recompensa .emoji { font-size: 36px; }
-  .destaque-recompensa .txt {
-    color: #E8530A;
-    font-weight: 700;
-    margin-top: 8px;
-  }
-
-  .btns {
-    display: flex;
-    gap: 10px;
-    margin-top: 20px;
-  }
-  .btn {
-    flex: 1;
-    padding: 14px;
-    border: none;
-    border-radius: 10px;
-    font-size: 15px;
-    font-weight: 700;
-    cursor: pointer;
-  }
-  .btn-primario { background: #E8530A; color: #fff; }
-  .btn-secundario { background: #333; color: #fff; }
-  .btn-resgatar { background: #4caf50; color: #fff; margin-bottom: 10px; width: 100%; }
-
-  .sair {
-    text-align: center;
-    padding: 12px;
-    color: #666;
-    font-size: 13px;
-    cursor: pointer;
-  }
+  .carregando{text-align:center; color:var(--mute); padding:60px 20px; font-size:15px}
+  .erro-msg{color:var(--rubro); font-size:14px; margin-bottom:14px; min-height:19px}
 </style>
 </head>
 <body>
 
-<div id="tela-login" class="login">
-  <div style="text-align:center;margin-bottom:30px;">
-    <div style="font-size:32px;font-weight:800;color:#E8530A;letter-spacing:1px;">BACKBONE</div>
-    <div style="font-size:12px;color:#999;letter-spacing:2px;">SCANNER</div>
+<!-- ══ LOGIN ══ -->
+<section id="t-login" class="tela on">
+  <div class="login">
+    <h1 class="serif"><em style="color:var(--rubro);font-style:normal">Clube</em><br>Backbone</h1>
+    <p>Entre para registrar chopps.</p>
+    <label for="i-id">SEU CÓDIGO</label>
+    <input id="i-id" type="text" autocapitalize="none" autocomplete="username" placeholder="ex.: g01">
+    <label for="i-senha">SENHA</label>
+    <input id="i-senha" type="password" autocomplete="current-password" placeholder="••••••">
+    <div class="erro-msg" id="erro-login"></div>
+    <button class="btn btn-1" id="b-entrar">Entrar</button>
   </div>
-  <h1>Login do garçom</h1>
-  <input type="text" id="input-id" placeholder="Seu ID" autocomplete="username">
-  <input type="password" id="input-senha" placeholder="Senha" autocomplete="current-password">
-  <button onclick="fazerLogin()">Entrar</button>
-  <div id="erro-login" class="erro"></div>
-</div>
+</section>
 
-<div id="tela-scanner" style="display:none">
-  <div class="header">
-    <div class="logo">BACKBONE</div>
-    <div class="info">
-      <strong id="garcom-nome"></strong>
-      <span id="bar-nome"></span>
+<!-- ══ SCANNER ══ -->
+<section id="t-scan" class="tela">
+  <header>
+    <div class="marca"><em>CLUBE</em> BACKBONE</div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <div class="quem" id="quem"></div>
+      <button class="sair" id="b-sair">SAIR</button>
+    </div>
+  </header>
+  <div class="scan">
+    <div id="cam"></div>
+    <p class="dica">Aponte para o QR do cartão do cliente.</p>
+    <div class="manual">
+      <input id="i-tel" type="tel" inputmode="numeric" placeholder="Ou digite o telefone">
+      <button class="btn btn-2" style="width:auto;padding:15px 20px" id="b-tel">Ir</button>
     </div>
   </div>
-  <div class="scanner-area">
-    <div id="reader"></div>
-    <div class="instrucoes">Aponte a câmera para o QR code do cartão do cliente</div>
-    <div class="sair" onclick="sair()">Sair</div>
+</section>
+
+<!-- ══ CONFIRMAÇÃO ══ -->
+<section id="t-conf" class="tela">
+  <div class="conf">
+    <div class="flood" id="flood">
+      <div class="acao" id="c-acao"></div>
+      <div class="nome serif" id="c-nome"></div>
+      <div class="trilha" id="c-trilha"></div>
+      <div class="frase" id="c-frase"></div>
+      <div id="c-aviso"></div>
+    </div>
+    <div class="acoes">
+      <button class="btn btn-2" id="b-cancelar">Cancelar</button>
+      <button class="btn btn-1" id="b-confirmar">Confirmar</button>
+    </div>
   </div>
-</div>
+</section>
 
-<div id="resultado" class="resultado"></div>
+<!-- ══ RESULTADO ══ -->
+<section id="t-fim" class="tela">
+  <div class="fim">
+    <div class="selo" id="f-selo"></div>
+    <h2 class="serif" id="f-titulo"></h2>
+    <p id="f-texto"></p>
+  </div>
+  <div class="rodape">
+    <button class="btn btn-1" id="b-novo">Escanear o próximo</button>
+  </div>
+</section>
 
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <script>
-const SERVER_URL = "https://backbone-650557630362.us-central1.run.app";
-let garcom = null;
-let scanner = null;
-let processando = false;
+const API = "https://backbone-650557630362.us-central1.run.app";
 
-// Restaurar sessão
-window.addEventListener('DOMContentLoaded', () => {
-  const salvo = localStorage.getItem('garcom_backbone');
-  if (salvo) {
-    garcom = JSON.parse(salvo);
-    iniciarScanner();
-  }
-});
+let garcom = null;   // {garcom_id, nome, bar_id, bar_nome}
+let leitor = null;
+let pendente = null; // consumidor + plano do que vai acontecer
 
-async function fazerLogin() {
-  const id = document.getElementById('input-id').value.trim();
-  const senha = document.getElementById('input-senha').value.trim();
-  const erro = document.getElementById('erro-login');
+const $ = id => document.getElementById(id);
+const digitos = s => (s || "").replace(/\D/g, "");
 
-  if (!id || !senha) {
-    erro.textContent = 'Preencha ID e senha';
-    return;
-  }
+function mostrar(qual){
+  document.querySelectorAll(".tela").forEach(t => t.classList.remove("on"));
+  $("t-" + qual).classList.add("on");
+}
 
-  try {
-    const resp = await fetch(`${SERVER_URL}/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, senha })
+/* ─────────── LOGIN ─────────── */
+$("b-entrar").onclick = async () => {
+  const id = $("i-id").value.trim();
+  const senha = $("i-senha").value;
+  if(!id || !senha){ $("erro-login").textContent = "Preencha o código e a senha."; return; }
+
+  $("b-entrar").disabled = true;
+  $("b-entrar").textContent = "Entrando…";
+  try{
+    const r = await fetch(API + "/login", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({id, senha})
     });
-    const dados = await resp.json();
-
-    if (dados.status === 'ok') {
-      garcom = dados;
-      localStorage.setItem('garcom_backbone', JSON.stringify(garcom));
-      iniciarScanner();
-    } else {
-      erro.textContent = 'ID ou senha inválidos';
+    const d = await r.json();
+    if(!r.ok){
+      $("erro-login").textContent = d.erro === "garcom_inativo"
+        ? "Seu acesso está desativado. Fale com o gerente."
+        : "Código ou senha incorretos.";
+      return;
     }
-  } catch (e) {
-    erro.textContent = 'Erro de conexão';
+    garcom = d;
+    localStorage.setItem("bb_garcom", JSON.stringify(d));
+    entrar();
+  }catch(e){
+    $("erro-login").textContent = "Sem conexão. Tente de novo.";
+  }finally{
+    $("b-entrar").disabled = false;
+    $("b-entrar").textContent = "Entrar";
+  }
+};
+
+$("b-sair").onclick = () => {
+  localStorage.removeItem("bb_garcom");
+  pararCamera();
+  garcom = null;
+  mostrar("login");
+};
+
+function entrar(){
+  $("quem").innerHTML = garcom.nome + "<br>" + (garcom.bar_nome || garcom.bar_id);
+  mostrar("scan");
+  iniciarCamera();
+}
+
+/* ─────────── CÂMERA ─────────── */
+async function iniciarCamera(){
+  if(leitor) return;
+  leitor = new Html5Qrcode("cam", { verbose:false });
+  try{
+    await leitor.start(
+      { facingMode: "environment" },
+      { fps:10, qrbox:{width:230, height:230} },
+      texto => { pararCamera(); consultar(digitos(texto)); },
+      () => {}
+    );
+  }catch(e){
+    $("cam").innerHTML = '<div class="carregando">Câmera indisponível.<br>Use o campo de telefone abaixo.</div>';
+    leitor = null;
   }
 }
 
-function iniciarScanner() {
-  document.getElementById('tela-login').style.display = 'none';
-  document.getElementById('tela-scanner').style.display = 'block';
-  document.getElementById('garcom-nome').textContent = garcom.nome;
-  document.getElementById('bar-nome').textContent = garcom.bar_nome;
-
-  scanner = new Html5Qrcode("reader");
-  scanner.start(
-    { facingMode: "environment" },
-    { fps: 10, qrbox: { width: 250, height: 250 } },
-    onScanSucesso,
-    () => {}
-  ).catch(err => {
-    document.getElementById('reader').innerHTML = '<div style="padding:40px;text-align:center;color:#ff6b6b;">Erro ao acessar a câmera. Verifique as permissões.</div>';
-  });
+function pararCamera(){
+  if(!leitor) return;
+  leitor.stop().catch(()=>{}).finally(() => { try{ leitor.clear(); }catch(e){} leitor = null; });
 }
 
-async function onScanSucesso(codigo) {
-  if (processando) return;
-  processando = true;
+$("b-tel").onclick = () => {
+  const tel = digitos($("i-tel").value);
+  if(tel.length < 10) return;
+  pararCamera();
+  consultar(tel);
+};
 
-  // O QR do cartão do cliente contém o telefone
-  // Formato esperado: apenas o número, ex "5521999887766"
-  const telefone = codigo.trim();
+/* ─────────── CONSULTA E MONTA A CONFIRMAÇÃO ─────────── */
+async function consultar(telefone){
+  mostrar("conf");
+  $("flood").className = "flood";
+  $("c-acao").textContent = "";
+  $("c-nome").textContent = "Consultando…";
+  $("c-trilha").innerHTML = "";
+  $("c-frase").textContent = "";
+  $("c-aviso").innerHTML = "";
 
-  try {
-    const resp = await fetch(`${SERVER_URL}/punch`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+  try{
+    const r = await fetch(API + "/consumidor/" + telefone);
+    if(!r.ok){ falhar("Cartão não encontrado", "Esse número não está cadastrado no Clube."); return; }
+    const c = await r.json();
+
+    const meta = c.meta || c.punches_para_recompensa || 10;
+    const punches = c.punches || 0;
+    const abertas = (c.recompensas || []).filter(x => !x.resgatada);
+    abertas.sort((a,b) => (a.tipo === "boas_vindas" ? 0 : 1) - (b.tipo === "boas_vindas" ? 0 : 1));
+
+    let plano;
+    if(abertas.length && abertas[0].tipo === "boas_vindas"){
+      plano = {
+        cor:"boas", acao:"CHOPP DE BOAS-VINDAS", frase:"Entregar o chopp de boas-vindas?",
+        aviso:"É o chopp de cadastro. Não conta ponto na cartela.",
+        pontos:{ cheios:punches, meta, novo:-1 }
+      };
+    } else if(abertas.length){
+      plano = {
+        cor:"resgatar", acao:"RESGATE", frase:"Entregar o chopp grátis?",
+        aviso:"A cartela está cheia. Ao confirmar, ela zera e uma nova começa.",
+        pontos:{ cheios:meta, meta, novo:-1 }
+      };
+    } else {
+      const vira = punches + 1;
+      const fecha = vira >= meta;
+      plano = {
+        cor:"pontuar", acao:"REGISTRAR CHOPP",
+        frase: fecha ? "Este chopp fecha a cartela!" : "Registrar mais um chopp?",
+        aviso: fecha ? "Ao confirmar, o cliente ganha um chopp grátis. Avise ele." : (meta - vira) + " para o chopp grátis.",
+        pontos:{ cheios:punches, meta, novo: vira - 1 }
+      };
+    }
+
+    pendente = { telefone, nome:c.nome, plano };
+    pintar(c.nome, plano);
+  }catch(e){
+    falhar("Sem conexão", "Verifique a internet e tente de novo.");
+  }
+}
+
+function pintar(nome, p){
+  $("flood").className = "flood " + p.cor;
+  $("c-acao").textContent = p.acao;
+  $("c-nome").textContent = nome;
+  $("c-frase").textContent = p.frase;
+  $("c-aviso").innerHTML = '<span class="avisinho">' + p.aviso + "</span>";
+
+  let html = "";
+  for(let i = 0; i < p.pontos.meta; i++){
+    const cls = ["pt"];
+    if(i < p.pontos.cheios) cls.push("cheio");
+    if(i === p.pontos.novo) cls.push("cheio","novo");
+    html += '<span class="' + cls.join(" ") + '"></span>';
+  }
+  $("c-trilha").innerHTML = html;
+}
+
+$("b-cancelar").onclick = () => { pendente = null; mostrar("scan"); iniciarCamera(); };
+
+/* ─────────── CONFIRMA E GRAVA ─────────── */
+$("b-confirmar").onclick = async () => {
+  if(!pendente) return;
+  $("b-confirmar").disabled = true;
+  $("b-confirmar").textContent = "Gravando…";
+  try{
+    const r = await fetch(API + "/scan", {
+      method:"POST", headers:{"Content-Type":"application/json"},
       body: JSON.stringify({
-        telefone,
+        telefone: pendente.telefone,
         garcom_id: garcom.garcom_id,
         bar: garcom.bar_id
       })
     });
-    const dados = await resp.json();
+    const d = await r.json();
+    if(!r.ok){ falhar("Não deu certo", d.erro || "Tente novamente."); return; }
 
-    if (dados.status === 'ok') {
-      mostrarResultado(dados, telefone);
-    } else {
-      mostrarErro(dados.erro || 'Erro desconhecido');
-    }
-  } catch (e) {
-    mostrarErro('Erro de conexão');
+    const resgate = d.acao === "resgate";
+    concluir(
+      resgate ? "ok" : "ok",
+      resgate ? "Entregue o chopp" : (d.recompensa_gerada ? "Cartela fechada!" : "Chopp registrado"),
+      d.mensagem_garcom || ""
+    );
+  }catch(e){
+    falhar("Sem conexão", "O chopp não foi registrado. Tente de novo.");
+  }finally{
+    $("b-confirmar").disabled = false;
+    $("b-confirmar").textContent = "Confirmar";
   }
+};
+
+function concluir(tipo, titulo, texto){
+  $("f-selo").className = "selo " + tipo;
+  $("f-selo").textContent = tipo === "ok" ? "✓" : "!";
+  $("f-titulo").textContent = titulo;
+  $("f-texto").textContent = texto;
+  pendente = null;
+  mostrar("fim");
 }
 
-function mostrarResultado(dados, telefone) {
-  const total = dados.punches_para_recompensa;
-  const atual = dados.punches;
-  const pct = (atual / total) * 100;
+function falhar(titulo, texto){ concluir("erro", titulo, texto); }
 
-  const box = document.getElementById('resultado');
-  const classeCard = dados.recompensa_gerada ? 'recompensa' : 'sucesso';
-  const emoji = dados.recompensa_gerada ? '🎉' : '✅';
-  const titulo = dados.recompensa_gerada ? 'Recompensa desbloqueada!' : 'Ponto registrado';
+$("b-novo").onclick = () => { $("i-tel").value = ""; mostrar("scan"); iniciarCamera(); };
 
-  let recompensaHTML = '';
-  if (dados.recompensa_gerada) {
-    recompensaHTML = `
-      <div class="destaque-recompensa">
-        <div class="emoji">🍺</div>
-        <div class="txt">Chopp grátis disponível na próxima visita</div>
-      </div>
-    `;
+/* ─────────── INÍCIO ─────────── */
+(function(){
+  const salvo = localStorage.getItem("bb_garcom");
+  if(salvo){
+    try{ garcom = JSON.parse(salvo); entrar(); return; }catch(e){}
   }
-
-  let resgateHTML = '';
-  if (dados.recompensas_disponiveis > 0 && !dados.recompensa_gerada) {
-    resgateHTML = `<button class="btn btn-resgatar" onclick="resgatar('${telefone}')">🍺 Cliente tem ${dados.recompensas_disponiveis} chopp(s) grátis — resgatar</button>`;
-  }
-
-  box.innerHTML = `
-    <div class="resultado-card ${classeCard}">
-      <div class="resultado-emoji">${emoji}</div>
-      <h2>${titulo}</h2>
-      <div class="nome-cliente">${dados.nome}</div>
-      <div class="progresso">
-        <div class="progresso-barra" style="width:${pct}%"></div>
-        <div class="progresso-texto">${atual} / ${total}</div>
-      </div>
-      ${recompensaHTML}
-      ${resgateHTML}
-      <div class="btns">
-        <button class="btn btn-primario" onclick="fecharResultado()">Próximo cliente</button>
-      </div>
-    </div>
-  `;
-  box.classList.add('mostrar');
-}
-
-function mostrarErro(erro) {
-  const mensagens = {
-    'consumidor_nao_encontrado': 'Cartão não encontrado. Peça ao cliente para fazer o cadastro.',
-    'garcom_nao_encontrado': 'Sua sessão expirou. Faça login novamente.',
-    'bar_diferente': 'Este cartão é de outro bar. Não é possível pontuar aqui.',
-    'dados_incompletos': 'QR code inválido.',
-    'sem_recompensa': 'Este cliente não tem recompensa disponível.',
-    'delay_nao_atingido': 'Aguarde 24h desde a última visita para resgatar.'
-  };
-  const msg = mensagens[erro] || `Erro: ${erro}`;
-
-  const box = document.getElementById('resultado');
-  box.innerHTML = `
-    <div class="resultado-card erro">
-      <div class="resultado-emoji">⚠️</div>
-      <h2>Ops!</h2>
-      <div class="nome-cliente">${msg}</div>
-      <div class="btns">
-        <button class="btn btn-primario" onclick="fecharResultado()">Entendi</button>
-      </div>
-    </div>
-  `;
-  box.classList.add('mostrar');
-}
-
-async function resgatar(telefone) {
-  try {
-    const resp = await fetch(`${SERVER_URL}/resgatar`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        telefone,
-        garcom_id: garcom.garcom_id,
-        bar: garcom.bar_id
-      })
-    });
-    const dados = await resp.json();
-
-    if (dados.status === 'ok') {
-      const box = document.getElementById('resultado');
-      box.innerHTML = `
-        <div class="resultado-card recompensa">
-          <div class="resultado-emoji">🍺</div>
-          <h2>Resgate registrado!</h2>
-          <div class="nome-cliente">${dados.nome}</div>
-          <div class="destaque-recompensa">
-            <div class="txt">Sirva 1 chopp grátis ao cliente</div>
-          </div>
-          <div class="btns">
-            <button class="btn btn-primario" onclick="fecharResultado()">Concluído</button>
-          </div>
-        </div>
-      `;
-    } else if (dados.erro === 'delay_nao_atingido') {
-      alert(`Aguarde ${dados.horas_faltam}h desde o último ponto para resgatar.`);
-    } else {
-      alert('Erro ao resgatar: ' + (dados.erro || 'desconhecido'));
-    }
-  } catch (e) {
-    alert('Erro de conexão');
-  }
-}
-
-function fecharResultado() {
-  document.getElementById('resultado').classList.remove('mostrar');
-  processando = false;
-}
-
-function sair() {
-  if (confirm('Sair da conta?')) {
-    localStorage.removeItem('garcom_backbone');
-    location.reload();
-  }
-}
+  mostrar("login");
+})();
 </script>
 </body>
 </html>
