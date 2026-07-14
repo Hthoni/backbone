@@ -150,7 +150,14 @@ def montar_pass_json(consumidor, aviso=None):
         {
             "key": "indicar",
             "label": "Indique um amigo",
-            "attributedValue": f"<a href='{link_indicacao}'>Enviar meu convite</a>",
+            "attributedValue": f"<a href='{link_indicacao}'>Enviar convite pelo WhatsApp</a>",
+        },
+        {
+            # Texto puro (nao attributedValue): o iOS deixa segurar o dedo e COPIAR.
+            # Serve para colar em grupo, Instagram, e-mail - onde o link clicavel nao chega.
+            "key": "link_convite",
+            "label": "Seu link de convite (toque e segure para copiar)",
+            "value": link_indicacao,
         },
         {
             "key": "cardapio",
