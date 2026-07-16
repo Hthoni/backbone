@@ -49,16 +49,6 @@
   .btn-o{background:transparent; color:var(--branco); border:2px solid #4A4A4A}
   .btn:active{transform:scale(.985)}
 
-  .convite{
-    margin-top:34px; padding-top:26px; border-top:1px solid var(--linha);
-  }
-  .convite h2{font-size:22px; font-weight:800; margin-bottom:8px}
-  .convite p{font-size:16px; color:var(--cinza); margin-bottom:16px}
-  .link-box{
-    background:var(--preto2); border:1px solid var(--linha); border-radius:12px;
-    padding:14px; font-size:13px; color:var(--cinza); word-break:break-all;
-    margin-bottom:12px; font-family:ui-monospace,monospace;
-  }
   .aviso{
     background:var(--preto2); border:1px solid var(--linha); border-radius:12px;
     padding:16px; font-size:16px; color:#D6D4CC; line-height:1.45; margin-top:14px;
@@ -90,11 +80,6 @@ const ind  = (q.get("padrinho") || q.get("ind") || "").replace(/\D/g, "");
 const alvo = document.getElementById("conteudo");
 const ehIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
 
-function linkConvite(telefone){
-  const texto = "Quero entrar no Clube Backbone - IND" + telefone;
-  return "https://wa.me/" + WHATS + "?text=" + encodeURIComponent(texto);
-}
-
 async function iniciar(){
   if(!bar || !tel || !nome){
     alvo.innerHTML = "<p class='erro'>Link inválido. Volte ao WhatsApp e comece de novo.</p>";
@@ -103,7 +88,7 @@ async function iniciar(){
 
   let url = SERVER + "/cadastro/" + bar + "/" + tel + "/" +
             encodeURIComponent(nome) + "/" + dia + "/" + mes + "/" + encodeURIComponent(time);
-  if(ind && ind !== tel.replace(/\D/g,"")) url += "?ind=" + ind;
+  if(ind && ind !== tel.replace(/\D/g,"")) url += "?padrinho=" + ind;
 
   try{
     const r = await fetch(url);
@@ -119,7 +104,6 @@ async function iniciar(){
 }
 
 function montar(c){
-  const convite = linkConvite(c.telefone);
   const meta = c.meta || 10;
 
   const botaoWallet = ehIOS
@@ -139,24 +123,8 @@ function montar(c){
 
     ${botaoWallet}
 
-    <div class="convite">
-      <h2>Traga a rodada</h2>
-      <p>Cada amigo que entrar pelo seu convite e fechar a cartela dele te dá um ponto na sua.</p>
-      <div class="link-box" id="lnk">${convite}</div>
-      <a class="btn btn-w" href="${convite}">Convidar pelo WhatsApp</a>
-      <button class="btn btn-o" id="b-copiar">Copiar o link</button>
-    </div>
   `;
 
-  document.getElementById("b-copiar").onclick = async (ev) => {
-    const b = ev.currentTarget;
-    try{
-      if(navigator.share){ await navigator.share({ text: convite }); return; }
-      await navigator.clipboard.writeText(convite);
-      b.textContent = "Link copiado";
-      setTimeout(() => b.textContent = "Copiar o link", 2000);
-    }catch(e){ /* usuario cancelou */ }
-  };
 }
 
 iniciar();
