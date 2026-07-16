@@ -2,165 +2,161 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
 <title>Clube Backbone</title>
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background: #1a1a1a;
-    color: #fff;
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
+  :root{
+    --preto:#000; --preto2:#141414; --linha:#2E2E2E;
+    --branco:#FFF; --cinza:#A8A8A2;
+    --rubro:#D8232A; --ambar:#E8A317; --verde:#1F7A47;
   }
-  .card {
-    background: #262626;
-    border-radius: 16px;
-    padding: 40px 30px;
-    max-width: 400px;
-    width: 100%;
-    text-align: center;
-    border: 1px solid #333;
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    background:var(--preto); color:var(--branco);
+    min-height:100dvh; display:flex; flex-direction:column;
+    -webkit-font-smoothing:antialiased;
   }
-  .logo {
-    font-size: 28px;
-    font-weight: 800;
-    color: #E8530A;
-    letter-spacing: 1px;
-    margin-bottom: 8px;
+  .cab{
+    display:flex; justify-content:center;
+    padding:calc(env(safe-area-inset-top,0px) + 22px) 20px 20px;
+    border-bottom:1px solid var(--linha);
   }
-  .sub {
-    font-size: 13px;
-    color: #999;
-    text-transform: uppercase;
-    letter-spacing: 2px;
-    margin-bottom: 30px;
+  .cab img{height:52px; width:auto; display:block}
+
+  main{
+    flex:1; display:flex; flex-direction:column; justify-content:center;
+    padding:32px 22px calc(32px + env(safe-area-inset-bottom,0px)); max-width:480px;
+    margin:0 auto; width:100%;
   }
-  h1 {
-    font-size: 22px;
-    margin-bottom: 12px;
+  h1{font-size:32px; font-weight:800; line-height:1.15; margin-bottom:12px}
+  p{font-size:18px; line-height:1.5; color:#D6D4CC; margin-bottom:10px}
+
+  .premio{
+    background:var(--verde); border-radius:16px;
+    padding:22px; margin:26px 0; text-align:center;
   }
-  p {
-    font-size: 15px;
-    color: #ccc;
-    line-height: 1.5;
-    margin-bottom: 8px;
+  .premio .n{font-size:15px; font-weight:800; letter-spacing:.14em; opacity:.85}
+  .premio .g{font-size:26px; font-weight:800; line-height:1.2; margin-top:6px}
+
+  .btn{
+    display:block; width:100%; padding:22px; border:none; border-radius:16px;
+    font-size:20px; font-weight:800; text-align:center; text-decoration:none;
+    margin-top:12px; cursor:pointer; font-family:inherit;
   }
-  .destaque {
-    background: #E8530A22;
-    border: 1px solid #E8530A;
-    border-radius: 12px;
-    padding: 16px;
-    margin: 24px 0;
+  .btn-w{background:var(--branco); color:#000}
+  .btn-o{background:transparent; color:var(--branco); border:2px solid #4A4A4A}
+  .btn:active{transform:scale(.985)}
+
+  .convite{
+    margin-top:34px; padding-top:26px; border-top:1px solid var(--linha);
   }
-  .destaque .emoji { font-size: 32px; }
-  .destaque .txt {
-    font-size: 16px;
-    font-weight: 600;
-    color: #E8530A;
-    margin-top: 8px;
+  .convite h2{font-size:22px; font-weight:800; margin-bottom:8px}
+  .convite p{font-size:16px; color:var(--cinza); margin-bottom:16px}
+  .link-box{
+    background:var(--preto2); border:1px solid var(--linha); border-radius:12px;
+    padding:14px; font-size:13px; color:var(--cinza); word-break:break-all;
+    margin-bottom:12px; font-family:ui-monospace,monospace;
   }
-  .btn {
-    display: none;
-    width: 100%;
-    padding: 16px;
-    border: none;
-    border-radius: 12px;
-    font-size: 16px;
-    font-weight: 700;
-    cursor: pointer;
-    margin-top: 10px;
-    text-decoration: none;
+  .aviso{
+    background:var(--preto2); border:1px solid var(--linha); border-radius:12px;
+    padding:16px; font-size:16px; color:#D6D4CC; line-height:1.45; margin-top:14px;
   }
-  .btn-apple {
-    background: #000;
-    color: #fff;
-    border: 1px solid #555;
-  }
-  .btn-google {
-    background: #fff;
-    color: #1a1a1a;
-  }
-  .btn.mostrar { display: block; }
-  .erro {
-    color: #ff6b6b;
-    font-size: 14px;
-    margin-top: 20px;
-    display: none;
-  }
-  .carregando {
-    color: #999;
-    font-size: 14px;
-  }
+  .erro{color:#FF6B6B; font-size:18px; font-weight:600; line-height:1.45}
+  .carregando{color:var(--cinza); font-size:18px; text-align:center; padding:40px 0}
 </style>
 </head>
 <body>
-  <div class="card">
-    <div class="logo">BACKBONE</div>
-    <div class="sub">Clube de Fidelidade</div>
-
-    <div id="conteudo">
-      <p class="carregando">Carregando...</p>
-    </div>
-  </div>
+  <div class="cab"><img src="clube_logo.png" alt="Clube Backbone"></div>
+  <main id="conteudo">
+    <p class="carregando">Preparando seu cartão…</p>
+  </main>
 
 <script>
-const SERVER_URL = "https://backbone-650557630362.us-central1.run.app";
+const SERVER  = "https://backbone-650557630362.us-central1.run.app";
+const WHATS   = "5521967614195";   // numero do bot
 
-// URL esperada: .../cadastro.html?bar=backbone-pub&tel=5521999887766&nome=Henrique&dia=12&mes=07&time=Flamengo
-const params = new URLSearchParams(window.location.search);
-const bar  = params.get("bar");
-const tel  = params.get("tel");
-const nome = params.get("nome");
-const dia  = params.get("dia");
-const mes  = params.get("mes");
-const time = params.get("time");
+const q    = new URLSearchParams(location.search);
+const bar  = q.get("indicador") || q.get("bar");   // BAR de origem = variavel "Indicador" do BotConversa
+const tel  = q.get("tel");
+const nome = q.get("nome");
+const dia  = q.get("dia")  || "";
+const mes  = q.get("mes")  || "";
+const time = q.get("time") || "";
+// PADRINHO (member gets member) = variavel "padrinho" do BotConversa
+const ind  = (q.get("padrinho") || q.get("ind") || "").replace(/\D/g, "");
 
-const conteudo = document.getElementById("conteudo");
+const alvo = document.getElementById("conteudo");
+const ehIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
 
-function ehIOS() {
-  return /iPhone|iPad|iPod/.test(navigator.userAgent);
+function linkConvite(telefone){
+  const texto = "Quero entrar no Clube Backbone - IND" + telefone;
+  return "https://wa.me/" + WHATS + "?text=" + encodeURIComponent(texto);
 }
 
-async function iniciar() {
-  if (!bar || !tel || !nome) {
-    conteudo.innerHTML = "<p class='erro' style='display:block'>Link inválido. Volte ao WhatsApp e tente novamente.</p>";
+async function iniciar(){
+  if(!bar || !tel || !nome){
+    alvo.innerHTML = "<p class='erro'>Link inválido. Volte ao WhatsApp e comece de novo.</p>";
     return;
   }
 
-  try {
-    const resp = await fetch(`${SERVER_URL}/cadastro/${bar}/${tel}/${encodeURIComponent(nome)}/${dia}/${mes}/${encodeURIComponent(time)}`);
-    const dados = await resp.json();
+  let url = SERVER + "/cadastro/" + bar + "/" + tel + "/" +
+            encodeURIComponent(nome) + "/" + dia + "/" + mes + "/" + encodeURIComponent(time);
+  if(ind && ind !== tel.replace(/\D/g,"")) url += "?ind=" + ind;
 
-    if (dados.status === "cadastrado" || dados.status === "ja_cadastrado") {
-      const c = dados.consumidor;
-      const btnClass = ehIOS() ? "btn-apple" : "btn-google";
-      const btnTexto = ehIOS() ? " Adicionar ao Apple Wallet" : "Adicionar ao Google Wallet";
-
-      conteudo.innerHTML = `
-        <h1>Bem-vindo, ${c.nome}! 🍺</h1>
-        <p>Seu cadastro no Clube Backbone está confirmado.</p>
-
-        <div class="destaque">
-          <div class="emoji">🍺</div>
-          <div class="txt">Você ganhou 1 chopp grátis!</div>
-        </div>
-
-        <p>Adicione seu cartão à carteira do celular e apresente ao garçom para resgatar.</p>
-
-        <a class="btn ${btnClass} mostrar" href="${SERVER_URL}/cartao/${c.telefone}">
-          ${btnTexto}
-        </a>
-      `;
-    } else {
-      conteudo.innerHTML = "<p class='erro' style='display:block'>Não foi possível completar o cadastro. Tente novamente.</p>";
+  try{
+    const r = await fetch(url);
+    const d = await r.json();
+    if(d.status !== "cadastrado" && d.status !== "ja_cadastrado"){
+      alvo.innerHTML = "<p class='erro'>Não deu para concluir o cadastro. Tente de novo pelo WhatsApp.</p>";
+      return;
     }
-  } catch (e) {
-    conteudo.innerHTML = "<p class='erro' style='display:block'>Erro de conexão. Verifique sua internet e tente novamente.</p>";
+    montar(d.consumidor);
+  }catch(e){
+    alvo.innerHTML = "<p class='erro'>Sem conexão. Verifique a internet e recarregue esta página.</p>";
   }
+}
+
+function montar(c){
+  const convite = linkConvite(c.telefone);
+  const meta = c.meta || 10;
+
+  const botaoWallet = ehIOS
+    ? '<a class="btn btn-w" href="' + SERVER + '/cartao/' + c.telefone + '">Adicionar à Apple Wallet</a>'
+    : '<div class="aviso">A carteira para Android está chegando. Por enquanto, é só apresentar seu telefone ao garçom — ele encontra você pelo cadastro.</div>';
+
+  alvo.innerHTML = `
+    <h1>Bem-vindo, ${c.nome}.</h1>
+    <p>Você está no Clube Backbone.</p>
+
+    <div class="premio">
+      <div class="n">SEU PRIMEIRO CHOPP</div>
+      <div class="g">É por nossa conta</div>
+    </div>
+
+    <p>Guarde o cartão no celular. É nele que o garçom marca cada chopp — e a cada ${meta}, o próximo é grátis.</p>
+
+    ${botaoWallet}
+
+    <div class="convite">
+      <h2>Traga a rodada</h2>
+      <p>Cada amigo que entrar pelo seu convite e fechar a cartela dele te dá um ponto na sua.</p>
+      <div class="link-box" id="lnk">${convite}</div>
+      <a class="btn btn-w" href="${convite}">Convidar pelo WhatsApp</a>
+      <button class="btn btn-o" id="b-copiar">Copiar o link</button>
+    </div>
+  `;
+
+  document.getElementById("b-copiar").onclick = async (ev) => {
+    const b = ev.currentTarget;
+    try{
+      if(navigator.share){ await navigator.share({ text: convite }); return; }
+      await navigator.clipboard.writeText(convite);
+      b.textContent = "Link copiado";
+      setTimeout(() => b.textContent = "Copiar o link", 2000);
+    }catch(e){ /* usuario cancelou */ }
+  };
 }
 
 iniciar();
