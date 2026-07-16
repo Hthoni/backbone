@@ -4,7 +4,7 @@
 #   - /scan unificado: o garcom faz UM gesto. Se ha recompensa, resgata.
 #     Se nao ha, pontua. A cartela SO zera no resgate.
 #   - meta e temporada congeladas por ciclo
-#   - member gets member: indicado_por / indicados
+#   - member gets member: padrinho / indicados
 #   - web service da Apple (4 endpoints) + push via APNs
 #   - /cartao/<telefone>: entrega o .pkpass
 
@@ -12,7 +12,6 @@ import os
 import json
 import uuid
 import secrets
-import re
 from datetime import datetime, timezone
 from flask import Flask, request, jsonify, Response
 from flask_cors import CORS
@@ -68,7 +67,7 @@ def cadastro(bar, telefone, nome, dia, mes, time):
     telefone = so_digitos(telefone)
 
     # indicador vem por query string: ?ind=5521999887766
-    indicador_tel = so_digitos(request.args.get("ind", ""))
+    indicador_tel = so_digitos(request.args.get("padrinho", ""))
     if indicador_tel == telefone:
         indicador_tel = ""  # auto-indicacao bloqueada
 
@@ -83,7 +82,7 @@ def cadastro(bar, telefone, nome, dia, mes, time):
     consumidor = {
         "telefone": telefone,
         "nome": nome,
-        "bar_origem": bar,
+        "indicador": bar,
         "nascimento_dia": dia,
         "nascimento_mes": mes,
         "time": time,
@@ -92,7 +91,7 @@ def cadastro(bar, telefone, nome, dia, mes, time):
         "meta": int(config["punches_para_recompensa"]),        # CONGELADA
         "temporada": config["temporada_vigente"],              # CONGELADA
 
-        "indicado_por": indicador["telefone"] if indicador else None,
+        "padrinho": indicador["telefone"] if indicador else None,
         "indicados": [],
 
         "recompensas": [
@@ -119,7 +118,7 @@ def cadastro(bar, telefone, nome, dia, mes, time):
 
     storage.salvar_evento({
         "id": str(uuid.uuid4()), "tipo": "cadastro", "telefone": telefone,
-        "bar": bar, "garcom_id": None, "indicado_por": consumidor["indicado_por"],
+        "bar": bar, "garcom_id": None, "padrinho": consumidor["padrinho"],
         "data": agora(),
     })
 
@@ -143,7 +142,7 @@ def consultar_consumidor(telefone):
 
 def _creditar_indicador(consumidor):
     """Chamado quando o consumidor FECHA a cartela. Credita 1 ponto ao indicador."""
-    tel_ind = consumidor.get("indicado_por")
+    tel_ind = consumidor.get("padrinho")
     if not tel_ind:
         return
 
@@ -474,7 +473,7 @@ def admin_consumidores():
     bar_filtro = request.args.get("bar")
     todos = storage.listar_consumidores()
     if bar_filtro:
-        todos = [c for c in todos if c.get("bar_origem") == bar_filtro]
+        todos = [c for c in todos if c.get("indicador") == bar_filtro]
     for c in todos:
         c["recompensas_disponiveis"] = len(_disponiveis(c))
         c["total_indicados"] = len(c.get("indicados", []))
@@ -503,34 +502,6 @@ def admin_push_manual(telefone):
     if not texto:
         return jsonify({"erro": "texto_vazio"}), 400
     return jsonify(_notificar(c, texto))
-
-
-# ══════════════════════════════════════════════════════════════
-#  EXTRAIR PADRINHO  (member gets member via BotConversa)
-#  Recebe a mensagem suja e devolve so o telefone do padrinho.
-# ══════════════════════════════════════════════════════════════
-
-@app.route("/extrair-padrinho", methods=["POST", "GET"])
-def extrair_padrinho():
-    msg = ""
-    if request.is_json:
-        msg = (request.get_json(silent=True) or {}).get("mensagem", "")
-    if not msg:
-        msg = request.form.get("mensagem", "") or request.args.get("mensagem", "")
-
-    padrinho = ""
-    if msg:
-        m = re.search(r"padrinho[^0-9]*([0-9][0-9\s\-\+\(\)]{9,})", msg, re.IGNORECASE)
-        if m:
-            padrinho = so_digitos(m.group(1))
-        else:
-            achados = re.findall(r"[0-9][0-9\s\-\+\(\)]{9,}", msg)
-            cands = [so_digitos(a) for a in achados]
-            cands = [c for c in cands if 10 <= len(c) <= 13]
-            if cands:
-                padrinho = max(cands, key=len)
-
-    return jsonify({"padrinho": padrinho})
 
 
 @app.route("/")
