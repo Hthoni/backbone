@@ -2,491 +2,421 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Admin Backbone</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#000000">
+<title>Clube Backbone — Admin</title>
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background: #1a1a1a;
-    color: #fff;
-    min-height: 100vh;
+  :root{
+    --preto:#000; --preto2:#131313; --linha:#2B2B2B;
+    --branco:#FFF; --cinza:#A8A8A2; --cinza2:#6E6E68;
+    --rubro:#D8232A; --ambar:#E8A317; --verde:#1F7A47;
+    --campo:#E9E7DF;
   }
-  .header {
-    background: #262626;
-    padding: 16px 24px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-bottom: 1px solid #333;
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    background:var(--preto); color:var(--branco); min-height:100vh;
+    -webkit-font-smoothing:antialiased;
   }
-  .header .logo {
-    font-size: 20px;
-    font-weight: 800;
-    color: #E8530A;
-    letter-spacing: 1px;
+  header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:16px 22px; border-bottom:1px solid var(--linha);
+    position:sticky; top:0; background:var(--preto); z-index:10;
   }
-  .header .sub { font-size: 12px; color: #999; letter-spacing: 2px; }
+  header img{height:38px}
+  header .t{font-size:13px; letter-spacing:.18em; color:var(--cinza)}
 
-  .container {
-    max-width: 1000px;
-    margin: 0 auto;
-    padding: 24px;
+  nav{
+    display:flex; gap:4px; padding:12px 18px 0; border-bottom:1px solid var(--linha);
+    overflow-x:auto;
   }
+  nav button{
+    background:none; border:none; color:var(--cinza); font-size:15px; font-weight:700;
+    padding:10px 16px 14px; cursor:pointer; border-bottom:3px solid transparent;
+    white-space:nowrap; font-family:inherit;
+  }
+  nav button.on{color:var(--branco); border-bottom-color:var(--rubro)}
 
-  .tabs {
-    display: flex;
-    gap: 4px;
-    margin-bottom: 24px;
-    border-bottom: 1px solid #333;
-  }
-  .tab {
-    padding: 12px 20px;
-    cursor: pointer;
-    color: #999;
-    font-size: 14px;
-    font-weight: 600;
-    border-bottom: 2px solid transparent;
-  }
-  .tab.ativa {
-    color: #E8530A;
-    border-bottom-color: #E8530A;
+  main{padding:22px; max-width:1100px; margin:0 auto}
+  .aba{display:none}
+  .aba.on{display:block}
+
+  h2{font-size:20px; font-weight:800; margin-bottom:14px}
+  .sub{color:var(--cinza); font-size:14px; margin:-8px 0 18px}
+
+  .cartao{
+    background:var(--preto2); border:1px solid var(--linha); border-radius:14px;
+    padding:20px; margin-bottom:18px;
   }
 
-  .painel { display: none; }
-  .painel.ativo { display: block; }
+  label{display:block; font-size:12px; font-weight:700; letter-spacing:.1em; color:var(--cinza); margin:0 0 6px 2px}
+  input, select, textarea{
+    width:100%; background:var(--campo); border:2px solid var(--campo); color:#111;
+    font-size:16px; font-weight:600; padding:12px; border-radius:10px; font-family:inherit;
+  }
+  input:focus, select:focus, textarea:focus{outline:none; border-color:var(--ambar)}
+  .linha{display:flex; gap:14px; flex-wrap:wrap}
+  .linha > div{flex:1; min-width:180px; margin-bottom:14px}
 
-  .card {
-    background: #262626;
-    border: 1px solid #333;
-    border-radius: 12px;
-    padding: 20px;
-    margin-bottom: 16px;
+  .btn{
+    background:var(--branco); color:#000; border:none; border-radius:10px;
+    padding:13px 22px; font-size:15px; font-weight:800; cursor:pointer; font-family:inherit;
   }
-  .card h3 { margin-bottom: 16px; font-size: 16px; }
+  .btn:active{transform:scale(.98)}
+  .btn.sec{background:transparent; color:var(--branco); border:2px solid #4A4A4A}
+  .btn.perigo{background:var(--rubro); color:#fff}
 
-  .form-linha {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 10px;
-    flex-wrap: wrap;
+  table{width:100%; border-collapse:collapse; font-size:14px}
+  th{
+    text-align:left; color:var(--cinza); font-size:11px; letter-spacing:.1em;
+    padding:10px 12px; border-bottom:1px solid var(--linha); white-space:nowrap;
   }
-  .form-linha input, .form-linha select {
-    flex: 1;
-    min-width: 150px;
-    padding: 10px 12px;
-    background: #1a1a1a;
-    border: 1px solid #333;
-    border-radius: 8px;
-    color: #fff;
-    font-size: 14px;
+  td{padding:11px 12px; border-bottom:1px solid #1D1D1D; vertical-align:middle}
+  tr:hover td{background:#181818}
+  .num{text-align:right; font-variant-numeric:tabular-nums}
+  .pill{
+    display:inline-block; padding:3px 10px; border-radius:999px; font-size:12px; font-weight:700;
   }
-  .form-linha button {
-    padding: 10px 20px;
-    background: #E8530A;
-    color: #fff;
-    border: none;
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: 700;
-    cursor: pointer;
-  }
+  .pill.ok{background:var(--verde); color:#fff}
+  .pill.atencao{background:var(--ambar); color:#151000}
+  .pill.neutro{background:#2A2A2A; color:var(--cinza)}
 
-  .lista { list-style: none; }
-  .item {
-    background: #1a1a1a;
-    border: 1px solid #333;
-    border-radius: 8px;
-    padding: 12px 16px;
-    margin-bottom: 8px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-  .item-info { flex: 1; }
-  .item-titulo { font-weight: 600; margin-bottom: 4px; }
-  .item-sub { font-size: 12px; color: #999; }
-  .item-tags {
-    display: flex;
-    gap: 6px;
-    margin-top: 6px;
-  }
-  .tag {
-    background: #E8530A22;
-    color: #E8530A;
-    padding: 2px 8px;
-    border-radius: 4px;
-    font-size: 11px;
-    font-weight: 600;
-  }
-
-  .msg {
-    padding: 12px;
-    border-radius: 8px;
-    margin-top: 12px;
-    font-size: 14px;
-    display: none;
-  }
-  .msg.mostrar { display: block; }
-  .msg.sucesso { background: #4caf5022; color: #4caf50; border: 1px solid #4caf50; }
-  .msg.erro { background: #ff6b6b22; color: #ff6b6b; border: 1px solid #ff6b6b; }
-
-  .stat {
-    display: inline-block;
-    background: #1a1a1a;
-    padding: 12px 16px;
-    border-radius: 8px;
-    margin-right: 10px;
-    margin-bottom: 10px;
-  }
-  .stat-num { font-size: 24px; font-weight: 800; color: #E8530A; }
-  .stat-label { font-size: 12px; color: #999; }
+  .msg{margin-top:12px; font-size:14px; font-weight:600; min-height:20px}
+  .msg.ok{color:#5FD08A}
+  .msg.erro{color:#FF6B6B}
+  .carregando{color:var(--cinza); padding:30px 0; text-align:center}
+  .mini{font-size:12px; color:var(--cinza2)}
 </style>
 </head>
 <body>
 
-<div class="header">
-  <div>
-    <div class="logo">BACKBONE</div>
-    <div class="sub">PAINEL ADMIN</div>
+<header>
+  <img src="clube_logo.png" alt="Clube Backbone">
+  <div class="t">ADMIN</div>
+</header>
+
+<nav>
+  <button class="on" data-aba="consumidores">Associados</button>
+  <button data-aba="push">Push</button>
+  <button data-aba="config">Configuração</button>
+  <button data-aba="bares">Bares</button>
+  <button data-aba="garcons">Garçons</button>
+</nav>
+
+<main>
+
+<!-- ══ ASSOCIADOS ══ -->
+<section class="aba on" id="aba-consumidores">
+  <h2>Associados</h2>
+  <div class="linha" style="align-items:flex-end">
+    <div style="max-width:280px">
+      <label>FILTRAR POR BAR</label>
+      <select id="f-bar"><option value="">Todos os bares</option></select>
+    </div>
+    <div style="flex:0">
+      <button class="btn sec" id="b-recarregar">Recarregar</button>
+    </div>
   </div>
-</div>
-
-<div class="container">
-
-  <div class="tabs">
-    <div class="tab ativa" onclick="mostrarPainel('bares', this)">Bares</div>
-    <div class="tab" onclick="mostrarPainel('garcons', this)">Garçons</div>
-    <div class="tab" onclick="mostrarPainel('consumidores', this)">Consumidores</div>
-    <div class="tab" onclick="mostrarPainel('config', this)">Configurações</div>
+  <div class="cartao" style="padding:0; overflow-x:auto">
+    <table>
+      <thead><tr>
+        <th>NOME</th><th>TELEFONE</th><th>BAR</th><th>TEMPORADA</th>
+        <th class="num">PONTOS</th><th class="num">META</th>
+        <th class="num">INDICADOS</th><th>PADRINHO</th><th>PRÊMIO</th>
+      </tr></thead>
+      <tbody id="t-consumidores"><tr><td colspan="9" class="carregando">Carregando…</td></tr></tbody>
+    </table>
   </div>
+  <div class="mini" id="resumo"></div>
+</section>
 
-  <!-- Painel Bares -->
-  <div id="painel-bares" class="painel ativo">
-    <div class="card">
-      <h3>Adicionar bar parceiro</h3>
-      <div class="form-linha">
-        <input type="text" id="bar-id" placeholder="ID (ex: backbone-pub)">
-        <input type="text" id="bar-nome" placeholder="Nome do bar">
-        <input type="text" id="bar-cidade" placeholder="Cidade">
-        <button onclick="criarBar()">Adicionar</button>
+<!-- ══ PUSH ══ -->
+<section class="aba" id="aba-push">
+  <h2>Push manual</h2>
+  <p class="sub">Envia uma notificação para o cartão de um associado. Só chega para quem instalou o cartão na Wallet.</p>
+  <div class="cartao">
+    <div class="linha">
+      <div>
+        <label>TELEFONE DO ASSOCIADO</label>
+        <input id="p-tel" type="tel" placeholder="5521999998888">
       </div>
-      <div id="bar-msg" class="msg"></div>
     </div>
-
-    <div class="card">
-      <h3>Bares cadastrados</h3>
-      <ul id="lista-bares" class="lista"></ul>
+    <div style="margin-bottom:14px">
+      <label>TEXTO DO PUSH</label>
+      <textarea id="p-texto" rows="3" placeholder="Ex.: Hoje tem jogo do Flamengo no Backbone Partage!"></textarea>
     </div>
+    <button class="btn" id="b-push">Enviar push</button>
+    <div class="msg" id="m-push"></div>
   </div>
+  <p class="mini">O texto substitui o campo "Último aviso" do verso do cartão e dispara a notificação. Textos repetidos não geram novo push — mude o texto para notificar de novo.</p>
+</section>
 
-  <!-- Painel Garçons -->
-  <div id="painel-garcons" class="painel">
-    <div class="card">
-      <h3>Adicionar garçom</h3>
-      <div class="form-linha">
-        <input type="text" id="garcom-id" placeholder="ID (ex: joao123)">
-        <input type="text" id="garcom-nome" placeholder="Nome do garçom">
-        <input type="password" id="garcom-senha" placeholder="Senha">
-        <select id="garcom-bar">
-          <option value="">Selecione o bar</option>
-        </select>
-        <button onclick="criarGarcom()">Adicionar</button>
+<!-- ══ CONFIG ══ -->
+<section class="aba" id="aba-config">
+  <h2>Configuração do clube</h2>
+  <p class="sub">Estes valores são congelados no cadastro e no resgate. Quem está no meio da cartela não é afetado.</p>
+  <div class="cartao">
+    <div class="linha">
+      <div>
+        <label>META (CHOPPS PARA O PRÊMIO)</label>
+        <input id="c-meta" type="number" min="1" max="30">
       </div>
-      <div id="garcom-msg" class="msg"></div>
-    </div>
-
-    <div class="card">
-      <h3>Garçons cadastrados</h3>
-      <ul id="lista-garcons" class="lista"></ul>
-    </div>
-  </div>
-
-  <!-- Painel Consumidores -->
-  <div id="painel-consumidores" class="painel">
-    <div class="card">
-      <div id="stats-consumidores"></div>
-    </div>
-
-    <div class="card">
-      <h3>Consumidores cadastrados</h3>
-      <div style="margin-bottom:16px">
-        <select id="filtro-bar" onchange="carregarConsumidores()">
-          <option value="">Todos os bares</option>
-        </select>
+      <div>
+        <label>TEMPORADA VIGENTE</label>
+        <input id="c-temporada" type="text" placeholder="ex.: padrao, mantiqueira, verao">
       </div>
-      <ul id="lista-consumidores" class="lista"></ul>
     </div>
+    <button class="btn" id="b-config">Salvar configuração</button>
+    <div class="msg" id="m-config"></div>
   </div>
+  <p class="mini">A temporada vigente define a pasta de artes da strip (server/strips/&lt;temporada&gt;/) para novos ciclos.</p>
+</section>
 
-  <!-- Painel Config -->
-  <div id="painel-config" class="painel">
-    <div class="card">
-      <h3>Regras do programa</h3>
-      <div class="form-linha">
-        <input type="number" id="config-punches" placeholder="Punches para recompensa" min="1" max="50">
-        <input type="number" id="config-delay" placeholder="Delay para resgate (horas)" min="1" max="720">
-        <button onclick="salvarConfig()">Salvar</button>
+<!-- ══ BARES ══ -->
+<section class="aba" id="aba-bares">
+  <h2>Bares</h2>
+  <div class="cartao" style="padding:0; overflow-x:auto">
+    <table>
+      <thead><tr><th>ID (código)</th><th>NOME</th><th>CIDADE</th></tr></thead>
+      <tbody id="t-bares"><tr><td colspan="3" class="carregando">Carregando…</td></tr></tbody>
+    </table>
+  </div>
+  <div class="cartao">
+    <h2 style="font-size:16px">Novo bar</h2>
+    <div class="linha">
+      <div>
+        <label>ID — sem espaços nem acentos (ex.: Backbone_Partage)</label>
+        <input id="b-id" type="text" placeholder="Backbone_Partage">
       </div>
-      <div id="config-msg" class="msg"></div>
+      <div>
+        <label>NOME DE EXIBIÇÃO</label>
+        <input id="b-nome" type="text" placeholder="Backbone Partage">
+      </div>
+      <div>
+        <label>CIDADE</label>
+        <input id="b-cidade" type="text" placeholder="Rio de Janeiro">
+      </div>
     </div>
+    <button class="btn" id="b-criar-bar">Criar bar</button>
+    <div class="msg" id="m-bar"></div>
   </div>
+  <p class="mini">⚠️ O ID deve ser idêntico ao usado no campo "Indicador" do BotConversa e no bar_id dos garçons. Maiúsculas contam.</p>
+</section>
 
-</div>
+<!-- ══ GARÇONS ══ -->
+<section class="aba" id="aba-garcons">
+  <h2>Garçons</h2>
+  <div class="cartao" style="padding:0; overflow-x:auto">
+    <table>
+      <thead><tr><th>ID (login)</th><th>NOME</th><th>BAR</th><th>STATUS</th></tr></thead>
+      <tbody id="t-garcons"><tr><td colspan="4" class="carregando">Carregando…</td></tr></tbody>
+    </table>
+  </div>
+  <div class="cartao">
+    <h2 style="font-size:16px">Novo garçom</h2>
+    <div class="linha">
+      <div>
+        <label>ID DE LOGIN (ex.: g01)</label>
+        <input id="g-id" type="text" placeholder="g01">
+      </div>
+      <div>
+        <label>NOME</label>
+        <input id="g-nome" type="text" placeholder="João">
+      </div>
+      <div>
+        <label>SENHA</label>
+        <input id="g-senha" type="text" placeholder="senha do garçom">
+      </div>
+      <div>
+        <label>BAR</label>
+        <select id="g-bar"></select>
+      </div>
+    </div>
+    <button class="btn" id="b-criar-garcom">Criar garçom</button>
+    <div class="msg" id="m-garcom"></div>
+  </div>
+</section>
+
+</main>
 
 <script>
-const SERVER_URL = "https://backbone-650557630362.us-central1.run.app";
+const API = "https://backbone-650557630362.us-central1.run.app";
+const $ = id => document.getElementById(id);
 
-function mostrarPainel(nome, tab) {
-  document.querySelectorAll('.painel').forEach(p => p.classList.remove('ativo'));
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('ativa'));
-  document.getElementById('painel-' + nome).classList.add('ativo');
-  tab.classList.add('ativa');
+/* ── navegação ── */
+document.querySelectorAll("nav button").forEach(b => {
+  b.onclick = () => {
+    document.querySelectorAll("nav button").forEach(x => x.classList.remove("on"));
+    document.querySelectorAll(".aba").forEach(x => x.classList.remove("on"));
+    b.classList.add("on");
+    $("aba-" + b.dataset.aba).classList.add("on");
+  };
+});
 
-  if (nome === 'bares') carregarBares();
-  if (nome === 'garcons') carregarGarcons();
-  if (nome === 'consumidores') carregarConsumidores();
-  if (nome === 'config') carregarConfig();
-}
-
-function msg(id, tipo, texto) {
-  const el = document.getElementById(id);
-  el.className = 'msg mostrar ' + tipo;
-  el.textContent = texto;
-  setTimeout(() => el.classList.remove('mostrar'), 4000);
-}
-
-// ── Bares ────────────────────────────────────
-
-async function criarBar() {
-  const id     = document.getElementById('bar-id').value.trim();
-  const nome   = document.getElementById('bar-nome').value.trim();
-  const cidade = document.getElementById('bar-cidade').value.trim();
-
-  if (!id || !nome) {
-    msg('bar-msg', 'erro', 'Preencha ID e nome');
-    return;
+/* ── associados ── */
+async function carregarConsumidores(){
+  const bar = $("f-bar").value;
+  const tb = $("t-consumidores");
+  tb.innerHTML = '<tr><td colspan="9" class="carregando">Carregando…</td></tr>';
+  try{
+    const url = API + "/admin/consumidores" + (bar ? "?bar=" + encodeURIComponent(bar) : "");
+    const r = await fetch(url);
+    const lista = await r.json();
+    if(!lista.length){
+      tb.innerHTML = '<tr><td colspan="9" class="carregando">Nenhum associado' + (bar ? " neste bar" : "") + '.</td></tr>';
+      $("resumo").textContent = "";
+      return;
+    }
+    lista.sort((a,b) => (b.cadastro_em || "").localeCompare(a.cadastro_em || ""));
+    tb.innerHTML = lista.map(c => {
+      const premio = c.recompensas_disponiveis > 0
+        ? '<span class="pill atencao">' + c.recompensas_disponiveis + ' pendente' + (c.recompensas_disponiveis > 1 ? 's' : '') + '</span>'
+        : '<span class="pill neutro">—</span>';
+      return `<tr>
+        <td><strong>${c.nome || "—"}</strong></td>
+        <td>${c.telefone}</td>
+        <td>${c.indicador || "—"}</td>
+        <td>${c.temporada || "—"}</td>
+        <td class="num">${c.punches ?? 0}</td>
+        <td class="num">${c.meta ?? "—"}</td>
+        <td class="num">${c.total_indicados ?? 0}</td>
+        <td>${c.padrinho || "—"}</td>
+        <td>${premio}</td>
+      </tr>`;
+    }).join("");
+    const totIndicados = lista.filter(c => c.padrinho).length;
+    $("resumo").textContent = lista.length + " associados" + (bar ? " no bar" : "") +
+      " · " + totIndicados + " vieram por indicação";
+  }catch(e){
+    tb.innerHTML = '<tr><td colspan="9" class="carregando">Erro ao carregar. O servidor pode estar acordando — tente de novo.</td></tr>';
   }
+}
+$("b-recarregar").onclick = carregarConsumidores;
+$("f-bar").onchange = carregarConsumidores;
 
-  try {
-    const resp = await fetch(`${SERVER_URL}/admin/bares`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, nome, cidade, criado_em: new Date().toISOString() })
+/* ── push ── */
+$("b-push").onclick = async () => {
+  const tel = ($("p-tel").value || "").replace(/\D/g, "");
+  const texto = $("p-texto").value.trim();
+  const m = $("m-push");
+  if(!tel || !texto){ m.className = "msg erro"; m.textContent = "Preencha o telefone e o texto."; return; }
+  m.className = "msg"; m.textContent = "Enviando…";
+  try{
+    const r = await fetch(API + "/admin/push/" + tel, {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({texto})
     });
-    const dados = await resp.json();
-    if (dados.status === 'ok') {
-      msg('bar-msg', 'sucesso', 'Bar adicionado!');
-      document.getElementById('bar-id').value = '';
-      document.getElementById('bar-nome').value = '';
-      document.getElementById('bar-cidade').value = '';
-      carregarBares();
-    } else {
-      msg('bar-msg', 'erro', 'Erro ao adicionar');
-    }
-  } catch (e) {
-    msg('bar-msg', 'erro', 'Erro de conexão');
-  }
+    const d = await r.json();
+    if(!r.ok){ m.className = "msg erro"; m.textContent = d.erro || "Falhou."; return; }
+    m.className = "msg ok";
+    m.textContent = d.enviados > 0
+      ? "Push enviado para " + d.enviados + " dispositivo(s)."
+      : "Aviso gravado, mas nenhum dispositivo registrado — o associado ainda não instalou o cartão.";
+  }catch(e){ m.className = "msg erro"; m.textContent = "Sem conexão."; }
+};
+
+/* ── config ── */
+async function carregarConfig(){
+  try{
+    const r = await fetch(API + "/admin/config");
+    const c = await r.json();
+    $("c-meta").value = c.punches_para_recompensa ?? 10;
+    $("c-temporada").value = c.temporada_vigente ?? "padrao";
+  }catch(e){}
 }
-
-async function carregarBares() {
-  try {
-    const resp = await fetch(`${SERVER_URL}/admin/bares`);
-    const bares = await resp.json();
-    const lista = document.getElementById('lista-bares');
-    if (bares.length === 0) {
-      lista.innerHTML = '<div style="color:#666;padding:20px;text-align:center">Nenhum bar cadastrado</div>';
-    } else {
-      lista.innerHTML = bares.map(b => `
-        <li class="item">
-          <div class="item-info">
-            <div class="item-titulo">${b.nome}</div>
-            <div class="item-sub">ID: ${b.id}${b.cidade ? ' · ' + b.cidade : ''}</div>
-          </div>
-        </li>
-      `).join('');
-    }
-
-    // Atualiza dropdowns
-    const selects = document.querySelectorAll('#garcom-bar, #filtro-bar');
-    selects.forEach(sel => {
-      const val = sel.value;
-      const primeiraOp = sel.querySelector('option:first-child').outerHTML;
-      sel.innerHTML = primeiraOp + bares.map(b => `<option value="${b.id}">${b.nome}</option>`).join('');
-      sel.value = val;
+$("b-config").onclick = async () => {
+  const m = $("m-config");
+  const corpo = {
+    punches_para_recompensa: parseInt($("c-meta").value || "10", 10),
+    temporada_vigente: ($("c-temporada").value || "padrao").trim()
+  };
+  m.className = "msg"; m.textContent = "Salvando…";
+  try{
+    const r = await fetch(API + "/admin/config", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify(corpo)
     });
-  } catch (e) {
-    console.error(e);
+    if(!r.ok) throw 0;
+    m.className = "msg ok"; m.textContent = "Configuração salva. Vale para novos cadastros e novos ciclos.";
+  }catch(e){ m.className = "msg erro"; m.textContent = "Não foi possível salvar."; }
+};
+
+/* ── bares ── */
+async function carregarBares(){
+  try{
+    const r = await fetch(API + "/admin/bares");
+    const lista = await r.json();
+    $("t-bares").innerHTML = lista.length
+      ? lista.map(b => `<tr><td><strong>${b.id}</strong></td><td>${b.nome || "—"}</td><td>${b.cidade || "—"}</td></tr>`).join("")
+      : '<tr><td colspan="3" class="carregando">Nenhum bar cadastrado.</td></tr>';
+    // popular selects
+    const ops = lista.map(b => `<option value="${b.id}">${b.nome || b.id}</option>`).join("");
+    $("g-bar").innerHTML = ops;
+    $("f-bar").innerHTML = '<option value="">Todos os bares</option>' + ops;
+  }catch(e){
+    $("t-bares").innerHTML = '<tr><td colspan="3" class="carregando">Erro ao carregar.</td></tr>';
   }
 }
-
-// ── Garçons ──────────────────────────────────
-
-async function criarGarcom() {
-  const id     = document.getElementById('garcom-id').value.trim();
-  const nome   = document.getElementById('garcom-nome').value.trim();
-  const senha  = document.getElementById('garcom-senha').value.trim();
-  const bar_id = document.getElementById('garcom-bar').value;
-
-  if (!id || !nome || !senha || !bar_id) {
-    msg('garcom-msg', 'erro', 'Preencha todos os campos');
-    return;
-  }
-
-  // Busca nome do bar
-  const respB = await fetch(`${SERVER_URL}/admin/bares`);
-  const bares = await respB.json();
-  const bar = bares.find(b => b.id === bar_id);
-
-  try {
-    const resp = await fetch(`${SERVER_URL}/admin/garcons`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        id, nome, senha,
-        bar_id,
-        bar_nome: bar ? bar.nome : '',
-        ativo: true,
-        criado_em: new Date().toISOString()
-      })
+$("b-criar-bar").onclick = async () => {
+  const m = $("m-bar");
+  const id = ($("b-id").value || "").trim();
+  const nome = ($("b-nome").value || "").trim();
+  const cidade = ($("b-cidade").value || "").trim();
+  if(!id || !nome){ m.className = "msg erro"; m.textContent = "Preencha o ID e o nome."; return; }
+  if(/[\s]/.test(id)){ m.className = "msg erro"; m.textContent = "O ID não pode ter espaços."; return; }
+  m.className = "msg"; m.textContent = "Criando…";
+  try{
+    const r = await fetch(API + "/admin/bares", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({id, nome, cidade, criado_em: new Date().toISOString()})
     });
-    const dados = await resp.json();
-    if (dados.status === 'ok') {
-      msg('garcom-msg', 'sucesso', 'Garçom adicionado!');
-      document.getElementById('garcom-id').value = '';
-      document.getElementById('garcom-nome').value = '';
-      document.getElementById('garcom-senha').value = '';
-      document.getElementById('garcom-bar').value = '';
-      carregarGarcons();
-    } else {
-      msg('garcom-msg', 'erro', 'Erro ao adicionar');
-    }
-  } catch (e) {
-    msg('garcom-msg', 'erro', 'Erro de conexão');
+    if(!r.ok) throw 0;
+    m.className = "msg ok"; m.textContent = "Bar criado.";
+    $("b-id").value = ""; $("b-nome").value = ""; $("b-cidade").value = "";
+    carregarBares();
+  }catch(e){ m.className = "msg erro"; m.textContent = "Não foi possível criar."; }
+};
+
+/* ── garçons ── */
+async function carregarGarcons(){
+  try{
+    const r = await fetch(API + "/admin/garcons");
+    const lista = await r.json();
+    $("t-garcons").innerHTML = lista.length
+      ? lista.map(g => `<tr>
+          <td><strong>${g.id}</strong></td><td>${g.nome || "—"}</td><td>${g.bar_id || "—"}</td>
+          <td>${g.ativo === false ? '<span class="pill neutro">inativo</span>' : '<span class="pill ok">ativo</span>'}</td>
+        </tr>`).join("")
+      : '<tr><td colspan="4" class="carregando">Nenhum garçom cadastrado.</td></tr>';
+  }catch(e){
+    $("t-garcons").innerHTML = '<tr><td colspan="4" class="carregando">Erro ao carregar.</td></tr>';
   }
 }
-
-async function carregarGarcons() {
-  await carregarBares();
-  try {
-    const resp = await fetch(`${SERVER_URL}/admin/garcons`);
-    const garcons = await resp.json();
-    const lista = document.getElementById('lista-garcons');
-    if (garcons.length === 0) {
-      lista.innerHTML = '<div style="color:#666;padding:20px;text-align:center">Nenhum garçom cadastrado</div>';
-    } else {
-      lista.innerHTML = garcons.map(g => `
-        <li class="item">
-          <div class="item-info">
-            <div class="item-titulo">${g.nome}</div>
-            <div class="item-sub">ID: ${g.id} · ${g.bar_nome || g.bar_id}</div>
-          </div>
-        </li>
-      `).join('');
-    }
-  } catch (e) {
-    console.error(e);
-  }
-}
-
-// ── Consumidores ─────────────────────────────
-
-async function carregarConsumidores() {
-  await carregarBares();
-  const filtro = document.getElementById('filtro-bar').value;
-  try {
-    const url = filtro
-      ? `${SERVER_URL}/admin/consumidores?bar=${encodeURIComponent(filtro)}`
-      : `${SERVER_URL}/admin/consumidores`;
-    const resp = await fetch(url);
-    const consumidores = await resp.json();
-
-    // Stats
-    const totalPunches = consumidores.reduce((s, c) => s + (c.punches || 0), 0);
-    const totalResg = consumidores.reduce((s, c) => s + (c.recompensas_total || 0), 0);
-    document.getElementById('stats-consumidores').innerHTML = `
-      <div class="stat">
-        <div class="stat-num">${consumidores.length}</div>
-        <div class="stat-label">Consumidores</div>
-      </div>
-      <div class="stat">
-        <div class="stat-num">${totalPunches}</div>
-        <div class="stat-label">Punches ativos</div>
-      </div>
-      <div class="stat">
-        <div class="stat-num">${totalResg}</div>
-        <div class="stat-label">Chopps resgatados</div>
-      </div>
-    `;
-
-    const lista = document.getElementById('lista-consumidores');
-    if (consumidores.length === 0) {
-      lista.innerHTML = '<div style="color:#666;padding:20px;text-align:center">Nenhum consumidor</div>';
-    } else {
-      lista.innerHTML = consumidores.map(c => {
-        const tags = [];
-        if (c.time) tags.push(`<span class="tag">${c.time}</span>`);
-        if (c.recompensas_disponiveis > 0) tags.push(`<span class="tag" style="background:#4caf5022;color:#4caf50">${c.recompensas_disponiveis} chopp(s) disponível(is)</span>`);
-        return `
-          <li class="item">
-            <div class="item-info">
-              <div class="item-titulo">${c.nome}</div>
-              <div class="item-sub">${c.telefone} · ${c.bar_origem} · ${c.nascimento_dia}/${c.nascimento_mes} · Punches: ${c.punches || 0}</div>
-              <div class="item-tags">${tags.join('')}</div>
-            </div>
-          </li>
-        `;
-      }).join('');
-    }
-  } catch (e) {
-    console.error(e);
-  }
-}
-
-// ── Config ───────────────────────────────────
-
-async function carregarConfig() {
-  try {
-    const resp = await fetch(`${SERVER_URL}/admin/config`);
-    const cfg = await resp.json();
-    document.getElementById('config-punches').value = cfg.punches_para_recompensa;
-    document.getElementById('config-delay').value = cfg.delay_resgate_horas;
-  } catch (e) {
-    console.error(e);
-  }
-}
-
-async function salvarConfig() {
-  const punches = parseInt(document.getElementById('config-punches').value);
-  const delay   = parseInt(document.getElementById('config-delay').value);
-
-  if (!punches || !delay) {
-    msg('config-msg', 'erro', 'Preencha os campos');
-    return;
-  }
-
-  try {
-    const resp = await fetch(`${SERVER_URL}/admin/config`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        punches_para_recompensa: punches,
-        delay_resgate_horas: delay
-      })
+$("b-criar-garcom").onclick = async () => {
+  const m = $("m-garcom");
+  const id = ($("g-id").value || "").trim();
+  const nome = ($("g-nome").value || "").trim();
+  const senha = $("g-senha").value;
+  const bar_id = $("g-bar").value;
+  if(!id || !nome || !senha || !bar_id){ m.className = "msg erro"; m.textContent = "Preencha todos os campos."; return; }
+  m.className = "msg"; m.textContent = "Criando…";
+  try{
+    const barNome = $("g-bar").selectedOptions[0]?.textContent || bar_id;
+    const r = await fetch(API + "/admin/garcons", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({id, nome, senha, bar_id, bar_nome: barNome, ativo: true})
     });
-    const dados = await resp.json();
-    if (dados.status === 'ok') {
-      msg('config-msg', 'sucesso', 'Configurações salvas!');
-    } else {
-      msg('config-msg', 'erro', 'Erro ao salvar');
-    }
-  } catch (e) {
-    msg('config-msg', 'erro', 'Erro de conexão');
-  }
-}
+    if(!r.ok) throw 0;
+    m.className = "msg ok"; m.textContent = "Garçom criado. Login: " + id;
+    $("g-id").value = ""; $("g-nome").value = ""; $("g-senha").value = "";
+    carregarGarcons();
+  }catch(e){ m.className = "msg erro"; m.textContent = "Não foi possível criar."; }
+};
 
-// Inicia
-carregarBares();
+/* ── início ── */
+carregarBares().then(carregarConsumidores);
+carregarConfig();
+carregarGarcons();
 </script>
 </body>
 </html>
