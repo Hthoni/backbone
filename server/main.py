@@ -12,6 +12,7 @@ import os
 import json
 import uuid
 import secrets
+import re
 from datetime import datetime, timezone
 from flask import Flask, request, jsonify, Response
 from flask_cors import CORS
@@ -507,6 +508,34 @@ def admin_push_manual(telefone):
 @app.route("/")
 def health():
     return jsonify({"status": "ok", "sistema": "Clube Backbone", "versao": 3})
+
+
+# ══════════════════════════════════════════════════════════════
+#  EXTRAIR PADRINHO  (member gets member via BotConversa)
+#  Recebe a mensagem suja e devolve so o telefone do padrinho.
+# ══════════════════════════════════════════════════════════════
+
+@app.route("/extrair-padrinho", methods=["POST", "GET"])
+def extrair_padrinho():
+    msg = ""
+    if request.is_json:
+        msg = (request.get_json(silent=True) or {}).get("mensagem", "")
+    if not msg:
+        msg = request.form.get("mensagem", "") or request.args.get("mensagem", "")
+
+    padrinho = ""
+    if msg:
+        m = re.search(r"padrinho[^0-9]*([0-9][0-9\s\-\+\(\)]{9,})", msg, re.IGNORECASE)
+        if m:
+            padrinho = so_digitos(m.group(1))
+        else:
+            achados = re.findall(r"[0-9][0-9\s\-\+\(\)]{9,}", msg)
+            cands = [so_digitos(a) for a in achados]
+            cands = [c for c in cands if 10 <= len(c) <= 13]
+            if cands:
+                padrinho = max(cands, key=len)
+
+    return jsonify({"padrinho": padrinho})
 
 
 if __name__ == "__main__":
