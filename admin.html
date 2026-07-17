@@ -55,7 +55,7 @@
     font-size:16px; font-weight:600; padding:12px; border-radius:10px; font-family:inherit;
   }
   input:focus, select:focus, textarea:focus{outline:none; border-color:var(--ambar)}
-  .linha{display:flex; gap:14px; flex-wrap:wrap}
+  .linha{display:flex; gap:14px; flex-wrap:wrap; align-items:flex-end}
   .linha > div{flex:1; min-width:180px; margin-bottom:14px}
 
   .btn{
@@ -108,7 +108,7 @@
 <!-- ══ ASSOCIADOS ══ -->
 <section class="aba on" id="aba-consumidores">
   <h2>Associados</h2>
-  <div class="linha" style="align-items:flex-end">
+  <div class="linha">
     <div style="max-width:280px">
       <label>FILTRAR POR BAR</label>
       <select id="f-bar"><option value="">Todos os bares</option></select>
@@ -185,8 +185,9 @@
     <h2 style="font-size:16px">Novo bar</h2>
     <div class="linha">
       <div>
-        <label>ID — sem espaços nem acentos (ex.: Backbone_Partage)</label>
+        <label>ID (CÓDIGO)</label>
         <input id="b-id" type="text" placeholder="Backbone_Partage">
+        <div class="mini" style="margin-top:6px">Sem espaços nem acentos. Ex.: Backbone_Partage</div>
       </div>
       <div>
         <label>NOME DE EXIBIÇÃO</label>
