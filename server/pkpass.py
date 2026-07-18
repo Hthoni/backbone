@@ -52,14 +52,17 @@ def _credenciais():
     return _CRED
 
 
-def _arquivos_strip(temporada, punches, meta, tem_recompensa):
+def _arquivos_strip(temporada, punches, meta, tipo_recompensa):
     """
     Devolve {nome_no_pkpass: bytes} das strips.
-    Cartela cheia OU recompensa pendente -> strip_premio.png
+    Recompensa de boas-vindas pendente -> strip_estilos_boasvindas.png
+    Cartela cheia / recompensa punch    -> strip_estilos_premio.png
     Senao -> strip_estilos_{punches}-{meta}.png  (ex.: strip_estilos_3-10.png)
     Fallback: temporada 'padrao', depois o quadro zero.
     """
-    if tem_recompensa or punches >= meta:
+    if tipo_recompensa == "boas_vindas":
+        nome = "strip_estilos_boasvindas"
+    elif tipo_recompensa == "punch" or punches >= meta:
         nome = "strip_estilos_premio"
     else:
         nome = f"strip_estilos_{punches}-{meta}"
@@ -237,14 +240,18 @@ def gerar_pkpass(consumidor, aviso=None):
 
     # strip da temporada
     meta = int(consumidor.get("meta", 10))
-    tem_recompensa = any(
-        not r.get("resgatada") for r in consumidor.get("recompensas", [])
-    )
+    pendentes = [r for r in consumidor.get("recompensas", []) if not r.get("resgatada")]
+    # boas_vindas tem prioridade (mesma ordem do /scan)
+    tipo_recompensa = None
+    if any(r.get("tipo") == "boas_vindas" for r in pendentes):
+        tipo_recompensa = "boas_vindas"
+    elif pendentes:
+        tipo_recompensa = "punch"
     arquivos.update(_arquivos_strip(
         consumidor.get("temporada", "padrao"),
         int(consumidor.get("punches", 0)),
         meta,
-        tem_recompensa,
+        tipo_recompensa,
     ))
 
     # manifest + assinatura
