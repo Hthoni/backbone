@@ -60,7 +60,7 @@ def _arquivos_strip(temporada, punches, meta, tem_recompensa):
     Fallback: temporada 'padrao', depois o quadro zero.
     """
     if tem_recompensa or punches >= meta:
-        nome = "strip_premio"
+        nome = "strip_estilos_premio"
     else:
         nome = f"strip_estilos_{punches}-{meta}"
 
