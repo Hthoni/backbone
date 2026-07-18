@@ -26,7 +26,7 @@ ISSUER_ID = os.environ.get("GOOGLE_WALLET_ISSUER_ID", "")
 CLASS_SUFFIX = "clube_backbone"
 
 # imagens publicas (GitHub Pages)
-LOGO_URI = "https://hthoni.github.io/backbone/clube_logo.png"
+LOGO_URI = "https://hthoni.github.io/backbone/gwallet_logo.png"
 
 _chave_info = None
 _sessao = None
