@@ -86,6 +86,24 @@
   .msg.erro{color:#FF6B6B}
   .carregando{color:var(--cinza); padding:30px 0; text-align:center}
   .mini{font-size:12px; color:var(--cinza2)}
+  .btn-x{
+    background:none; border:1px solid #4A2A2A; color:#C96A6A; border-radius:8px;
+    padding:5px 10px; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit;
+  }
+  .btn-x:hover{background:var(--rubro); border-color:var(--rubro); color:#fff}
+  #modal{
+    display:none; position:fixed; inset:0; background:rgba(0,0,0,.75);
+    z-index:100; align-items:center; justify-content:center; padding:20px;
+  }
+  #modal.on{display:flex}
+  #modal .caixa{
+    background:var(--preto2); border:1px solid var(--linha); border-radius:16px;
+    padding:26px; max-width:420px; width:100%;
+  }
+  #modal h3{font-size:19px; font-weight:800; margin-bottom:10px}
+  #modal p{color:var(--cinza); font-size:15px; line-height:1.5; margin-bottom:22px}
+  #modal .acoes{display:flex; gap:10px}
+  #modal .acoes .btn{flex:1}
 </style>
 </head>
 <body>
@@ -122,7 +140,7 @@
       <thead><tr>
         <th>NOME</th><th>TELEFONE</th><th>BAR</th><th>TEMPORADA</th>
         <th class="num">PONTOS</th><th class="num">META</th>
-        <th class="num">INDICADOS</th><th>PADRINHO</th><th>PRÊMIO</th>
+        <th class="num">INDICADOS</th><th>PADRINHO</th><th>PRÊMIO</th><th></th>
       </tr></thead>
       <tbody id="t-consumidores"><tr><td colspan="9" class="carregando">Carregando…</td></tr></tbody>
     </table>
@@ -177,7 +195,7 @@
   <h2>Bares</h2>
   <div class="cartao" style="padding:0; overflow-x:auto">
     <table>
-      <thead><tr><th>ID (código)</th><th>NOME</th><th>CIDADE</th></tr></thead>
+      <thead><tr><th>ID (código)</th><th>NOME</th><th>CIDADE</th><th></th></tr></thead>
       <tbody id="t-bares"><tr><td colspan="3" class="carregando">Carregando…</td></tr></tbody>
     </table>
   </div>
@@ -209,7 +227,7 @@
   <h2>Garçons</h2>
   <div class="cartao" style="padding:0; overflow-x:auto">
     <table>
-      <thead><tr><th>ID (login)</th><th>NOME</th><th>BAR</th><th>STATUS</th></tr></thead>
+      <thead><tr><th>ID (login)</th><th>NOME</th><th>BAR</th><th>STATUS</th><th></th></tr></thead>
       <tbody id="t-garcons"><tr><td colspan="4" class="carregando">Carregando…</td></tr></tbody>
     </table>
   </div>
@@ -258,13 +276,13 @@ document.querySelectorAll("nav button").forEach(b => {
 async function carregarConsumidores(){
   const bar = $("f-bar").value;
   const tb = $("t-consumidores");
-  tb.innerHTML = '<tr><td colspan="9" class="carregando">Carregando…</td></tr>';
+  tb.innerHTML = '<tr><td colspan="10" class="carregando">Carregando…</td></tr>';
   try{
     const url = API + "/admin/consumidores" + (bar ? "?bar=" + encodeURIComponent(bar) : "");
     const r = await fetch(url);
     const lista = await r.json();
     if(!lista.length){
-      tb.innerHTML = '<tr><td colspan="9" class="carregando">Nenhum associado' + (bar ? " neste bar" : "") + '.</td></tr>';
+      tb.innerHTML = '<tr><td colspan="10" class="carregando">Nenhum associado' + (bar ? " neste bar" : "") + '.</td></tr>';
       $("resumo").textContent = "";
       return;
     }
@@ -283,13 +301,14 @@ async function carregarConsumidores(){
         <td class="num">${c.total_indicados ?? 0}</td>
         <td>${c.padrinho || "—"}</td>
         <td>${premio}</td>
+        <td><button class="btn-x" onclick="apagarConsumidor('${c.telefone}', '${(c.nome || "").replace(/'/g, "")}')">apagar</button></td>
       </tr>`;
     }).join("");
     const totIndicados = lista.filter(c => c.padrinho).length;
     $("resumo").textContent = lista.length + " associados" + (bar ? " no bar" : "") +
       " · " + totIndicados + " vieram por indicação";
   }catch(e){
-    tb.innerHTML = '<tr><td colspan="9" class="carregando">Erro ao carregar. O servidor pode estar acordando — tente de novo.</td></tr>';
+    tb.innerHTML = '<tr><td colspan="10" class="carregando">Erro ao carregar. O servidor pode estar acordando — tente de novo.</td></tr>';
   }
 }
 $("b-recarregar").onclick = carregarConsumidores;
@@ -348,14 +367,14 @@ async function carregarBares(){
     const r = await fetch(API + "/admin/bares");
     const lista = await r.json();
     $("t-bares").innerHTML = lista.length
-      ? lista.map(b => `<tr><td><strong>${b.id}</strong></td><td>${b.nome || "—"}</td><td>${b.cidade || "—"}</td></tr>`).join("")
-      : '<tr><td colspan="3" class="carregando">Nenhum bar cadastrado.</td></tr>';
+      ? lista.map(b => `<tr><td><strong>${b.id}</strong></td><td>${b.nome || "—"}</td><td>${b.cidade || "—"}</td><td><button class="btn-x" onclick="apagarBar('${b.id}')">apagar</button></td></tr>`).join("")
+      : '<tr><td colspan="4" class="carregando">Nenhum bar cadastrado.</td></tr>';
     // popular selects
     const ops = lista.map(b => `<option value="${b.id}">${b.nome || b.id}</option>`).join("");
     $("g-bar").innerHTML = ops;
     $("f-bar").innerHTML = '<option value="">Todos os bares</option>' + ops;
   }catch(e){
-    $("t-bares").innerHTML = '<tr><td colspan="3" class="carregando">Erro ao carregar.</td></tr>';
+    $("t-bares").innerHTML = '<tr><td colspan="4" class="carregando">Erro ao carregar.</td></tr>';
   }
 }
 $("b-criar-bar").onclick = async () => {
@@ -387,10 +406,11 @@ async function carregarGarcons(){
       ? lista.map(g => `<tr>
           <td><strong>${g.id}</strong></td><td>${g.nome || "—"}</td><td>${g.bar_id || "—"}</td>
           <td>${g.ativo === false ? '<span class="pill neutro">inativo</span>' : '<span class="pill ok">ativo</span>'}</td>
+          <td><button class="btn-x" onclick="apagarGarcom('${g.id}', '${(g.nome || "").replace(/'/g, "")}')">apagar</button></td>
         </tr>`).join("")
-      : '<tr><td colspan="4" class="carregando">Nenhum garçom cadastrado.</td></tr>';
+      : '<tr><td colspan="5" class="carregando">Nenhum garçom cadastrado.</td></tr>';
   }catch(e){
-    $("t-garcons").innerHTML = '<tr><td colspan="4" class="carregando">Erro ao carregar.</td></tr>';
+    $("t-garcons").innerHTML = '<tr><td colspan="5" class="carregando">Erro ao carregar.</td></tr>';
   }
 }
 $("b-criar-garcom").onclick = async () => {
@@ -414,10 +434,67 @@ $("b-criar-garcom").onclick = async () => {
   }catch(e){ m.className = "msg erro"; m.textContent = "Não foi possível criar."; }
 };
 
+
+/* ── exclusao com confirmacao ── */
+function fecharModal(){ document.getElementById("modal").classList.remove("on"); }
+function confirmarExclusao(titulo, texto, url, aoTerminar){
+  const mo = document.getElementById("modal");
+  document.getElementById("mo-titulo").textContent = titulo;
+  document.getElementById("mo-texto").textContent = texto;
+  const b = document.getElementById("mo-confirmar");
+  b.onclick = async () => {
+    b.disabled = true; b.textContent = "Apagando…";
+    try{
+      const r = await fetch(API + url, {method:"DELETE"});
+      if(!r.ok) throw 0;
+      fecharModal(); aoTerminar();
+    }catch(e){ alert("Não foi possível apagar."); }
+    finally{ b.disabled = false; b.textContent = "Apagar"; }
+  };
+  mo.classList.add("on");
+}
+
+
+function apagarConsumidor(tel, nome){
+  confirmarExclusao(
+    "Apagar associado?",
+    (nome || tel) + " (" + tel + ") será removido para sempre, junto com o registro de push. O cartão na Wallet dele deixa de atualizar.",
+    "/admin/consumidores/" + tel,
+    carregarConsumidores
+  );
+}
+function apagarBar(id){
+  confirmarExclusao(
+    "Apagar bar?",
+    "O bar " + id + " será removido. Garçons e associados vinculados a ele NÃO são apagados, mas o scan deles passa a falhar.",
+    "/admin/bares/" + id,
+    carregarBares
+  );
+}
+function apagarGarcom(id, nome){
+  confirmarExclusao(
+    "Apagar garçom?",
+    (nome || id) + " perde o acesso ao scanner imediatamente.",
+    "/admin/garcons/" + id,
+    carregarGarcons
+  );
+}
+
 /* ── início ── */
 carregarBares().then(carregarConsumidores);
 carregarConfig();
 carregarGarcons();
 </script>
+
+<div id="modal">
+  <div class="caixa">
+    <h3 id="mo-titulo"></h3>
+    <p id="mo-texto"></p>
+    <div class="acoes">
+      <button class="btn sec" onclick="fecharModal()">Cancelar</button>
+      <button class="btn perigo" id="mo-confirmar">Apagar</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
