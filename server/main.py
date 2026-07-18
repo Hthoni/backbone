@@ -69,6 +69,7 @@ def cadastro(bar, telefone, nome, dia, mes, time):
 
     # indicador vem por query string: ?ind=5521999887766
     indicador_tel = so_digitos(request.args.get("padrinho", ""))
+    palavra_chave = (request.args.get("palavra", "") or "").strip()
     if indicador_tel == telefone:
         indicador_tel = ""  # auto-indicacao bloqueada
 
@@ -84,6 +85,7 @@ def cadastro(bar, telefone, nome, dia, mes, time):
         "telefone": telefone,
         "nome": nome,
         "indicador": bar,
+        "palavra_chave": palavra_chave,
         "nascimento_dia": dia,
         "nascimento_mes": mes,
         "time": time,
