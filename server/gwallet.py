@@ -82,11 +82,14 @@ def _payload_classe():
 
 
 def garantir_classe():
-    """Cria a classe se nao existir. Chamar uma vez (ou sempre — e idempotente)."""
+    """Cria a classe se nao existir; se existir, ATUALIZA com o payload atual."""
     s = _http()
     r = s.get(f"{BASE_URL}/loyaltyClass/{id_classe()}")
     if r.status_code == 200:
-        return {"status": "ja_existe"}
+        r2 = s.put(f"{BASE_URL}/loyaltyClass/{id_classe()}", json=_payload_classe())
+        if r2.status_code == 200:
+            return {"status": "atualizada"}
+        return {"status": "erro", "detalhe": r2.text}
     if r.status_code == 404:
         r2 = s.post(f"{BASE_URL}/loyaltyClass", json=_payload_classe())
         if r2.status_code in (200, 201):
