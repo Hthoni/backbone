@@ -20,6 +20,7 @@ from flask_cors import CORS
 import storage
 import pkpass
 import apns
+import gwallet
 
 app = Flask(__name__)
 CORS(app)
@@ -44,10 +45,17 @@ def _garcom_pertence_bar(garcom, bar):
 
 
 def _notificar(consumidor, aviso):
-    """Grava o aviso no consumidor e dispara o push."""
+    """Grava o aviso no consumidor e dispara o push (Apple + Google)."""
     consumidor["aviso"] = aviso
     consumidor["atualizado_em"] = agora()
     storage.salvar_consumidor(consumidor)
+
+    # Google Wallet: atualizar o objeto e o "push" do Android
+    try:
+        gwallet.atualizar_objeto(consumidor)
+    except Exception as e:
+        app.logger.warning("gwallet falhou: %s", e)
+
     try:
         return apns.enviar_push(consumidor["telefone"])
     except Exception as e:
@@ -533,6 +541,28 @@ def admin_apagar_garcom(garcom_id):
         return jsonify({"erro": "nao_encontrado"}), 404
     storage.apagar_garcom(garcom_id)
     return jsonify({"status": "apagado", "id": garcom_id})
+
+
+@app.route("/gwallet/<telefone>")
+def gwallet_link(telefone):
+    """Redireciona para o link 'Salvar no Google Wallet' do consumidor."""
+    c = storage.carregar_consumidor(so_digitos(telefone))
+    if not c:
+        return jsonify({"erro": "nao_encontrado"}), 404
+    try:
+        url = gwallet.link_salvar(c)
+        return Response(status=302, headers={"Location": url})
+    except Exception as e:
+        return jsonify({"erro": "gwallet_indisponivel", "detalhe": str(e)}), 500
+
+
+@app.route("/admin/gwallet/classe", methods=["POST"])
+def gwallet_criar_classe():
+    """Cria a classe do programa no Google (rodar uma vez)."""
+    try:
+        return jsonify(gwallet.garantir_classe())
+    except Exception as e:
+        return jsonify({"erro": str(e)}), 500
 
 
 @app.route("/")
