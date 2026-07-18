@@ -507,6 +507,34 @@ def admin_push_manual(telefone):
     return jsonify(_notificar(c, texto))
 
 
+@app.route("/admin/consumidores/<telefone>", methods=["DELETE"])
+def admin_apagar_consumidor(telefone):
+    telefone = so_digitos(telefone)
+    c = storage.carregar_consumidor(telefone)
+    if not c:
+        return jsonify({"erro": "nao_encontrado"}), 404
+    storage.apagar_consumidor(telefone)
+    return jsonify({"status": "apagado", "telefone": telefone})
+
+
+@app.route("/admin/bares/<bar_id>", methods=["DELETE"])
+def admin_apagar_bar(bar_id):
+    b = storage.carregar_bar(bar_id)
+    if not b:
+        return jsonify({"erro": "nao_encontrado"}), 404
+    storage.apagar_bar(bar_id)
+    return jsonify({"status": "apagado", "id": bar_id})
+
+
+@app.route("/admin/garcons/<garcom_id>", methods=["DELETE"])
+def admin_apagar_garcom(garcom_id):
+    g = storage.carregar_garcom(garcom_id)
+    if not g:
+        return jsonify({"erro": "nao_encontrado"}), 404
+    storage.apagar_garcom(garcom_id)
+    return jsonify({"status": "apagado", "id": garcom_id})
+
+
 @app.route("/")
 def health():
     return jsonify({"status": "ok", "sistema": "Clube Backbone", "versao": 3})
