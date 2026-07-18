@@ -46,6 +46,7 @@
   }
   .btn-w{background:var(--branco); color:#000}
   .btn-o{background:transparent; color:var(--branco); border:2px solid #4A4A4A}
+  .btn-verde{background:var(--verde); color:#FFF}
   .btn:active{transform:scale(.985)}
 
   .aviso{
@@ -109,7 +110,7 @@ function montar(c){
   const nomeBar = (c.indicador || "bar").replace(/_/g, " ");
 
   const botaoWallet = ehIOS
-    ? '<a class="btn btn-w" href="' + SERVER + '/cartao/' + c.telefone + '">Adicionar à Wallet</a>'
+    ? '<a class="btn btn-verde" href="' + SERVER + '/cartao/' + c.telefone + '">Adicionar à Wallet</a>'
     : '<div class="aviso">A carteira para Android está chegando. Por enquanto, é só apresentar seu telefone ao garçom — ele encontra você pelo cadastro.</div>';
 
   alvo.innerHTML = `
