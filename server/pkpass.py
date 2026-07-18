@@ -55,16 +55,19 @@ def _credenciais():
 def _arquivos_strip(temporada, punches, meta, tem_recompensa):
     """
     Devolve {nome_no_pkpass: bytes} das strips.
-    Se tem recompensa pendente -> quadro de recompensa.
-    Senao -> quadro do numero de punches.
-    Se o arquivo nao existir, cai para a temporada 'padrao'.
+    Cartela cheia OU recompensa pendente -> strip_premio.png
+    Senao -> strip_estilos_{punches}-{meta}.png  (ex.: strip_estilos_3-10.png)
+    Fallback: temporada 'padrao', depois o quadro zero.
     """
-    nome = "recompensa" if tem_recompensa else str(min(punches, meta))
+    if tem_recompensa or punches >= meta:
+        nome = "strip_premio"
+    else:
+        nome = f"strip_estilos_{punches}-{meta}"
 
     candidatos = [
         os.path.join(STRIPS_DIR, temporada, f"{nome}.png"),
         os.path.join(STRIPS_DIR, "padrao", f"{nome}.png"),
-        os.path.join(STRIPS_DIR, "padrao", "0.png"),
+        os.path.join(STRIPS_DIR, temporada, f"strip_estilos_0-{meta}.png"),
     ]
     caminho = next((c for c in candidatos if os.path.exists(c)), None)
     if not caminho:
@@ -119,10 +122,16 @@ def montar_pass_json(consumidor, aviso=None):
         "textAlignment": "PKTextAlignmentRight",
     })
 
-    link_indicacao = (
-        f"https://wa.me/{WHATSAPP_NUM}"
-        f"?text=Quero%20entrar%20no%20Clube%20Backbone%20-%20IND{consumidor['telefone']}"
+    # Mensagem no formato que o fluxo do BotConversa espera:
+    # "Quero participar do Clube Backbone {palavra}, ... padrinho:{telefone}"
+    # A palavra-chave direciona o afilhado ao fluxo do bar do padrinho.
+    palavra = consumidor.get("palavra_chave", "") or ""
+    _msg = (
+        f"Quero participar do Clube Backbone {palavra}, "
+        f"a convite do associado padrinho:{consumidor['telefone']}"
     )
+    from urllib.parse import quote
+    link_indicacao = f"https://wa.me/{WHATSAPP_NUM}?text={quote(_msg)}"
 
     verso = [
         # ESTE CAMPO E O MOTOR DO PUSH.
