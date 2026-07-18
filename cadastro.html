@@ -76,6 +76,7 @@ const mes  = q.get("mes")  || "";
 const time = q.get("time") || "";
 // PADRINHO (member gets member) = variavel "padrinho" do BotConversa
 const ind  = (q.get("padrinho") || q.get("ind") || "").replace(/\D/g, "");
+const palavra = q.get("palavra") || "";
 
 const alvo = document.getElementById("conteudo");
 const ehIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
@@ -88,7 +89,9 @@ async function iniciar(){
 
   let url = SERVER + "/cadastro/" + bar + "/" + tel + "/" +
             encodeURIComponent(nome) + "/" + dia + "/" + mes + "/" + encodeURIComponent(time);
-  if(ind && ind !== tel.replace(/\D/g,"")) url += "?padrinho=" + ind;
+  let sep = "?";
+  if(ind && ind !== tel.replace(/\D/g,"")){ url += sep + "padrinho=" + ind; sep = "&"; }
+  if(palavra){ url += sep + "palavra=" + encodeURIComponent(palavra); }
 
   try{
     const r = await fetch(url);
