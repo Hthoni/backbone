@@ -111,7 +111,7 @@ function montar(c){
 
   const botaoWallet = ehIOS
     ? '<a class="btn btn-verde" href="' + SERVER + '/cartao/' + c.telefone + '">Adicionar à Wallet</a>'
-    : '<div class="aviso">A carteira para Android está chegando. Por enquanto, é só apresentar seu telefone ao garçom — ele encontra você pelo cadastro.</div>';
+    : '<a class="btn btn-verde" href="' + SERVER + '/gwallet/' + c.telefone + '">Adicionar à Wallet</a>';
 
   alvo.innerHTML = `
     <h1>Seja bem-vindo, ${c.nome}!</h1>
