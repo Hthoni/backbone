@@ -184,3 +184,23 @@ def carregar_config():
 def salvar_config(config: dict):
     blob = _bucket().blob("config/config.json")
     blob.upload_from_string(json.dumps(config, ensure_ascii=False), content_type="application/json")
+
+def apagar_consumidor(telefone: str):
+    """Apaga o consumidor e o registro de push dele."""
+    b = _bucket()
+    for caminho in (f"consumidores/{telefone}.json", f"registros/{telefone}.json"):
+        blob = b.blob(caminho)
+        if blob.exists():
+            blob.delete()
+
+
+def apagar_bar(bar_id: str):
+    blob = _bucket().blob(f"bares/{bar_id}.json")
+    if blob.exists():
+        blob.delete()
+
+
+def apagar_garcom(garcom_id: str):
+    blob = _bucket().blob(f"garcons/{garcom_id}.json")
+    if blob.exists():
+        blob.delete()
