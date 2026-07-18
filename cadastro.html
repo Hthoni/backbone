@@ -34,11 +34,10 @@
   p{font-size:18px; line-height:1.5; color:#D6D4CC; margin-bottom:10px}
 
   .premio{
-    background:var(--verde); border-radius:16px;
+    background:#FFF; color:#000; border-radius:16px;
     padding:22px; margin:26px 0; text-align:center;
   }
-  .premio .n{font-size:15px; font-weight:800; letter-spacing:.14em; opacity:.85}
-  .premio .g{font-size:26px; font-weight:800; line-height:1.2; margin-top:6px}
+  .premio .g{font-size:22px; font-weight:800; line-height:1.3}
 
   .btn{
     display:block; width:100%; padding:22px; border:none; border-radius:16px;
@@ -107,22 +106,20 @@ async function iniciar(){
 }
 
 function montar(c){
-  const meta = c.meta || 10;
+  const nomeBar = (c.indicador || "bar").replace(/_/g, " ");
 
   const botaoWallet = ehIOS
-    ? '<a class="btn btn-w" href="' + SERVER + '/cartao/' + c.telefone + '">Adicionar à Apple Wallet</a>'
+    ? '<a class="btn btn-w" href="' + SERVER + '/cartao/' + c.telefone + '">Adicionar à Wallet</a>'
     : '<div class="aviso">A carteira para Android está chegando. Por enquanto, é só apresentar seu telefone ao garçom — ele encontra você pelo cadastro.</div>';
 
   alvo.innerHTML = `
-    <h1>Bem-vindo, ${c.nome}.</h1>
-    <p>Você está no Clube Backbone.</p>
+    <h1>Seja bem-vindo, ${c.nome}!</h1>
 
     <div class="premio">
-      <div class="n">SEU PRIMEIRO CHOPP</div>
-      <div class="g">É por nossa conta</div>
+      <div class="g">Seu chopp de boas-vindas é por nossa conta!</div>
     </div>
 
-    <p>Guarde o cartão no celular. É nele que o garçom marca cada chopp — e a cada ${meta}, o próximo é grátis.</p>
+    <p>Guarde o cartão no Wallet do seu celular clicando abaixo. Com ele, o(a) atendente do ${nomeBar} registrará seus pontos para resgate de benefícios.</p>
 
     ${botaoWallet}
 
