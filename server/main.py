@@ -78,6 +78,7 @@ def cadastro(bar, telefone, nome, dia, mes, time):
     # indicador vem por query string: ?ind=5521999887766
     indicador_tel = so_digitos(request.args.get("padrinho", ""))
     palavra_chave = (request.args.get("palavra", "") or "").strip()
+    cep = so_digitos(request.args.get("cep", ""))[:8]
     if indicador_tel == telefone:
         indicador_tel = ""  # auto-indicacao bloqueada
 
@@ -94,6 +95,7 @@ def cadastro(bar, telefone, nome, dia, mes, time):
         "nome": nome,
         "indicador": bar,
         "palavra_chave": palavra_chave,
+        "cep": cep,
         "nascimento_dia": dia,
         "nascimento_mes": mes,
         "time": time,
@@ -640,7 +642,8 @@ def push_lote():
 def qr_universal(telefone):
     """
     Destino do QR do cartao quando lido por uma CAMERA comum.
-    Redireciona para o convite wa.me do dono do cartao (member gets member).
+    Redireciona para a pagina de cadastro, com o bar do dono (indicador)
+    e o dono como padrinho (member gets member).
     O scanner do garcom NAO passa por aqui — ele extrai o telefone da URL.
     """
     from urllib.parse import quote
@@ -648,12 +651,10 @@ def qr_universal(telefone):
     c = storage.carregar_consumidor(tel)
     if not c:
         return Response("Cartao nao encontrado.", status=404, mimetype="text/plain")
-    palavra = c.get("palavra_chave", "") or ""
-    whatsapp = os.environ.get("WHATSAPP_NUM", "")
-    msg = (f"Quero participar do Clube Backbone {palavra}, "
-           f"a convite do associado padrinho:{tel}")
-    return Response(status=302,
-                    headers={"Location": f"https://wa.me/{whatsapp}?text={quote(msg)}"})
+    indicador = c.get("indicador", "") or ""
+    destino = (f"https://hthoni.github.io/backbone/cadastro.html"
+               f"?indicador={quote(indicador)}&padrinho={tel}")
+    return Response(status=302, headers={"Location": destino})
 
 
 @app.route("/")
