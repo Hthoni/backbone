@@ -128,6 +128,24 @@
   .f-painel input[type=checkbox]{width:auto}
   #pm-tabela input[type=checkbox]{width:auto}
   #pm-tabela td, #pm-tabela th{padding:8px 10px}
+  #modal-qr{
+    display:none; position:fixed; inset:0; background:rgba(0,0,0,.75);
+    z-index:100; align-items:center; justify-content:center; padding:20px;
+  }
+  #modal-qr.on{display:flex}
+  #modal-qr .caixa{
+    background:var(--preto2); border:1px solid var(--linha); border-radius:16px;
+    padding:26px; max-width:420px; width:100%; text-align:center;
+  }
+  #modal-qr h3{font-size:18px; font-weight:800; margin-bottom:16px}
+  #mq-img{width:240px; height:240px; border-radius:12px; background:#FFF; padding:10px}
+  #mq-link{
+    background:#1D1D1D; border:1px solid var(--linha); border-radius:10px;
+    padding:10px 12px; font-size:12px; color:var(--cinza); word-break:break-all;
+    margin:14px 0 16px; text-align:left;
+  }
+  #modal-qr .acoes{display:flex; gap:10px}
+  #modal-qr .acoes .btn{flex:1}
 </style>
 </head>
 <body>
@@ -247,7 +265,7 @@
   <h2>Bares</h2>
   <div class="cartao" style="padding:0; overflow-x:auto">
     <table>
-      <thead><tr><th>ID (código)</th><th>NOME</th><th>CIDADE</th><th></th></tr></thead>
+      <thead><tr><th>ID (código)</th><th>NOME</th><th>CIDADE</th><th></th><th></th></tr></thead>
       <tbody id="t-bares"><tr><td colspan="3" class="carregando">Carregando…</td></tr></tbody>
     </table>
   </div>
@@ -433,14 +451,14 @@ async function carregarBares(){
     const r = await fetch(API + "/admin/bares");
     const lista = await r.json();
     $("t-bares").innerHTML = lista.length
-      ? lista.map(b => `<tr><td><strong>${b.id}</strong></td><td>${b.nome || "—"}</td><td>${b.cidade || "—"}</td><td><button class="btn-x" onclick="apagarBar('${b.id}')">apagar</button></td></tr>`).join("")
-      : '<tr><td colspan="4" class="carregando">Nenhum bar cadastrado.</td></tr>';
+      ? lista.map(b => `<tr><td><strong>${b.id}</strong></td><td>${b.nome || "—"}</td><td>${b.cidade || "—"}</td><td><button class="btn-x" style="color:#D6D4CC;border-color:#4A4A4A" onclick="abrirQrBar('${b.id}')">Gerar QR Code e link</button></td><td><button class="btn-x" onclick="apagarBar('${b.id}')">apagar</button></td></tr>`).join("")
+      : '<tr><td colspan="5" class="carregando">Nenhum bar cadastrado.</td></tr>';
     // popular selects
     const ops = lista.map(b => `<option value="${b.id}">${b.nome || b.id}</option>`).join("");
     $("g-bar").innerHTML = ops;
     $("f-bar").innerHTML = '<option value="">Todos os bares</option>' + ops;
   }catch(e){
-    $("t-bares").innerHTML = '<tr><td colspan="4" class="carregando">Erro ao carregar.</td></tr>';
+    $("t-bares").innerHTML = '<tr><td colspan="5" class="carregando">Erro ao carregar.</td></tr>';
   }
 }
 $("b-criar-bar").onclick = async () => {
@@ -727,6 +745,27 @@ async function pmCarregar(){
   }
 }
 
+
+/* ── QR e link de cadastro do bar ── */
+function abrirQrBar(id){
+  const link = "https://hthoni.github.io/backbone/cadastro.html?indicador=" + encodeURIComponent(id);
+  document.getElementById("mq-titulo").textContent = "Cadastro — " + id;
+  document.getElementById("mq-img").src =
+    "https://api.qrserver.com/v1/create-qr-code/?size=480x480&data=" + encodeURIComponent(link);
+  document.getElementById("mq-link").textContent = link;
+  const b = document.getElementById("mq-copiar");
+  b.textContent = "Copiar link";
+  b.onclick = async () => {
+    try{
+      await navigator.clipboard.writeText(link);
+      b.textContent = "Copiado!";
+      setTimeout(() => b.textContent = "Copiar link", 1500);
+    }catch(e){ alert(link); }
+  };
+  document.getElementById("modal-qr").classList.add("on");
+}
+function fecharModalQr(){ document.getElementById("modal-qr").classList.remove("on"); }
+
 /* ── início ── */
 carregarBares().then(carregarConsumidores);
 carregarConfig();
@@ -741,6 +780,18 @@ pmCarregar();
     <div class="acoes">
       <button class="btn sec" onclick="fecharModal()">Cancelar</button>
       <button class="btn perigo" id="mo-confirmar">Apagar</button>
+    </div>
+  </div>
+</div>
+
+<div id="modal-qr">
+  <div class="caixa">
+    <h3 id="mq-titulo"></h3>
+    <img id="mq-img" alt="QR Code">
+    <div id="mq-link"></div>
+    <div class="acoes">
+      <button class="btn sec" onclick="fecharModalQr()">Fechar</button>
+      <button class="btn" id="mq-copiar">Copiar link</button>
     </div>
   </div>
 </div>
