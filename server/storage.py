@@ -216,3 +216,38 @@ def listar_eventos():
         except Exception:
             continue
     return eventos
+
+
+def carregar_bloqueados():
+    """
+    Lista de bloqueios de associacao (antifraude), POR BAR.
+    Cada item: {"telefone": "5521...", "bar": "<bar_id>" ou "*" (todos)}.
+    Entradas antigas em string sao tratadas como bar "*".
+    """
+    blob = _bucket().blob("bloqueados.json")
+    if not blob.exists():
+        return []
+    try:
+        bruto = json.loads(blob.download_as_text())
+    except Exception:
+        return []
+    lista = []
+    for item in bruto:
+        if isinstance(item, str):
+            lista.append({"telefone": item, "bar": "*"})
+        elif isinstance(item, dict) and item.get("telefone"):
+            lista.append({"telefone": item["telefone"], "bar": item.get("bar") or "*"})
+    return lista
+
+
+def salvar_bloqueados(lista):
+    vistos, limpa = set(), []
+    for item in lista:
+        chave = (item["telefone"], item.get("bar") or "*")
+        if chave in vistos:
+            continue
+        vistos.add(chave)
+        limpa.append({"telefone": chave[0], "bar": chave[1]})
+    limpa.sort(key=lambda x: (x["bar"], x["telefone"]))
+    _bucket().blob("bloqueados.json").upload_from_string(
+        json.dumps(limpa), content_type="application/json")
