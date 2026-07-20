@@ -204,3 +204,15 @@ def apagar_garcom(garcom_id: str):
     blob = _bucket().blob(f"garcons/{garcom_id}.json")
     if blob.exists():
         blob.delete()
+
+def listar_eventos():
+    """Lista todos os eventos gravados (para estatisticas)."""
+    client = _client()
+    blobs = client.list_blobs(BUCKET_NAME, prefix="eventos/")
+    eventos = []
+    for b in blobs:
+        try:
+            eventos.append(json.loads(b.download_as_text()))
+        except Exception:
+            continue
+    return eventos
