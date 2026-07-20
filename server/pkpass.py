@@ -214,7 +214,7 @@ def montar_pass_json(consumidor, aviso=None):
             "backFields": verso,
         },
         "barcodes": [{
-            "message": consumidor["telefone"],
+            "message": f"{WEB_SERVICE_URL}/q/{consumidor['telefone']}",
             "format": "PKBarcodeFormatQR",
             "messageEncoding": "iso-8859-1",
         }],
