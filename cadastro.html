@@ -10,8 +10,10 @@
     --preto:#000; --preto2:#141414; --linha:#2E2E2E;
     --branco:#FFF; --cinza:#A8A8A2;
     --rubro:#D8232A; --ambar:#E8A317; --verde:#1F7A47;
+    --campo:#E9E7DF;
   }
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
   body{
     font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
     background:var(--preto); color:var(--branco);
@@ -20,101 +22,207 @@
   }
   .cab{
     display:flex; justify-content:center;
-    padding:calc(env(safe-area-inset-top,0px) + 22px) 20px 20px;
-    border-bottom:1px solid var(--linha);
+    padding:calc(env(safe-area-inset-top,0px) + 14px) 20px 12px;
+    border-bottom:1px solid var(--linha); flex-shrink:0;
   }
-  .cab img{height:52px; width:auto; display:block}
+  .cab img{height:40px; width:auto; display:block}
 
   main{
     flex:1; display:flex; flex-direction:column; justify-content:center;
-    padding:32px 22px calc(32px + env(safe-area-inset-bottom,0px)); max-width:480px;
-    margin:0 auto; width:100%;
+    padding:16px 22px calc(16px + env(safe-area-inset-bottom,0px));
+    max-width:480px; margin:0 auto; width:100%;
   }
-  h1{font-size:32px; font-weight:800; line-height:1.15; margin-bottom:12px}
-  p{font-size:18px; line-height:1.5; color:#D6D4CC; margin-bottom:10px}
+  h1{font-size:24px; font-weight:800; line-height:1.15; margin-bottom:14px}
+  p{font-size:16px; line-height:1.45; color:#D6D4CC; margin-bottom:10px}
+
+  label{display:block; font-size:11px; font-weight:800; letter-spacing:.12em; color:var(--cinza); margin:0 0 5px 2px}
+  input, select{
+    width:100%; background:var(--campo); border:2px solid var(--campo); color:#111;
+    font-size:16px; font-weight:600; padding:11px 12px; border-radius:10px;
+    font-family:inherit; appearance:none; -webkit-appearance:none;
+  }
+  select{
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23111' stroke-width='2' fill='none'/%3E%3C/svg%3E");
+    background-repeat:no-repeat; background-position:right 12px center; padding-right:34px;
+  }
+  input:focus, select:focus{outline:none; border-color:var(--ambar)}
+  .grupo{margin-bottom:13px}
+  .linha{display:flex; gap:10px}
+  .linha > div{flex:1}
+
+  .destaque{
+    font-size:13px; line-height:1.4; color:var(--ambar); font-weight:700;
+    margin:0 0 6px 2px;
+  }
+
+  .btn{
+    display:block; width:100%; padding:16px; border:none; border-radius:14px;
+    font-size:18px; font-weight:800; text-align:center; text-decoration:none;
+    margin-top:6px; cursor:pointer; font-family:inherit;
+  }
+  .btn-verde{background:var(--verde); color:#FFF}
+  .btn:active{transform:scale(.985)}
+  .btn:disabled{opacity:.5}
 
   .premio{
     background:#FFF; color:#000; border-radius:16px;
-    padding:22px; margin:26px 0; text-align:center;
+    padding:20px; margin:22px 0; text-align:center;
   }
-  .premio .g{font-size:22px; font-weight:800; line-height:1.3}
-
-  .btn{
-    display:block; width:100%; padding:22px; border:none; border-radius:16px;
-    font-size:20px; font-weight:800; text-align:center; text-decoration:none;
-    margin-top:12px; cursor:pointer; font-family:inherit;
-  }
-  .btn-w{background:var(--branco); color:#000}
-  .btn-o{background:transparent; color:var(--branco); border:2px solid #4A4A4A}
-  .btn-verde{background:var(--verde); color:#FFF}
-  .btn:active{transform:scale(.985)}
-
+  .premio .g{font-size:20px; font-weight:800; line-height:1.3}
   .aviso{
     background:var(--preto2); border:1px solid var(--linha); border-radius:12px;
-    padding:16px; font-size:16px; color:#D6D4CC; line-height:1.45; margin-top:14px;
+    padding:14px; font-size:15px; color:#D6D4CC; line-height:1.45; margin-top:12px;
   }
-  .erro{color:#FF6B6B; font-size:18px; font-weight:600; line-height:1.45}
-  .carregando{color:var(--cinza); font-size:18px; text-align:center; padding:40px 0}
+  .erro-msg{color:#FF6B6B; font-size:14px; font-weight:600; min-height:18px; margin-top:8px}
+  .carregando{color:var(--cinza); font-size:17px; text-align:center; padding:36px 0}
 </style>
 </head>
 <body>
   <div class="cab"><img src="clube_logo.png" alt="Clube Backbone"></div>
-  <main id="conteudo">
-    <p class="carregando">Preparando seu cartão…</p>
-  </main>
+  <main id="conteudo"><p class="carregando">Carregando…</p></main>
 
 <script>
-const SERVER  = "https://backbone-650557630362.us-central1.run.app";
-const WHATS   = "5521967614195";   // numero do bot
+const SERVER = "https://backbone-650557630362.us-central1.run.app";
 
 const q    = new URLSearchParams(location.search);
-const bar  = q.get("indicador") || q.get("bar");   // BAR de origem = variavel "Indicador" do BotConversa
-const tel  = q.get("tel");
-const nome = q.get("nome");
-const dia  = q.get("dia")  || "";
-const mes  = q.get("mes")  || "";
-const time = q.get("time") || "";
-// PADRINHO (member gets member) = variavel "padrinho" do BotConversa
-const ind  = (q.get("padrinho") || q.get("ind") || "").replace(/\D/g, "");
+const bar  = q.get("indicador") || q.get("bar") || "";
+const telQ = (q.get("tel") || "").replace(/\D/g, "");
+const nomeQ = q.get("nome") || "";
+const diaQ  = q.get("dia")  || "";
+const mesQ  = q.get("mes")  || "";
+const timeQ = q.get("time") || "";
+const ind   = (q.get("padrinho") || q.get("ind") || "").replace(/\D/g, "");
 const palavra = q.get("palavra") || "";
 
 const alvo = document.getElementById("conteudo");
 const ehIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
 
-async function iniciar(){
-  if(!bar || !tel || !nome){
-    alvo.innerHTML = "<p class='erro'>Link inválido. Volte ao WhatsApp e comece de novo.</p>";
-    return;
-  }
+/* ══ MODO 1: dados completos na URL (fluxo do bot) → cadastra direto ══ */
+/* ══ MODO 2: sem dados → formulário ══ */
+if(telQ && nomeQ){ cadastrar(bar, telQ, nomeQ, diaQ, mesQ, timeQ); }
+else { formulario(); }
 
-  let url = SERVER + "/cadastro/" + bar + "/" + tel + "/" +
-            encodeURIComponent(nome) + "/" + dia + "/" + mes + "/" + encodeURIComponent(time);
-  let sep = "?";
-  if(ind && ind !== tel.replace(/\D/g,"")){ url += sep + "padrinho=" + ind; sep = "&"; }
-  if(palavra){ url += sep + "palavra=" + encodeURIComponent(palavra); }
+function formulario(){
+  const dias = Array.from({length:31}, (_,i) => `<option value="${i+1}">${i+1}</option>`).join("");
+  const meses = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho",
+                 "Agosto","Setembro","Outubro","Novembro","Dezembro"]
+    .map((m,i) => `<option value="${i+1}">${m}</option>`).join("");
+  const times = ["Botafogo","Flamengo","Fluminense","Vasco","Outros"]
+    .map(t => `<option value="${t}">${t}</option>`).join("");
+
+  alvo.innerHTML = `
+    <h1>Entre para o Clube Backbone</h1>
+
+    <div class="grupo">
+      <label>NOME</label>
+      <input id="f-nome" type="text" autocomplete="given-name" placeholder="Seu primeiro nome">
+    </div>
+
+    <div class="grupo">
+      <label>ANIVERSÁRIO</label>
+      <div class="linha">
+        <div><select id="f-dia"><option value="" disabled selected>Dia</option>${dias}</select></div>
+        <div><select id="f-mes"><option value="" disabled selected>Mês</option>${meses}</select></div>
+      </div>
+    </div>
+
+    <div class="grupo">
+      <label>TIME DE CORAÇÃO</label>
+      <select id="f-time"><option value="" disabled selected>Escolha</option>${times}</select>
+    </div>
+
+    <div class="grupo">
+      <div class="linha">
+        <div style="flex:1.4">
+          <label>CEP</label>
+          <input id="f-cep" type="tel" inputmode="numeric" autocomplete="postal-code"
+                 placeholder="00000-000">
+          <div style="font-size:12px;color:var(--cinza);margin-top:5px;line-height:1.35">Usamos seu CEP apenas para avisar de eventos e novidades perto de você.</div>
+        </div>
+        <div style="flex:2"></div>
+      </div>
+    </div>
+
+    <div class="grupo">
+      <div class="destaque">Seu telefone será seu login — atenção ao digitar.</div>
+      <input id="f-tel" type="tel" inputmode="numeric" autocomplete="tel"
+             placeholder="(21) 99999-9999">
+    </div>
+
+    <button class="btn btn-verde" id="f-enviar">Entrar</button>
+    <div class="erro-msg" id="f-erro"></div>
+  `;
+
+  const cepInput = document.getElementById("f-cep");
+  cepInput.addEventListener("input", () => {
+    let d = cepInput.value.replace(/\D/g, "").slice(0, 8);
+    cepInput.value = d.length > 5 ? d.slice(0,5) + "-" + d.slice(5) : d;
+  });
+
+  const telInput = document.getElementById("f-tel");
+  telInput.addEventListener("input", () => {
+    let d = telInput.value.replace(/\D/g, "").slice(0, 11);
+    let f = d;
+    if(d.length > 2) f = "(" + d.slice(0,2) + ") " + d.slice(2);
+    if(d.length > 7) f = "(" + d.slice(0,2) + ") " + d.slice(2,7) + "-" + d.slice(7);
+    telInput.value = f;
+  });
+
+  document.getElementById("f-enviar").onclick = () => {
+    const nome = document.getElementById("f-nome").value.trim();
+    const dia  = document.getElementById("f-dia").value;
+    const mes  = document.getElementById("f-mes").value;
+    const time = document.getElementById("f-time").value;
+    let tel = telInput.value.replace(/\D/g, "");
+    const cep = cepInput.value.replace(/\D/g, "");
+    const erro = document.getElementById("f-erro");
+
+    if(!nome){ erro.textContent = "Escreva seu nome."; return; }
+    if(!dia || !mes){ erro.textContent = "Escolha o dia e o mês do aniversário."; return; }
+    if(!time){ erro.textContent = "Escolha seu time."; return; }
+    if(cep.length !== 8){ erro.textContent = "CEP incompleto — são 8 números."; return; }
+    if(tel.length < 10 || tel.length > 11){
+      erro.textContent = "Telefone incompleto — confira o DDD e o número."; return;
+    }
+    tel = "55" + tel;
+    erro.textContent = "";
+    const b = document.getElementById("f-enviar");
+    b.disabled = true; b.textContent = "Entrando…";
+    cadastrar(bar || "site", tel, nome.split(" ")[0], dia, mes, time, cep);
+  };
+}
+
+async function cadastrar(barU, tel, nome, dia, mes, time, cep){
+  let url = SERVER + "/cadastro/" + encodeURIComponent(barU || "site") + "/" + tel + "/" +
+            encodeURIComponent(nome) + "/" + (dia||"") + "/" + (mes||"") + "/" + encodeURIComponent(time||"");
+  const extras = [];
+  if(ind && ind !== tel) extras.push("padrinho=" + ind);
+  if(palavra) extras.push("palavra=" + encodeURIComponent(palavra));
+  if(cep) extras.push("cep=" + cep);
+  if(extras.length) url += "?" + extras.join("&");
 
   try{
     const r = await fetch(url);
     const d = await r.json();
     if(d.status !== "cadastrado" && d.status !== "ja_cadastrado"){
-      alvo.innerHTML = "<p class='erro'>Não deu para concluir o cadastro. Tente de novo pelo WhatsApp.</p>";
+      alvo.innerHTML = "<p class='erro-msg' style='font-size:17px'>Não deu para concluir o cadastro. Tente de novo.</p>";
       return;
     }
-    montar(d.consumidor);
+    boasVindas(d.consumidor);
   }catch(e){
-    alvo.innerHTML = "<p class='erro'>Sem conexão. Verifique a internet e recarregue esta página.</p>";
+    alvo.innerHTML = "<p class='erro-msg' style='font-size:17px'>Sem conexão. Verifique a internet e recarregue.</p>";
   }
 }
 
-function montar(c){
-  const nomeBar = (c.indicador || "bar").replace(/_/g, " ");
-
+function boasVindas(c){
+  const nomeBar = (c.indicador && c.indicador !== "site")
+    ? c.indicador.replace(/_/g, " ") : "bar";
   const botaoWallet = ehIOS
     ? '<a class="btn btn-verde" href="' + SERVER + '/cartao/' + c.telefone + '">Adicionar à Wallet</a>'
     : '<a class="btn btn-verde" href="' + SERVER + '/gwallet/' + c.telefone + '">Adicionar à Wallet</a>';
 
   alvo.innerHTML = `
-    <h1>Seja bem-vindo, ${c.nome}!</h1>
+    <h1 style="font-size:28px">Seja bem-vindo, ${c.nome}!</h1>
 
     <div class="premio">
       <div class="g">Seu chopp de boas-vindas é por nossa conta!</div>
@@ -124,11 +232,12 @@ function montar(c){
 
     ${botaoWallet}
 
+    <div class="aviso" style="margin-top:18px">
+      <strong style="color:#FFF">Traga seus amigos e ganhe pontos 🍺</strong><br>
+      O QR do seu cartão também é seu convite: quando um amigo apontar a câmera para ele, cai direto no cadastro — indicado por você. A cada amigo que completar a cartela dele, você ganha um ponto na sua.
+    </div>
   `;
-
 }
-
-iniciar();
 </script>
 </body>
 </html>
