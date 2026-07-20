@@ -225,9 +225,19 @@
 <!-- ══ GARÇONS ══ -->
 <section class="aba" id="aba-garcons">
   <h2>Garçons</h2>
+  <div class="linha">
+    <div style="max-width:200px">
+      <label>JANELA (DIAS)</label>
+      <input id="g-dias" type="number" min="1" max="365" value="30">
+    </div>
+    <div style="flex:0">
+      <button class="btn sec" id="b-stats">Atualizar números</button>
+    </div>
+  </div>
+  <p class="mini" style="margin:-6px 0 14px">Cada célula mostra <strong>últimos X dias / total</strong>. Cadastros = chopps de boas-vindas entregues · Consumos = chopps pagos marcados · Resgates = prêmios de meta entregues.</p>
   <div class="cartao" style="padding:0; overflow-x:auto">
     <table>
-      <thead><tr><th>ID (login)</th><th>NOME</th><th>BAR</th><th>STATUS</th><th></th></tr></thead>
+      <thead><tr><th>ID (login)</th><th>NOME</th><th>BAR</th><th class="num">CADASTROS</th><th class="num">CONSUMOS</th><th class="num">RESGATES</th><th>STATUS</th><th></th></tr></thead>
       <tbody id="t-garcons"><tr><td colspan="4" class="carregando">Carregando…</td></tr></tbody>
     </table>
   </div>
@@ -399,18 +409,30 @@ $("b-criar-bar").onclick = async () => {
 
 /* ── garçons ── */
 async function carregarGarcons(){
+  const dias = parseInt($("g-dias")?.value || "30", 10);
   try{
-    const r = await fetch(API + "/admin/garcons");
-    const lista = await r.json();
+    const [rg, rs] = await Promise.all([
+      fetch(API + "/admin/garcons"),
+      fetch(API + "/admin/garcons/stats?dias=" + dias)
+    ]);
+    const lista = await rg.json();
+    const stats = (await rs.json()).garcons || {};
+    const cel = (s, cat) => {
+      if(!s) return '<td class="num">0 / 0</td>';
+      return `<td class="num">${s[cat+"_janela"]} / ${s[cat+"_total"]}</td>`;
+    };
     $("t-garcons").innerHTML = lista.length
-      ? lista.map(g => `<tr>
+      ? lista.map(g => {
+          const s = stats[g.id];
+          return `<tr>
           <td><strong>${g.id}</strong></td><td>${g.nome || "—"}</td><td>${g.bar_id || "—"}</td>
+          ${cel(s,"cadastros")}${cel(s,"consumos")}${cel(s,"resgates")}
           <td>${g.ativo === false ? '<span class="pill neutro">inativo</span>' : '<span class="pill ok">ativo</span>'}</td>
           <td><button class="btn-x" onclick="apagarGarcom('${g.id}', '${(g.nome || "").replace(/'/g, "")}')">apagar</button></td>
-        </tr>`).join("")
-      : '<tr><td colspan="5" class="carregando">Nenhum garçom cadastrado.</td></tr>';
+        </tr>`;}).join("")
+      : '<tr><td colspan="8" class="carregando">Nenhum garçom cadastrado.</td></tr>';
   }catch(e){
-    $("t-garcons").innerHTML = '<tr><td colspan="5" class="carregando">Erro ao carregar.</td></tr>';
+    $("t-garcons").innerHTML = '<tr><td colspan="8" class="carregando">Erro ao carregar.</td></tr>';
   }
 }
 $("b-criar-garcom").onclick = async () => {
@@ -479,6 +501,8 @@ function apagarGarcom(id, nome){
     carregarGarcons
   );
 }
+
+$("b-stats").onclick = carregarGarcons;
 
 /* ── início ── */
 carregarBares().then(carregarConsumidores);
