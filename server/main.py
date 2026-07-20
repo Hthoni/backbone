@@ -636,6 +636,26 @@ def push_lote():
     })
 
 
+@app.route("/q/<telefone>")
+def qr_universal(telefone):
+    """
+    Destino do QR do cartao quando lido por uma CAMERA comum.
+    Redireciona para o convite wa.me do dono do cartao (member gets member).
+    O scanner do garcom NAO passa por aqui — ele extrai o telefone da URL.
+    """
+    from urllib.parse import quote
+    tel = so_digitos(telefone)
+    c = storage.carregar_consumidor(tel)
+    if not c:
+        return Response("Cartao nao encontrado.", status=404, mimetype="text/plain")
+    palavra = c.get("palavra_chave", "") or ""
+    whatsapp = os.environ.get("WHATSAPP_NUM", "")
+    msg = (f"Quero participar do Clube Backbone {palavra}, "
+           f"a convite do associado padrinho:{tel}")
+    return Response(status=302,
+                    headers={"Location": f"https://wa.me/{whatsapp}?text={quote(msg)}"})
+
+
 @app.route("/")
 def health():
     return jsonify({"status": "ok", "sistema": "Clube Backbone", "versao": 3})
