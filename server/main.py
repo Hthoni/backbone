@@ -657,6 +657,43 @@ def qr_universal(telefone):
     return Response(status=302, headers={"Location": destino})
 
 
+@app.route("/admin/bares/stats")
+def bares_stats():
+    """
+    Estatisticas por bar: associados (cadastros) e resgates,
+    separando chopp de boas-vindas de chopp de meta atingida.
+    ?dias=30 define a janela recente (default 30).
+    """
+    from datetime import timedelta
+    dias = int(request.args.get("dias", 30))
+    corte = (datetime.now(timezone.utc) - timedelta(days=dias)).isoformat()
+
+    stats = {}
+    def _s(bar):
+        return stats.setdefault(bar or "—", {
+            "associados_total": 0, "associados_janela": 0,
+            "boasvindas_total": 0, "boasvindas_janela": 0,
+            "metas_total": 0, "metas_janela": 0,
+        })
+
+    for ev in storage.listar_eventos():
+        if ev.get("tipo") != "resgate":
+            continue
+        cat = "boasvindas" if ev.get("tipo_recompensa") == "boas_vindas" else "metas"
+        e = _s(ev.get("bar"))
+        e[cat + "_total"] += 1
+        if (ev.get("data") or "") >= corte:
+            e[cat + "_janela"] += 1
+
+    for c in storage.listar_consumidores():
+        e = _s(c.get("indicador"))
+        e["associados_total"] += 1
+        if (c.get("cadastro_em") or "") >= corte:
+            e["associados_janela"] += 1
+
+    return jsonify({"dias": dias, "bares": stats})
+
+
 @app.route("/")
 def health():
     return jsonify({"status": "ok", "sistema": "Clube Backbone", "versao": 3})
