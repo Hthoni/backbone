@@ -258,6 +258,27 @@
     <div class="msg" id="m-config"></div>
   </div>
   <p class="mini">A temporada vigente define a pasta de artes da strip (server/strips/&lt;temporada&gt;/) para novos ciclos.</p>
+
+  <h2 style="margin-top:30px">Telefones bloqueados</h2>
+  <p class="sub">Números que não podem se associar (funcionários, listas passadas pelos donos dos bares). O cadastro é recusado sem revelar o motivo.</p>
+  <div class="cartao">
+    <div class="linha">
+      <div style="max-width:280px">
+        <label>BAR DO BLOQUEIO</label>
+        <select id="bl-bar"><option value="*">Todos os bares</option></select>
+      </div>
+    </div>
+    <div style="margin-bottom:12px">
+      <label>ADICIONAR NÚMEROS — um por linha, ou separados por vírgula</label>
+      <textarea id="bl-lista" rows="4" placeholder="5521999998888&#10;5521977776666"></textarea>
+    </div>
+    <button class="btn" id="bl-adicionar">Bloquear números</button>
+    <div class="msg" id="bl-msg"></div>
+    <div style="margin-top:16px">
+      <label>BLOQUEADOS ATUAIS (<span id="bl-total">0</span>)</label>
+      <div id="bl-atual" style="display:flex; flex-wrap:wrap; gap:8px; margin-top:6px"></div>
+    </div>
+  </div>
 </section>
 
 <!-- ══ BARES ══ -->
@@ -479,6 +500,9 @@ async function carregarBares(){
     const filtroAtual = $("b-filtro").value;
     $("b-filtro").innerHTML = '<option value="">Todos os bares</option>' + ops;
     $("b-filtro").value = filtroAtual;
+    const blAtual = $("bl-bar").value;
+    $("bl-bar").innerHTML = '<option value="*">Todos os bares</option>' + ops;
+    if(blAtual) $("bl-bar").value = blAtual;
 
     renderBares();
   }catch(e){
@@ -584,6 +608,11 @@ $("b-criar-garcom").onclick = async () => {
       method:"POST", headers:{"Content-Type":"application/json"},
       body: JSON.stringify({id, nome, senha, bar_id, bar_nome: barNome, telefone: ($("g-tel").value||"").replace(/\D/g,""), ativo: true})
     });
+    if(r.status === 409){
+      const d = await r.json();
+      m.className = "msg erro"; m.textContent = d.detalhe || "Telefone pertence a um associado.";
+      return;
+    }
     if(!r.ok) throw 0;
     m.className = "msg ok"; m.textContent = "Garçom criado. Login: " + id;
     $("g-id").value = ""; $("g-nome").value = ""; $("g-senha").value = "";
@@ -830,9 +859,49 @@ function fecharModalQr(){ document.getElementById("modal-qr").classList.remove("
 $("b-atualizar").onclick = carregarBares;
 $("b-filtro").onchange = renderBares;
 
+
+/* ── telefones bloqueados ── */
+async function carregarBloqueados(){
+  try{
+    const r = await fetch(API + "/admin/bloqueados");
+    const lista = await r.json();
+    document.getElementById("bl-total").textContent = lista.length;
+    document.getElementById("bl-atual").innerHTML = lista.length
+      ? lista.map(b => `<span class="pill neutro" style="display:inline-flex; align-items:center; gap:6px">${b.telefone}
+          <em style="font-style:normal; color:var(--ambar)">${b.bar === "*" ? "todos" : b.bar}</em>
+          <span style="cursor:pointer; color:#C96A6A; font-weight:800" onclick="desbloquear('${b.telefone}','${b.bar}')">×</span></span>`).join("")
+      : '<span class="mini">Nenhum número bloqueado.</span>';
+  }catch(e){}
+}
+document.getElementById("bl-adicionar").onclick = async () => {
+  const m = document.getElementById("bl-msg");
+  const brutos = document.getElementById("bl-lista").value.split(/[\n,;]+/);
+  const tels = brutos.map(t => t.replace(/\D/g, "")).filter(t => t.length >= 10 && t.length <= 13);
+  if(!tels.length){ m.className = "msg erro"; m.textContent = "Nenhum número válido na lista."; return; }
+  m.className = "msg"; m.textContent = "Bloqueando…";
+  try{
+    const r = await fetch(API + "/admin/bloqueados", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({telefones: tels, bar: document.getElementById("bl-bar").value})
+    });
+    const d = await r.json();
+    if(!r.ok) throw 0;
+    m.className = "msg ok"; m.textContent = d.adicionados + " número(s) bloqueado(s).";
+    document.getElementById("bl-lista").value = "";
+    carregarBloqueados();
+  }catch(e){ m.className = "msg erro"; m.textContent = "Falhou. Tente de novo."; }
+};
+async function desbloquear(tel, bar){
+  try{
+    await fetch(API + "/admin/bloqueados/" + tel + "?bar=" + encodeURIComponent(bar), {method:"DELETE"});
+    carregarBloqueados();
+  }catch(e){}
+}
+
 /* ── início ── */
 carregarBares().then(carregarConsumidores);
 carregarConfig();
+carregarBloqueados();
 carregarGarcons();
 pmCarregar();
 </script>
