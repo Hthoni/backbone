@@ -205,6 +205,10 @@ async function cadastrar(barU, tel, nome, dia, mes, time, cep){
   try{
     const r = await fetch(url);
     const d = await r.json();
+    if(d.status === "nao_permitido"){
+      alvo.innerHTML = "<p class='erro-msg' style='font-size:17px'>" + (d.motivo || "Cadastro não permitido.") + "</p>";
+      return;
+    }
     if(d.status !== "cadastrado" && d.status !== "ja_cadastrado"){
       alvo.innerHTML = "<p class='erro-msg' style='font-size:17px'>Não deu para concluir o cadastro. Tente de novo.</p>";
       return;
