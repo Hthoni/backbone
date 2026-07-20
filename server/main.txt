@@ -12,6 +12,7 @@ import os
 import json
 import uuid
 import secrets
+import re
 from datetime import datetime, timezone
 from flask import Flask, request, jsonify, Response
 from flask_cors import CORS
@@ -19,6 +20,7 @@ from flask_cors import CORS
 import storage
 import pkpass
 import apns
+import gwallet
 
 app = Flask(__name__)
 CORS(app)
@@ -43,10 +45,17 @@ def _garcom_pertence_bar(garcom, bar):
 
 
 def _notificar(consumidor, aviso):
-    """Grava o aviso no consumidor e dispara o push."""
+    """Grava o aviso no consumidor e dispara o push (Apple + Google)."""
     consumidor["aviso"] = aviso
     consumidor["atualizado_em"] = agora()
     storage.salvar_consumidor(consumidor)
+
+    # Google Wallet: atualizar o objeto e o "push" do Android
+    try:
+        gwallet.atualizar_objeto(consumidor)
+    except Exception as e:
+        app.logger.warning("gwallet falhou: %s", e)
+
     try:
         return apns.enviar_push(consumidor["telefone"])
     except Exception as e:
@@ -68,6 +77,7 @@ def cadastro(bar, telefone, nome, dia, mes, time):
 
     # indicador vem por query string: ?ind=5521999887766
     indicador_tel = so_digitos(request.args.get("padrinho", ""))
+    palavra_chave = (request.args.get("palavra", "") or "").strip()
     if indicador_tel == telefone:
         indicador_tel = ""  # auto-indicacao bloqueada
 
@@ -83,6 +93,7 @@ def cadastro(bar, telefone, nome, dia, mes, time):
         "telefone": telefone,
         "nome": nome,
         "indicador": bar,
+        "palavra_chave": palavra_chave,
         "nascimento_dia": dia,
         "nascimento_mes": mes,
         "time": time,
@@ -504,9 +515,178 @@ def admin_push_manual(telefone):
     return jsonify(_notificar(c, texto))
 
 
+@app.route("/admin/consumidores/<telefone>", methods=["DELETE"])
+def admin_apagar_consumidor(telefone):
+    telefone = so_digitos(telefone)
+    c = storage.carregar_consumidor(telefone)
+    if not c:
+        return jsonify({"erro": "nao_encontrado"}), 404
+    storage.apagar_consumidor(telefone)
+    return jsonify({"status": "apagado", "telefone": telefone})
+
+
+@app.route("/admin/bares/<bar_id>", methods=["DELETE"])
+def admin_apagar_bar(bar_id):
+    b = storage.carregar_bar(bar_id)
+    if not b:
+        return jsonify({"erro": "nao_encontrado"}), 404
+    storage.apagar_bar(bar_id)
+    return jsonify({"status": "apagado", "id": bar_id})
+
+
+@app.route("/admin/garcons/<garcom_id>", methods=["DELETE"])
+def admin_apagar_garcom(garcom_id):
+    g = storage.carregar_garcom(garcom_id)
+    if not g:
+        return jsonify({"erro": "nao_encontrado"}), 404
+    storage.apagar_garcom(garcom_id)
+    return jsonify({"status": "apagado", "id": garcom_id})
+
+
+@app.route("/gwallet/<telefone>")
+def gwallet_link(telefone):
+    """Redireciona para o link 'Salvar no Google Wallet' do consumidor."""
+    c = storage.carregar_consumidor(so_digitos(telefone))
+    if not c:
+        return jsonify({"erro": "nao_encontrado"}), 404
+    try:
+        url = gwallet.link_salvar(c)
+        return Response(status=302, headers={"Location": url})
+    except Exception as e:
+        return jsonify({"erro": "gwallet_indisponivel", "detalhe": str(e)}), 500
+
+
+@app.route("/admin/gwallet/classe", methods=["POST"])
+def gwallet_criar_classe():
+    """Cria a classe do programa no Google (rodar uma vez)."""
+    try:
+        return jsonify(gwallet.garantir_classe())
+    except Exception as e:
+        return jsonify({"erro": str(e)}), 500
+
+
+@app.route("/admin/garcons/stats")
+def garcons_stats():
+    """
+    Estatisticas de scans por garcom.
+    ?dias=30 define a janela recente (default 30).
+    Categorias:
+      cadastros -> resgates de boas_vindas (cliente novo ativado)
+      consumos  -> punches (chopps pagos)
+      resgates  -> resgates de premio (meta atingida)
+    """
+    from datetime import timedelta
+    dias = int(request.args.get("dias", 30))
+    corte = (datetime.now(timezone.utc) - timedelta(days=dias)).isoformat()
+
+    stats = {}
+    for ev in storage.listar_eventos():
+        g = ev.get("garcom_id")
+        if not g:
+            continue
+        tipo = ev.get("tipo")
+        if tipo == "punch":
+            cat = "consumos"
+        elif tipo == "resgate":
+            cat = "cadastros" if ev.get("tipo_recompensa") == "boas_vindas" else "resgates"
+        else:
+            continue
+        s = stats.setdefault(g, {
+            "cadastros_total": 0, "cadastros_janela": 0,
+            "consumos_total": 0, "consumos_janela": 0,
+            "resgates_total": 0, "resgates_janela": 0,
+        })
+        s[cat + "_total"] += 1
+        if (ev.get("data") or "") >= corte:
+            s[cat + "_janela"] += 1
+
+    return jsonify({"dias": dias, "garcons": stats})
+
+
+@app.route("/admin/push-lote", methods=["POST"])
+def push_lote():
+    """
+    Dispara push para uma lista de telefones.
+    Body: {"telefones": ["5521...", ...], "texto": "..."}
+    """
+    dados = request.get_json(silent=True) or {}
+    telefones = dados.get("telefones") or []
+    texto = (dados.get("texto") or "").strip()
+    if not telefones or not texto:
+        return jsonify({"erro": "telefones e texto obrigatorios"}), 400
+
+    ok, com_push, sem_push, nao_encontrados = 0, 0, 0, []
+    for tel in telefones:
+        tel = so_digitos(str(tel))
+        c = storage.carregar_consumidor(tel)
+        if not c:
+            nao_encontrados.append(tel)
+            continue
+        resultado = _notificar(c, texto)
+        ok += 1
+        if resultado and resultado.get("enviados", 0) > 0:
+            com_push += 1
+        else:
+            sem_push += 1
+
+    return jsonify({
+        "status": "ok", "processados": ok,
+        "com_dispositivo": com_push, "sem_dispositivo": sem_push,
+        "nao_encontrados": nao_encontrados,
+    })
+
+
+@app.route("/q/<telefone>")
+def qr_universal(telefone):
+    """
+    Destino do QR do cartao quando lido por uma CAMERA comum.
+    Redireciona para o convite wa.me do dono do cartao (member gets member).
+    O scanner do garcom NAO passa por aqui — ele extrai o telefone da URL.
+    """
+    from urllib.parse import quote
+    tel = so_digitos(telefone)
+    c = storage.carregar_consumidor(tel)
+    if not c:
+        return Response("Cartao nao encontrado.", status=404, mimetype="text/plain")
+    palavra = c.get("palavra_chave", "") or ""
+    whatsapp = os.environ.get("WHATSAPP_NUM", "")
+    msg = (f"Quero participar do Clube Backbone {palavra}, "
+           f"a convite do associado padrinho:{tel}")
+    return Response(status=302,
+                    headers={"Location": f"https://wa.me/{whatsapp}?text={quote(msg)}"})
+
+
 @app.route("/")
 def health():
     return jsonify({"status": "ok", "sistema": "Clube Backbone", "versao": 3})
+
+
+# ══════════════════════════════════════════════════════════════
+#  EXTRAIR PADRINHO  (member gets member via BotConversa)
+#  Recebe a mensagem suja e devolve so o telefone do padrinho.
+# ══════════════════════════════════════════════════════════════
+
+@app.route("/extrair-padrinho", methods=["POST", "GET"])
+def extrair_padrinho():
+    msg = ""
+    if request.is_json:
+        msg = (request.get_json(silent=True) or {}).get("mensagem", "")
+    if not msg:
+        msg = request.form.get("mensagem", "") or request.args.get("mensagem", "")
+
+    padrinho = ""
+    if msg:
+        m = re.search(r"padrinho[^0-9]*([0-9][0-9\s\-\+\(\)]{9,})", msg, re.IGNORECASE)
+        if m:
+            padrinho = so_digitos(m.group(1))
+        else:
+            achados = re.findall(r"[0-9][0-9\s\-\+\(\)]{9,}", msg)
+            cands = [so_digitos(a) for a in achados]
+            cands = [c for c in cands if 10 <= len(c) <= 13]
+            if cands:
+                padrinho = max(cands, key=len)
+
+    return jsonify({"padrinho": padrinho})
 
 
 if __name__ == "__main__":
