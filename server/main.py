@@ -603,6 +603,39 @@ def garcons_stats():
     return jsonify({"dias": dias, "garcons": stats})
 
 
+@app.route("/admin/push-lote", methods=["POST"])
+def push_lote():
+    """
+    Dispara push para uma lista de telefones.
+    Body: {"telefones": ["5521...", ...], "texto": "..."}
+    """
+    dados = request.get_json(silent=True) or {}
+    telefones = dados.get("telefones") or []
+    texto = (dados.get("texto") or "").strip()
+    if not telefones or not texto:
+        return jsonify({"erro": "telefones e texto obrigatorios"}), 400
+
+    ok, com_push, sem_push, nao_encontrados = 0, 0, 0, []
+    for tel in telefones:
+        tel = so_digitos(str(tel))
+        c = storage.carregar_consumidor(tel)
+        if not c:
+            nao_encontrados.append(tel)
+            continue
+        resultado = _notificar(c, texto)
+        ok += 1
+        if resultado and resultado.get("enviados", 0) > 0:
+            com_push += 1
+        else:
+            sem_push += 1
+
+    return jsonify({
+        "status": "ok", "processados": ok,
+        "com_dispositivo": com_push, "sem_dispositivo": sem_push,
+        "nao_encontrados": nao_encontrados,
+    })
+
+
 @app.route("/")
 def health():
     return jsonify({"status": "ok", "sistema": "Clube Backbone", "versao": 3})
