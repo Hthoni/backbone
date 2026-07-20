@@ -207,7 +207,7 @@ def apagar_garcom(garcom_id: str):
 
 def listar_eventos():
     """Lista todos os eventos gravados (para estatisticas)."""
-    client = _client()
+    client = storage.Client()
     blobs = client.list_blobs(BUCKET_NAME, prefix="eventos/")
     eventos = []
     for b in blobs:
