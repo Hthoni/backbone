@@ -132,14 +132,15 @@ function formulario(){
     </div>
 
     <div class="grupo">
+      <label>CEP</label>
       <div class="linha">
-        <div style="flex:1.4">
-          <label>CEP</label>
+        <div style="flex:1.2">
           <input id="f-cep" type="tel" inputmode="numeric" autocomplete="postal-code"
                  placeholder="00000-000">
-          <div style="font-size:12px;color:var(--cinza);margin-top:5px;line-height:1.35">Usamos seu CEP apenas para avisar de eventos e novidades perto de você.</div>
         </div>
-        <div style="flex:2"></div>
+        <div style="flex:2;display:flex;align-items:center;background:#D9D7CF;border-radius:10px;padding:8px 12px;font-size:12px;color:#333;line-height:1.35;font-weight:600">
+          Usamos seu CEP apenas para avisar de eventos e novidades perto de você.
+        </div>
       </div>
     </div>
 
@@ -215,11 +216,9 @@ async function cadastrar(barU, tel, nome, dia, mes, time, cep){
 }
 
 function boasVindas(c){
-  const nomeBar = (c.indicador && c.indicador !== "site")
-    ? c.indicador.replace(/_/g, " ") : "bar";
   const botaoWallet = ehIOS
-    ? '<a class="btn btn-verde" href="' + SERVER + '/cartao/' + c.telefone + '">Adicionar à Wallet</a>'
-    : '<a class="btn btn-verde" href="' + SERVER + '/gwallet/' + c.telefone + '">Adicionar à Wallet</a>';
+    ? '<a class="btn btn-verde" href="' + SERVER + '/cartao/' + c.telefone + '">Guardar na Wallet do seu telefone</a>'
+    : '<a class="btn btn-verde" href="' + SERVER + '/gwallet/' + c.telefone + '">Guardar na Wallet do seu telefone</a>';
 
   alvo.innerHTML = `
     <h1 style="font-size:28px">Seja bem-vindo, ${c.nome}!</h1>
@@ -228,14 +227,15 @@ function boasVindas(c){
       <div class="g">Seu chopp de boas-vindas é por nossa conta!</div>
     </div>
 
-    <p>Guarde o cartão no Wallet do seu celular clicando abaixo. Com ele, o(a) atendente do ${nomeBar} registrará seus pontos para resgate de benefícios.</p>
+    <div class="aviso">
+      Guarde o cartão no Wallet do seu celular clicando abaixo. Você poderá utilizá-lo para duas finalidades:
+      <ul style="margin:10px 0 0 18px; display:flex; flex-direction:column; gap:8px">
+        <li>O(a) atendente deve escanear o QR code a cada chopp consumido para você acumular pontos e resgatar prêmios.</li>
+        <li>Apresente este cartão para seus amigos: se eles fizerem cadastros pelo seu QR Code, você ganhará pontos conforme o consumo de seus amigos.</li>
+      </ul>
+    </div>
 
     ${botaoWallet}
-
-    <div class="aviso" style="margin-top:18px">
-      <strong style="color:#FFF">Traga seus amigos e ganhe pontos 🍺</strong><br>
-      O QR do seu cartão também é seu convite: quando um amigo apontar a câmera para ele, cai direto no cadastro — indicado por você. A cada amigo que completar a cartela dele, você ganha um ponto na sua.
-    </div>
   `;
 }
 </script>
