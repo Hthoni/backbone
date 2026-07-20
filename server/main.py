@@ -82,6 +82,18 @@ def cadastro(bar, telefone, nome, dia, mes, time):
     if indicador_tel == telefone:
         indicador_tel = ""  # auto-indicacao bloqueada
 
+    # TRAVA ANTIFRAUDE: lista fria POR BAR (numeros vetados pelo dono)
+    for b in storage.carregar_bloqueados():
+        if b["telefone"] == telefone and (b["bar"] == "*" or b["bar"] == bar):
+            return jsonify({"status": "nao_permitido",
+                            "motivo": "Cadastro não disponível para este telefone."}), 403
+
+    # TRAVA ANTIFRAUDE: funcionario (garcom) nao pode ser associado
+    for _g in storage.listar_garcons():
+        if _g.get("telefone") and so_digitos(_g["telefone"]) == telefone:
+            return jsonify({"status": "nao_permitido",
+                            "motivo": "Telefone vinculado a um funcionário."}), 403
+
     existente = storage.carregar_consumidor(telefone)
     if existente:
         return jsonify({"status": "ja_cadastrado", "consumidor": existente})
@@ -476,6 +488,12 @@ def admin_garcons():
 @app.route("/admin/garcons", methods=["POST"])
 def admin_criar_garcom():
     dados = request.get_json()
+    tel_g = so_digitos(dados.get("telefone", ""))
+    if tel_g and storage.carregar_consumidor(tel_g):
+        return jsonify({"erro": "telefone_de_associado",
+                        "detalhe": "Este telefone pertence a um associado. "
+                                   "Funcionário não pode ser associado — apague o cadastro dele antes."}), 409
+    dados["telefone"] = tel_g
     dados.setdefault("id", str(uuid.uuid4())[:8])
     storage.salvar_garcom(dados)
     return jsonify({"status": "ok", "garcom": dados})
@@ -692,6 +710,38 @@ def bares_stats():
             e["associados_janela"] += 1
 
     return jsonify({"dias": dias, "bares": stats})
+
+
+@app.route("/admin/bloqueados")
+def admin_bloqueados():
+    return jsonify(storage.carregar_bloqueados())
+
+
+@app.route("/admin/bloqueados", methods=["POST"])
+def admin_bloquear():
+    """Body: {"telefones": [...], "bar": "<bar_id>" ou "*"} — bloqueia no bar indicado."""
+    dados = request.get_json(silent=True) or {}
+    bar_alvo = (dados.get("bar") or "*").strip() or "*"
+    novos = [so_digitos(str(t)) for t in (dados.get("telefones") or [])]
+    novos = [t for t in novos if 10 <= len(t) <= 13]
+    lista = storage.carregar_bloqueados()
+    lista.extend({"telefone": t, "bar": bar_alvo} for t in novos)
+    storage.salvar_bloqueados(lista)
+    return jsonify({"status": "ok", "adicionados": len(novos), "bar": bar_alvo})
+
+
+@app.route("/admin/bloqueados/<telefone>", methods=["DELETE"])
+def admin_desbloquear(telefone):
+    """?bar=<bar_id> remove o bloqueio daquele bar; sem bar, remove todos do numero."""
+    tel = so_digitos(telefone)
+    bar_alvo = request.args.get("bar")
+    lista = storage.carregar_bloqueados()
+    if bar_alvo:
+        lista = [b for b in lista if not (b["telefone"] == tel and b["bar"] == bar_alvo)]
+    else:
+        lista = [b for b in lista if b["telefone"] != tel]
+    storage.salvar_bloqueados(lista)
+    return jsonify({"status": "ok", "total": len(lista)})
 
 
 @app.route("/")
