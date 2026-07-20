@@ -136,7 +136,7 @@ def _payload_objeto(consumidor):
         },
         "barcode": {
             "type": "QR_CODE",
-            "value": tel,
+            "value": f"https://backbone-650557630362.us-central1.run.app/q/{tel}",
             "alternateText": tel,
         },
         "textModulesData": [
