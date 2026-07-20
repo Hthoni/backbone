@@ -102,6 +102,22 @@ def garantir_classe():
 #  OBJETO (o cartao de cada consumidor)
 # ──────────────────────────────────────────────────────────────
 
+HERO_BASE = "https://hthoni.github.io/backbone/strips/estilos"
+
+def _hero_uri(consumidor):
+    """Mesma logica da strip do Apple: boas-vindas > premio > quadro do progresso."""
+    punches = int(consumidor.get("punches", 0))
+    meta = int(consumidor.get("meta", 10))
+    pendentes = [r for r in consumidor.get("recompensas", []) if not r.get("resgatada")]
+    if any(r.get("tipo") == "boas_vindas" for r in pendentes):
+        nome = "strip_estilos_boasvindas"
+    elif pendentes or punches >= meta:
+        nome = "strip_estilos_premio"
+    else:
+        nome = f"strip_estilos_{min(punches, meta - 1)}-{meta}"
+    return f"{HERO_BASE}/{nome}.png"
+
+
 def _payload_objeto(consumidor):
     tel = consumidor["telefone"]
     punches = int(consumidor.get("punches", 0))
@@ -133,6 +149,12 @@ def _payload_objeto(consumidor):
         "secondaryLoyaltyPoints": {
             "label": "Indicados",
             "balance": {"string": str(len(consumidor.get("indicados", [])))},
+        },
+        "heroImage": {
+            "sourceUri": {"uri": _hero_uri(consumidor)},
+            "contentDescription": {
+                "defaultValue": {"language": "pt-BR", "value": "Clube Backbone"}
+            },
         },
         "barcode": {
             "type": "QR_CODE",
