@@ -565,6 +565,44 @@ def gwallet_criar_classe():
         return jsonify({"erro": str(e)}), 500
 
 
+@app.route("/admin/garcons/stats")
+def garcons_stats():
+    """
+    Estatisticas de scans por garcom.
+    ?dias=30 define a janela recente (default 30).
+    Categorias:
+      cadastros -> resgates de boas_vindas (cliente novo ativado)
+      consumos  -> punches (chopps pagos)
+      resgates  -> resgates de premio (meta atingida)
+    """
+    from datetime import timedelta
+    dias = int(request.args.get("dias", 30))
+    corte = (datetime.now(timezone.utc) - timedelta(days=dias)).isoformat()
+
+    stats = {}
+    for ev in storage.listar_eventos():
+        g = ev.get("garcom_id")
+        if not g:
+            continue
+        tipo = ev.get("tipo")
+        if tipo == "punch":
+            cat = "consumos"
+        elif tipo == "resgate":
+            cat = "cadastros" if ev.get("tipo_recompensa") == "boas_vindas" else "resgates"
+        else:
+            continue
+        s = stats.setdefault(g, {
+            "cadastros_total": 0, "cadastros_janela": 0,
+            "consumos_total": 0, "consumos_janela": 0,
+            "resgates_total": 0, "resgates_janela": 0,
+        })
+        s[cat + "_total"] += 1
+        if (ev.get("data") or "") >= corte:
+            s[cat + "_janela"] += 1
+
+    return jsonify({"dias": dias, "garcons": stats})
+
+
 @app.route("/")
 def health():
     return jsonify({"status": "ok", "sistema": "Clube Backbone", "versao": 3})
