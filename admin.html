@@ -263,9 +263,23 @@
 <!-- ══ BARES ══ -->
 <section class="aba" id="aba-bares">
   <h2>Bares</h2>
+  <div class="linha">
+    <div style="max-width:200px">
+      <label>JANELA (DIAS)</label>
+      <input id="b-dias" type="number" min="1" max="365" value="30">
+    </div>
+    <div style="max-width:260px">
+      <label>FILTRAR POR BAR</label>
+      <select id="b-filtro"><option value="">Todos os bares</option></select>
+    </div>
+    <div style="flex:0">
+      <button class="btn sec" id="b-atualizar">Atualizar números</button>
+    </div>
+  </div>
+  <p class="mini" style="margin:-6px 0 14px">Cada célula mostra <strong>últimos X dias / total</strong>. Associados = cadastros do bar · Boas-vindas = chopps de cadastro entregues · Metas = chopps de cartela cheia entregues.</p>
   <div class="cartao" style="padding:0; overflow-x:auto">
     <table>
-      <thead><tr><th>ID (código)</th><th>NOME</th><th>CIDADE</th><th></th><th></th></tr></thead>
+      <thead><tr><th>ID (código)</th><th>NOME</th><th>CIDADE</th><th class="num">ASSOCIADOS</th><th class="num">BOAS-VINDAS</th><th class="num">METAS</th><th></th><th></th></tr></thead>
       <tbody id="t-bares"><tr><td colspan="3" class="carregando">Carregando…</td></tr></tbody>
     </table>
   </div>
@@ -446,20 +460,67 @@ $("b-config").onclick = async () => {
 };
 
 /* ── bares ── */
+let baresLista = [], baresStats = {};
+
 async function carregarBares(){
+  const dias = parseInt($("b-dias")?.value || "30", 10);
   try{
-    const r = await fetch(API + "/admin/bares");
-    const lista = await r.json();
-    $("t-bares").innerHTML = lista.length
-      ? lista.map(b => `<tr><td><strong>${b.id}</strong></td><td>${b.nome || "—"}</td><td>${b.cidade || "—"}</td><td><button class="btn-x" style="color:#D6D4CC;border-color:#4A4A4A" onclick="abrirQrBar('${b.id}')">Gerar QR Code e link</button></td><td><button class="btn-x" onclick="apagarBar('${b.id}')">apagar</button></td></tr>`).join("")
-      : '<tr><td colspan="5" class="carregando">Nenhum bar cadastrado.</td></tr>';
-    // popular selects
-    const ops = lista.map(b => `<option value="${b.id}">${b.nome || b.id}</option>`).join("");
+    const [rb, rs] = await Promise.all([
+      fetch(API + "/admin/bares"),
+      fetch(API + "/admin/bares/stats?dias=" + dias)
+    ]);
+    baresLista = await rb.json();
+    baresStats = (await rs.json()).bares || {};
+
+    // popular selects (garcom, filtro de associados, filtro de bares)
+    const ops = baresLista.map(b => `<option value="${b.id}">${b.nome || b.id}</option>`).join("");
     $("g-bar").innerHTML = ops;
     $("f-bar").innerHTML = '<option value="">Todos os bares</option>' + ops;
+    const filtroAtual = $("b-filtro").value;
+    $("b-filtro").innerHTML = '<option value="">Todos os bares</option>' + ops;
+    $("b-filtro").value = filtroAtual;
+
+    renderBares();
   }catch(e){
-    $("t-bares").innerHTML = '<tr><td colspan="5" class="carregando">Erro ao carregar.</td></tr>';
+    $("t-bares").innerHTML = '<tr><td colspan="8" class="carregando">Erro ao carregar.</td></tr>';
   }
+}
+
+function renderBares(){
+  const filtro = $("b-filtro").value;
+  const lista = filtro ? baresLista.filter(b => b.id === filtro) : baresLista;
+  const cel = (s, cat) => s ? `<td class="num">${s[cat+"_janela"]} / ${s[cat+"_total"]}</td>` : '<td class="num">0 / 0</td>';
+
+  if(!lista.length){
+    $("t-bares").innerHTML = '<tr><td colspan="8" class="carregando">Nenhum bar cadastrado.</td></tr>';
+    return;
+  }
+
+  const tot = {aj:0, at:0, bj:0, bt:0, mj:0, mt:0};
+  const linhas = lista.map(b => {
+    const s = baresStats[b.id];
+    if(s){
+      tot.aj += s.associados_janela; tot.at += s.associados_total;
+      tot.bj += s.boasvindas_janela; tot.bt += s.boasvindas_total;
+      tot.mj += s.metas_janela;      tot.mt += s.metas_total;
+    }
+    return `<tr>
+      <td><strong>${b.id}</strong></td><td>${b.nome || "—"}</td><td>${b.cidade || "—"}</td>
+      ${cel(s,"associados")}${cel(s,"boasvindas")}${cel(s,"metas")}
+      <td><button class="btn-x" style="color:#D6D4CC;border-color:#4A4A4A" onclick="abrirQrBar('${b.id}')">Gerar QR Code e link</button></td>
+      <td><button class="btn-x" onclick="apagarBar('${b.id}')">apagar</button></td>
+    </tr>`;
+  }).join("");
+
+  const totalRow = `<tr style="border-top:2px solid #3A3A3A">
+    <td colspan="3" style="font-weight:800; color:var(--ambar)">TOTAL</td>
+    <td class="num" style="font-weight:800">${tot.aj} / ${tot.at}</td>
+    <td class="num" style="font-weight:800">${tot.bj} / ${tot.bt}</td>
+    <td class="num" style="font-weight:800">${tot.mj} / ${tot.mt}</td>
+    <td></td><td></td>
+  </tr>`;
+
+  $("t-bares").innerHTML = linhas + totalRow;
 }
 $("b-criar-bar").onclick = async () => {
   const m = $("m-bar");
@@ -765,6 +826,9 @@ function abrirQrBar(id){
   document.getElementById("modal-qr").classList.add("on");
 }
 function fecharModalQr(){ document.getElementById("modal-qr").classList.remove("on"); }
+
+$("b-atualizar").onclick = carregarBares;
+$("b-filtro").onchange = renderBares;
 
 /* ── início ── */
 carregarBares().then(carregarConsumidores);
