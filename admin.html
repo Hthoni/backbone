@@ -106,12 +106,15 @@
   #modal .acoes .btn{flex:1}
   .f-drop{position:relative; display:inline-block}
   .f-btn{
-    background:var(--campo); color:#111; border:none; border-radius:8px;
-    padding:9px 12px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit;
+    background:none; color:var(--cinza); border:none; border-radius:6px;
+    padding:2px 4px; font-size:11px; font-weight:700; letter-spacing:.1em;
+    cursor:pointer; font-family:inherit; white-space:nowrap;
   }
-  .f-btn.ativo{outline:2px solid var(--ambar)}
+  .f-btn:hover{color:var(--branco)}
+  .f-btn.ativo{color:var(--ambar)}
+  .f-drop{position:relative}
   .f-painel{
-    display:none; position:absolute; top:42px; left:0; z-index:30;
+    display:none; position:absolute; top:26px; left:0; z-index:30;
     background:var(--preto2); border:1px solid #3A3A3A; border-radius:10px;
     padding:10px; min-width:200px; max-height:280px; overflow-y:auto;
   }
@@ -192,14 +195,17 @@
   <h2 style="margin-top:30px">Push em massa</h2>
   <p class="sub">Filtre os associados como numa planilha, revise a seleção e dispare para todos de uma vez.</p>
   <div class="cartao">
-    <div id="pm-filtros" style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px"></div>
     <div style="overflow-x:auto">
       <table id="pm-tabela">
         <thead><tr>
           <th style="width:34px"><input type="checkbox" id="pm-todos" checked></th>
-          <th>NOME</th><th>TELEFONE</th><th>BAR</th>
-          <th class="num">MÊS</th><th class="num">DIA</th><th>TIME</th>
-          <th>CHOPP PEND.</th><th class="num">RESGATES</th>
+          <th>NOME</th><th>TELEFONE</th>
+          <th><span class="f-col" data-campo="bar"></span></th>
+          <th class="num"><span class="f-col" data-campo="mes"></span></th>
+          <th class="num"><span class="f-col" data-campo="dia"></span></th>
+          <th><span class="f-col" data-campo="time"></span></th>
+          <th><span class="f-col" data-campo="pend"></span></th>
+          <th class="num"><span class="f-col" data-campo="resg"></span></th>
         </tr></thead>
         <tbody id="pm-corpo"><tr><td colspan="9" class="carregando">Carregando…</td></tr></tbody>
       </table>
@@ -564,7 +570,7 @@ const PM_CAMPOS = [
   {id:"mes",  rotulo:"Mês",          extrai: c => String(parseInt(c.nascimento_mes||0) || "—")},
   {id:"dia",  rotulo:"Dia",          extrai: c => String(parseInt(c.nascimento_dia||0) || "—")},
   {id:"time", rotulo:"Time",         extrai: c => c.time || "—"},
-  {id:"pend", rotulo:"Chopp pendente", extrai: c =>
+  {id:"pend", rotulo:"Pendente", extrai: c =>
       (c.recompensas||[]).some(r => r.tipo === "boas_vindas" && !r.resgatada) ? "sim" : "não"},
   {id:"resg", rotulo:"Resgates",     extrai: c => {
       const n = (c.recompensas||[]).filter(r => r.resgatada).length;
@@ -582,17 +588,18 @@ function pmFiltrados(){
 }
 
 function pmMontarFiltros(){
-  const alvo = $("pm-filtros");
-  alvo.innerHTML = "";
   PM_CAMPOS.forEach(f => {
+    const alvo = document.querySelector('.f-col[data-campo="' + f.id + '"]');
+    if(!alvo) return;
+    alvo.innerHTML = "";
     const valores = [...new Set(pmBase.map(f.extrai))].sort((a,b) =>
       (parseInt(a)||999) - (parseInt(b)||999) || String(a).localeCompare(b));
     const drop = document.createElement("div");
     drop.className = "f-drop";
     const sel = pmFiltros[f.id];
     const btn = document.createElement("button");
-    btn.className = "f-btn" + (sel ? " ativo" : "");
-    btn.textContent = f.rotulo + ": " + (sel ? sel.size + " ▾" : "Todos ▾");
+    btn.className = "f-btn f-col-btn" + (sel ? " ativo" : "");
+    btn.textContent = f.rotulo.toUpperCase() + (sel ? " (" + sel.size + ") ▾" : " ▾");
     const painel = document.createElement("div");
     painel.className = "f-painel";
     const tn = document.createElement("div");
@@ -629,6 +636,7 @@ function pmMontarFiltros(){
       document.querySelectorAll(".f-painel").forEach(p => { if(p !== painel) p.classList.remove("on"); });
       painel.classList.toggle("on");
     };
+    if(f.id === "pend" || f.id === "resg") painel.style.cssText += "left:auto; right:0";
     drop.appendChild(btn); drop.appendChild(painel);
     alvo.appendChild(drop);
   });
