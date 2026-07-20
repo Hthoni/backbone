@@ -247,6 +247,14 @@ function entrar(){
   iniciarCamera();
 }
 
+/* Extrai o telefone do QR: aceita a URL /q/<tel> (formato novo)
+   e o telefone puro (cartoes antigos). */
+function extrairTelefone(texto){
+  const m = String(texto).match(/\/q\/(\d{10,13})/);
+  if(m) return m[1];
+  return digitos(texto);
+}
+
 /* ── CÂMERA ── */
 async function iniciarCamera(){
   if(leitor) return;
@@ -255,7 +263,7 @@ async function iniciarCamera(){
     await leitor.start(
       { facingMode: "environment" },
       { fps:10, qrbox:{width:240, height:240} },
-      texto => { pararCamera(); consultar(digitos(texto)); },
+      texto => { pararCamera(); consultar(extrairTelefone(texto)); },
       () => {}
     );
   }catch(e){
@@ -298,7 +306,7 @@ async function consultar(telefone){
       plano = {
         cor:"resgatar", acao:"RESGATE",
         frase:"Entregue 1 chopp grátis",
-        aviso:"A cartela está cheia. Ao confirmar, esta cartela zera e uma nova começa.",
+        aviso:"A cartela está cheia. Ao confirmar, ela zera e uma nova começa.",
         pontos:{ cheios:meta, meta, novo:-1 }
       };
     } else {
@@ -308,7 +316,7 @@ async function consultar(telefone){
         cor:"pontuar", acao:"REGISTRAR CHOPP",
         frase: fecha ? "Este chopp FECHA a cartela" : "Marcar o chopp " + vira + " de " + meta,
         aviso: fecha
-          ? "Ao confirmar, o cliente ganha 1 chopp grátis. Dê a boa notícia."
+          ? "Ao confirmar, o cliente ganha 1 chopp grátis. Avise ele."
           : "Faltam " + (meta - vira) + " para o chopp grátis.",
         pontos:{ cheios:punches, meta, novo: vira - 1 }
       };
