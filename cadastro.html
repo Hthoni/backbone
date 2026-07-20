@@ -22,20 +22,20 @@
   }
   .cab{
     display:flex; justify-content:center;
-    padding:calc(env(safe-area-inset-top,0px) + 14px) 20px 12px;
+    padding:calc(env(safe-area-inset-top,0px) + 10px) 20px 10px;
     border-bottom:1px solid var(--linha); flex-shrink:0;
   }
-  .cab img{height:40px; width:auto; display:block}
+  .cab img{height:48px; width:auto; display:block}
 
   main{
-    flex:1; display:flex; flex-direction:column; justify-content:center;
-    padding:16px 22px calc(16px + env(safe-area-inset-bottom,0px));
+    flex:1; display:flex; flex-direction:column; justify-content:flex-start;
+    padding:14px 22px calc(16px + env(safe-area-inset-bottom,0px));
     max-width:480px; margin:0 auto; width:100%;
   }
-  h1{font-size:24px; font-weight:800; line-height:1.15; margin-bottom:14px}
+  h1{font-size:20px; font-weight:800; line-height:1.15; margin-bottom:12px}
   p{font-size:16px; line-height:1.45; color:#D6D4CC; margin-bottom:10px}
 
-  label{display:block; font-size:11px; font-weight:800; letter-spacing:.12em; color:var(--cinza); margin:0 0 5px 2px}
+  label{display:block; font-size:13px; font-weight:800; letter-spacing:.1em; color:var(--cinza); margin:0 0 5px 2px}
   input, select{
     width:100%; background:var(--campo); border:2px solid var(--campo); color:#111;
     font-size:16px; font-weight:600; padding:11px 12px; border-radius:10px;
@@ -51,7 +51,7 @@
   .linha > div{flex:1}
 
   .destaque{
-    font-size:13px; line-height:1.4; color:var(--ambar); font-weight:700;
+    font-size:15px; line-height:1.4; color:var(--ambar); font-weight:700;
     margin:0 0 6px 2px;
   }
 
@@ -139,7 +139,7 @@ function formulario(){
                  placeholder="00000-000">
         </div>
         <div style="flex:2;display:flex;align-items:center;background:#D9D7CF;border-radius:10px;padding:8px 12px;font-size:12px;color:#333;line-height:1.35;font-weight:600">
-          Usamos seu CEP apenas para avisar de eventos e novidades perto de você.
+          O CEP só é usado para localização de eventos próximos a você
         </div>
       </div>
     </div>
