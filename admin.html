@@ -104,6 +104,27 @@
   #modal p{color:var(--cinza); font-size:15px; line-height:1.5; margin-bottom:22px}
   #modal .acoes{display:flex; gap:10px}
   #modal .acoes .btn{flex:1}
+  .f-drop{position:relative; display:inline-block}
+  .f-btn{
+    background:var(--campo); color:#111; border:none; border-radius:8px;
+    padding:9px 12px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit;
+  }
+  .f-btn.ativo{outline:2px solid var(--ambar)}
+  .f-painel{
+    display:none; position:absolute; top:42px; left:0; z-index:30;
+    background:var(--preto2); border:1px solid #3A3A3A; border-radius:10px;
+    padding:10px; min-width:200px; max-height:280px; overflow-y:auto;
+  }
+  .f-painel.on{display:block}
+  .f-painel .tn{display:flex; gap:12px; font-size:12px; font-weight:700; color:var(--ambar); margin-bottom:8px}
+  .f-painel .tn span{cursor:pointer}
+  .f-painel label{
+    display:flex; align-items:center; gap:8px; font-size:13px; font-weight:400;
+    color:var(--branco); padding:4px 0; letter-spacing:0; cursor:pointer;
+  }
+  .f-painel input[type=checkbox]{width:auto}
+  #pm-tabela input[type=checkbox]{width:auto}
+  #pm-tabela td, #pm-tabela th{padding:8px 10px}
 </style>
 </head>
 <body>
@@ -167,6 +188,30 @@
     <div class="msg" id="m-push"></div>
   </div>
   <p class="mini">O texto substitui o campo "Último aviso" do verso do cartão e dispara a notificação. Textos repetidos não geram novo push — mude o texto para notificar de novo.</p>
+
+  <h2 style="margin-top:30px">Push em massa</h2>
+  <p class="sub">Filtre os associados como numa planilha, revise a seleção e dispare para todos de uma vez.</p>
+  <div class="cartao">
+    <div id="pm-filtros" style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px"></div>
+    <div style="overflow-x:auto">
+      <table id="pm-tabela">
+        <thead><tr>
+          <th style="width:34px"><input type="checkbox" id="pm-todos" checked></th>
+          <th>NOME</th><th>TELEFONE</th><th>BAR</th>
+          <th class="num">MÊS</th><th class="num">DIA</th><th>TIME</th>
+          <th>CHOPP PEND.</th><th class="num">RESGATES</th>
+        </tr></thead>
+        <tbody id="pm-corpo"><tr><td colspan="9" class="carregando">Carregando…</td></tr></tbody>
+      </table>
+    </div>
+    <div class="msg" id="pm-contador" style="color:var(--ambar)"></div>
+    <div style="margin:12px 0">
+      <label>TEXTO DO PUSH</label>
+      <textarea id="pm-texto" rows="3" placeholder="Ex.: Hoje tem jogo no Backbone Partage!"></textarea>
+    </div>
+    <button class="btn" id="pm-enviar">Enviar</button>
+    <div class="msg" id="pm-resultado"></div>
+  </div>
 </section>
 
 <!-- ══ CONFIG ══ -->
@@ -237,7 +282,7 @@
   <p class="mini" style="margin:-6px 0 14px">Cada célula mostra <strong>últimos X dias / total</strong>. Cadastros = chopps de boas-vindas entregues · Consumos = chopps pagos marcados · Resgates = prêmios de meta entregues.</p>
   <div class="cartao" style="padding:0; overflow-x:auto">
     <table>
-      <thead><tr><th>ID (login)</th><th>NOME</th><th>BAR</th><th class="num">CADASTROS</th><th class="num">CONSUMOS</th><th class="num">RESGATES</th><th>STATUS</th><th></th></tr></thead>
+      <thead><tr><th>ID (login)</th><th>NOME</th><th>TELEFONE</th><th>BAR</th><th class="num">CADASTROS</th><th class="num">CONSUMOS</th><th class="num">RESGATES</th><th>STATUS</th><th></th></tr></thead>
       <tbody id="t-garcons"><tr><td colspan="4" class="carregando">Carregando…</td></tr></tbody>
     </table>
   </div>
@@ -255,6 +300,10 @@
       <div>
         <label>SENHA</label>
         <input id="g-senha" type="text" placeholder="senha do garçom">
+      </div>
+      <div>
+        <label>TELEFONE</label>
+        <input id="g-tel" type="tel" placeholder="5521999998888">
       </div>
       <div>
         <label>BAR</label>
@@ -425,12 +474,12 @@ async function carregarGarcons(){
       ? lista.map(g => {
           const s = stats[g.id];
           return `<tr>
-          <td><strong>${g.id}</strong></td><td>${g.nome || "—"}</td><td>${g.bar_id || "—"}</td>
+          <td><strong>${g.id}</strong></td><td>${g.nome || "—"}</td><td>${g.telefone || "—"}</td><td>${g.bar_id || "—"}</td>
           ${cel(s,"cadastros")}${cel(s,"consumos")}${cel(s,"resgates")}
           <td>${g.ativo === false ? '<span class="pill neutro">inativo</span>' : '<span class="pill ok">ativo</span>'}</td>
           <td><button class="btn-x" onclick="apagarGarcom('${g.id}', '${(g.nome || "").replace(/'/g, "")}')">apagar</button></td>
         </tr>`;}).join("")
-      : '<tr><td colspan="8" class="carregando">Nenhum garçom cadastrado.</td></tr>';
+      : '<tr><td colspan="9" class="carregando">Nenhum garçom cadastrado.</td></tr>';
   }catch(e){
     $("t-garcons").innerHTML = '<tr><td colspan="8" class="carregando">Erro ao carregar.</td></tr>';
   }
@@ -447,7 +496,7 @@ $("b-criar-garcom").onclick = async () => {
     const barNome = $("g-bar").selectedOptions[0]?.textContent || bar_id;
     const r = await fetch(API + "/admin/garcons", {
       method:"POST", headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({id, nome, senha, bar_id, bar_nome: barNome, ativo: true})
+      body: JSON.stringify({id, nome, senha, bar_id, bar_nome: barNome, telefone: ($("g-tel").value||"").replace(/\D/g,""), ativo: true})
     });
     if(!r.ok) throw 0;
     m.className = "msg ok"; m.textContent = "Garçom criado. Login: " + id;
@@ -504,10 +553,173 @@ function apagarGarcom(id, nome){
 
 $("b-stats").onclick = carregarGarcons;
 
+
+/* ── push em massa ── */
+let pmBase = [];          // todos os consumidores
+let pmFiltros = {};       // campo -> Set de valores aceitos (ausente = todos)
+let pmDesmarcados = new Set();
+
+const PM_CAMPOS = [
+  {id:"bar",  rotulo:"Bar",          extrai: c => c.indicador || "—"},
+  {id:"mes",  rotulo:"Mês",          extrai: c => String(parseInt(c.nascimento_mes||0) || "—")},
+  {id:"dia",  rotulo:"Dia",          extrai: c => String(parseInt(c.nascimento_dia||0) || "—")},
+  {id:"time", rotulo:"Time",         extrai: c => c.time || "—"},
+  {id:"pend", rotulo:"Chopp pendente", extrai: c =>
+      (c.recompensas||[]).some(r => r.tipo === "boas_vindas" && !r.resgatada) ? "sim" : "não"},
+  {id:"resg", rotulo:"Resgates",     extrai: c => {
+      const n = (c.recompensas||[]).filter(r => r.resgatada).length;
+      return n === 0 ? "0" : (n <= 2 ? "1-2" : "3+");
+  }},
+];
+
+function pmValor(c, id){ return PM_CAMPOS.find(f => f.id === id).extrai(c); }
+
+function pmFiltrados(){
+  return pmBase.filter(c => PM_CAMPOS.every(f => {
+    const s = pmFiltros[f.id];
+    return !s || s.has(f.extrai(c));
+  }));
+}
+
+function pmMontarFiltros(){
+  const alvo = $("pm-filtros");
+  alvo.innerHTML = "";
+  PM_CAMPOS.forEach(f => {
+    const valores = [...new Set(pmBase.map(f.extrai))].sort((a,b) =>
+      (parseInt(a)||999) - (parseInt(b)||999) || String(a).localeCompare(b));
+    const drop = document.createElement("div");
+    drop.className = "f-drop";
+    const sel = pmFiltros[f.id];
+    const btn = document.createElement("button");
+    btn.className = "f-btn" + (sel ? " ativo" : "");
+    btn.textContent = f.rotulo + ": " + (sel ? sel.size + " ▾" : "Todos ▾");
+    const painel = document.createElement("div");
+    painel.className = "f-painel";
+    const tn = document.createElement("div");
+    tn.className = "tn";
+    tn.innerHTML = "<span data-a='todos'>Todos</span><span data-a='nenhum'>Nenhum</span>";
+    painel.appendChild(tn);
+    valores.forEach(v => {
+      const lb = document.createElement("label");
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = !sel || sel.has(v);
+      cb.onchange = () => {
+        const marcados = [...painel.querySelectorAll("label input")].filter(x => x.checked)
+          .map(x => x.dataset.v);
+        pmFiltros[f.id] = marcados.length === valores.length ? null : new Set(marcados);
+        if(!pmFiltros[f.id]) delete pmFiltros[f.id];
+        pmRender(); pmMontarFiltros();
+        painel.classList.add("on");
+      };
+      cb.dataset.v = v;
+      lb.appendChild(cb);
+      lb.appendChild(document.createTextNode(v));
+      painel.appendChild(lb);
+    });
+    tn.onclick = ev => {
+      const a = ev.target.dataset.a;
+      if(!a) return;
+      if(a === "todos"){ delete pmFiltros[f.id]; }
+      else { pmFiltros[f.id] = new Set(); }
+      pmRender(); pmMontarFiltros();
+    };
+    btn.onclick = ev => {
+      ev.stopPropagation();
+      document.querySelectorAll(".f-painel").forEach(p => { if(p !== painel) p.classList.remove("on"); });
+      painel.classList.toggle("on");
+    };
+    drop.appendChild(btn); drop.appendChild(painel);
+    alvo.appendChild(drop);
+  });
+}
+document.addEventListener("click", () =>
+  document.querySelectorAll(".f-painel").forEach(p => p.classList.remove("on")));
+
+function pmRender(){
+  const lista = pmFiltrados();
+  const corpo = $("pm-corpo");
+  if(!lista.length){
+    corpo.innerHTML = '<tr><td colspan="9" class="carregando">Nenhum associado passa nos filtros.</td></tr>';
+  } else {
+    corpo.innerHTML = lista.map(c => {
+      const marcado = !pmDesmarcados.has(c.telefone);
+      const pend = pmValor(c, "pend");
+      return `<tr>
+        <td><input type="checkbox" data-tel="${c.telefone}" ${marcado ? "checked" : ""}></td>
+        <td><strong>${c.nome || "—"}</strong></td>
+        <td>${c.telefone}</td>
+        <td>${c.indicador || "—"}</td>
+        <td class="num">${pmValor(c,"mes")}</td>
+        <td class="num">${pmValor(c,"dia")}</td>
+        <td>${c.time || "—"}</td>
+        <td style="color:${pend === "sim" ? "var(--ambar)" : "var(--cinza)"}">${pend}</td>
+        <td class="num">${(c.recompensas||[]).filter(r => r.resgatada).length}</td>
+      </tr>`;
+    }).join("");
+    corpo.querySelectorAll("input[data-tel]").forEach(cb => {
+      cb.onchange = () => {
+        if(cb.checked) pmDesmarcados.delete(cb.dataset.tel);
+        else pmDesmarcados.add(cb.dataset.tel);
+        pmContar();
+      };
+    });
+  }
+  pmContar();
+}
+
+function pmSelecionados(){
+  return pmFiltrados().map(c => c.telefone).filter(t => !pmDesmarcados.has(t));
+}
+
+function pmContar(){
+  const f = pmFiltrados().length, s = pmSelecionados().length;
+  $("pm-contador").textContent = s + " selecionados de " + f + " filtrados";
+  $("pm-enviar").textContent = "Enviar para " + s + " selecionado" + (s === 1 ? "" : "s");
+}
+
+$("pm-todos").onchange = ev => {
+  if(ev.target.checked) pmDesmarcados.clear();
+  else pmFiltrados().forEach(c => pmDesmarcados.add(c.telefone));
+  pmRender();
+};
+
+$("pm-enviar").onclick = async () => {
+  const tels = pmSelecionados();
+  const texto = $("pm-texto").value.trim();
+  const m = $("pm-resultado");
+  if(!tels.length || !texto){
+    m.className = "msg erro"; m.textContent = "Selecione associados e escreva o texto."; return;
+  }
+  m.className = "msg"; m.textContent = "Enviando para " + tels.length + "…";
+  try{
+    const r = await fetch(API + "/admin/push-lote", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({telefones: tels, texto})
+    });
+    const d = await r.json();
+    if(!r.ok) throw 0;
+    m.className = "msg ok";
+    m.textContent = d.processados + " processados · " + d.com_dispositivo +
+      " com cartão instalado · " + d.sem_dispositivo + " sem dispositivo (aviso gravado)";
+  }catch(e){ m.className = "msg erro"; m.textContent = "Falha no envio."; }
+};
+
+async function pmCarregar(){
+  try{
+    const r = await fetch(API + "/admin/consumidores");
+    pmBase = await r.json();
+    pmMontarFiltros(); pmRender();
+  }catch(e){
+    $("pm-corpo").innerHTML = '<tr><td colspan="9" class="carregando">Erro ao carregar.</td></tr>';
+  }
+}
+
 /* ── início ── */
 carregarBares().then(carregarConsumidores);
 carregarConfig();
 carregarGarcons();
+pmCarregar();
 </script>
 
 <div id="modal">
