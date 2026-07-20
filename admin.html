@@ -166,7 +166,7 @@
         <th class="num">PONTOS</th><th class="num">META</th>
         <th class="num">INDICADOS</th><th>PADRINHO</th><th>PRÊMIO</th><th></th>
       </tr></thead>
-      <tbody id="t-consumidores"><tr><td colspan="9" class="carregando">Carregando…</td></tr></tbody>
+      <tbody id="t-consumidores"><tr><td colspan="10" class="carregando">Carregando…</td></tr></tbody>
     </table>
   </div>
   <div class="mini" id="resumo"></div>
@@ -206,8 +206,9 @@
           <th><span class="f-col" data-campo="time"></span></th>
           <th><span class="f-col" data-campo="pend"></span></th>
           <th class="num"><span class="f-col" data-campo="resg"></span></th>
+          <th><span class="f-col" data-campo="cep"></span></th>
         </tr></thead>
-        <tbody id="pm-corpo"><tr><td colspan="9" class="carregando">Carregando…</td></tr></tbody>
+        <tbody id="pm-corpo"><tr><td colspan="10" class="carregando">Carregando…</td></tr></tbody>
       </table>
     </div>
     <div class="msg" id="pm-contador" style="color:var(--ambar)"></div>
@@ -576,6 +577,8 @@ const PM_CAMPOS = [
       const n = (c.recompensas||[]).filter(r => r.resgatada).length;
       return n === 0 ? "0" : (n <= 2 ? "1-2" : "3+");
   }},
+  {id:"cep",  rotulo:"CEP",          extrai: c =>
+      (c.cep || "").length >= 5 ? (c.cep.slice(0,5) + "-xxx") : "—"},
 ];
 
 function pmValor(c, id){ return PM_CAMPOS.find(f => f.id === id).extrai(c); }
@@ -636,7 +639,7 @@ function pmMontarFiltros(){
       document.querySelectorAll(".f-painel").forEach(p => { if(p !== painel) p.classList.remove("on"); });
       painel.classList.toggle("on");
     };
-    if(f.id === "pend" || f.id === "resg") painel.style.cssText += "left:auto; right:0";
+    if(f.id === "pend" || f.id === "resg" || f.id === "cep") painel.style.cssText += "left:auto; right:0";
     drop.appendChild(btn); drop.appendChild(painel);
     alvo.appendChild(drop);
   });
@@ -648,7 +651,7 @@ function pmRender(){
   const lista = pmFiltrados();
   const corpo = $("pm-corpo");
   if(!lista.length){
-    corpo.innerHTML = '<tr><td colspan="9" class="carregando">Nenhum associado passa nos filtros.</td></tr>';
+    corpo.innerHTML = '<tr><td colspan="10" class="carregando">Nenhum associado passa nos filtros.</td></tr>';
   } else {
     corpo.innerHTML = lista.map(c => {
       const marcado = !pmDesmarcados.has(c.telefone);
@@ -663,6 +666,7 @@ function pmRender(){
         <td>${c.time || "—"}</td>
         <td style="color:${pend === "sim" ? "var(--ambar)" : "var(--cinza)"}">${pend}</td>
         <td class="num">${(c.recompensas||[]).filter(r => r.resgatada).length}</td>
+        <td>${c.cep ? c.cep.slice(0,5) + "-" + c.cep.slice(5) : "—"}</td>
       </tr>`;
     }).join("");
     corpo.querySelectorAll("input[data-tel]").forEach(cb => {
@@ -719,7 +723,7 @@ async function pmCarregar(){
     pmBase = await r.json();
     pmMontarFiltros(); pmRender();
   }catch(e){
-    $("pm-corpo").innerHTML = '<tr><td colspan="9" class="carregando">Erro ao carregar.</td></tr>';
+    $("pm-corpo").innerHTML = '<tr><td colspan="10" class="carregando">Erro ao carregar.</td></tr>';
   }
 }
 
