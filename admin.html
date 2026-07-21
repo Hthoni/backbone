@@ -408,7 +408,10 @@
     </div>
     <div style="margin-bottom:14px">
       <label>BARES QUE ESTE GESTOR ADMINISTRA</label>
-      <div id="gt-bares" style="display:flex; flex-wrap:wrap; gap:10px; background:var(--campo); border-radius:10px; padding:12px"></div>
+      <div class="f-drop" style="display:block">
+        <button type="button" id="gt-bares-btn" style="width:100%; text-align:left; background:var(--campo); color:#111; border:2px solid var(--campo); border-radius:10px; padding:12px; font-size:16px; font-weight:600; font-family:inherit; cursor:pointer">Selecionar bares ▾</button>
+        <div class="f-painel" id="gt-bares-painel" style="width:100%; max-width:none; box-sizing:border-box"></div>
+      </div>
     </div>
     <button class="btn" id="b-criar-gestor">Criar gestor</button>
     <div class="msg" id="m-gestor"></div>
@@ -545,10 +548,8 @@ async function carregarBares(){
     $("bl-bar").innerHTML = '<option value="*">Todos os bares</option>' + ops;
     if(blAtual) $("bl-bar").value = blAtual;
 
-    $("gt-bares").innerHTML = baresLista.map(b =>
-      `<label style="display:flex; align-items:center; gap:6px; color:#111; font-weight:600; font-size:14px; cursor:pointer">
-        <input type="checkbox" value="${b.id}" style="width:auto"> ${b.nome || b.id}
-      </label>`).join("") || '<span class="mini">Cadastre um bar primeiro.</span>';
+    $("gt-bares-btn").disabled = !baresLista.length;
+    montarDropdownBaresGestor();
 
     renderBares();
   }catch(e){
@@ -667,6 +668,58 @@ $("b-criar-garcom").onclick = async () => {
 };
 
 
+/* ── dropdown de bares (gestor) — mesmo padrão do Push em massa ── */
+let gtBaresSelecionados = new Set();
+
+function montarDropdownBaresGestor(){
+  const painel = $("gt-bares-painel");
+  painel.innerHTML = "";
+  if(!baresLista.length){
+    painel.innerHTML = '<span class="mini">Cadastre um bar primeiro.</span>';
+    atualizarBotaoBaresGestor();
+    return;
+  }
+  const tn = document.createElement("div");
+  tn.className = "tn";
+  tn.innerHTML = "<span data-a='todos'>Todos</span><span data-a='nenhum'>Nenhum</span>";
+  tn.onclick = ev => {
+    const a = ev.target.dataset.a;
+    if(!a) return;
+    if(a === "todos") baresLista.forEach(b => gtBaresSelecionados.add(b.id));
+    else gtBaresSelecionados.clear();
+    montarDropdownBaresGestor();
+  };
+  painel.appendChild(tn);
+
+  baresLista.forEach(b => {
+    const lb = document.createElement("label");
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.value = b.id;
+    cb.checked = gtBaresSelecionados.has(b.id);
+    cb.onchange = () => {
+      if(cb.checked) gtBaresSelecionados.add(b.id);
+      else gtBaresSelecionados.delete(b.id);
+      atualizarBotaoBaresGestor();
+    };
+    lb.appendChild(cb);
+    lb.appendChild(document.createTextNode(" " + (b.nome || b.id)));
+    painel.appendChild(lb);
+  });
+  atualizarBotaoBaresGestor();
+}
+function atualizarBotaoBaresGestor(){
+  const n = gtBaresSelecionados.size;
+  $("gt-bares-btn").textContent = (n
+    ? n + " bar" + (n > 1 ? "es" : "") + " selecionado" + (n > 1 ? "s" : "")
+    : "Selecionar bares") + " ▾";
+}
+$("gt-bares-btn").onclick = ev => {
+  ev.stopPropagation();
+  document.querySelectorAll(".f-painel").forEach(p => { if(p.id !== "gt-bares-painel") p.classList.remove("on"); });
+  $("gt-bares-painel").classList.toggle("on");
+};
+
 /* ── gestores ── */
 async function carregarGestores(){
   try{
@@ -690,7 +743,7 @@ $("b-criar-gestor").onclick = async () => {
   const id = ($("gt-id").value || "").trim();
   const nome = ($("gt-nome").value || "").trim();
   const senha = $("gt-senha").value;
-  const bar_ids = [...$("gt-bares").querySelectorAll("input:checked")].map(cb => cb.value);
+  const bar_ids = [...gtBaresSelecionados];
   if(!id || !nome || !senha || !bar_ids.length){
     m.className = "msg erro"; m.textContent = "Preencha ID, nome, senha e marque ao menos 1 bar.";
     return;
@@ -709,7 +762,8 @@ $("b-criar-gestor").onclick = async () => {
     if(!r.ok) throw 0;
     m.className = "msg ok"; m.textContent = "Gestor criado. Login: " + id;
     $("gt-id").value = ""; $("gt-nome").value = ""; $("gt-senha").value = ""; $("gt-tel").value = "";
-    $("gt-bares").querySelectorAll("input:checked").forEach(cb => cb.checked = false);
+    gtBaresSelecionados.clear();
+    montarDropdownBaresGestor();
     carregarGestores();
   }catch(e){ m.className = "msg erro"; m.textContent = "Não foi possível criar."; }
 };
