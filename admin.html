@@ -161,6 +161,7 @@
   <button data-aba="config">Configuração</button>
   <button data-aba="bares">Bares</button>
   <button data-aba="garcons">Garçons</button>
+  <button data-aba="gestores">Gestores</button>
 </nav>
 
 <main>
@@ -375,6 +376,46 @@
   </div>
 </section>
 
+<!-- ══ GESTORES ══ -->
+<section class="aba" id="aba-gestores">
+  <h2>Gestores</h2>
+  <p class="sub">Usuários do painel do dono/gerente do bar (Histórico, Atual, Atividade, Garçons). Um gestor pode administrar mais de um bar.</p>
+  <div class="cartao" style="padding:0; overflow-x:auto">
+    <table>
+      <thead><tr><th>ID (login)</th><th>NOME</th><th>TELEFONE</th><th>BARES</th><th>STATUS</th><th></th></tr></thead>
+      <tbody id="t-gestores"><tr><td colspan="6" class="carregando">Carregando…</td></tr></tbody>
+    </table>
+  </div>
+  <div class="cartao">
+    <h2 style="font-size:16px">Novo gestor</h2>
+    <div class="linha">
+      <div>
+        <label>ID DE LOGIN (ex.: gestor01)</label>
+        <input id="gt-id" type="text" placeholder="gestor01">
+      </div>
+      <div>
+        <label>NOME</label>
+        <input id="gt-nome" type="text" placeholder="João Carlos">
+      </div>
+      <div>
+        <label>SENHA</label>
+        <input id="gt-senha" type="text" placeholder="senha do gestor">
+      </div>
+      <div>
+        <label>TELEFONE</label>
+        <input id="gt-tel" type="tel" placeholder="5521999998888">
+      </div>
+    </div>
+    <div style="margin-bottom:14px">
+      <label>BARES QUE ESTE GESTOR ADMINISTRA</label>
+      <div id="gt-bares" style="display:flex; flex-wrap:wrap; gap:10px; background:var(--campo); border-radius:10px; padding:12px"></div>
+    </div>
+    <button class="btn" id="b-criar-gestor">Criar gestor</button>
+    <div class="msg" id="m-gestor"></div>
+  </div>
+  <p class="mini">Se o gestor tiver só 1 bar marcado, o painel dele pula direto pro dashboard. Com mais de 1, ele vê uma tela de seleção antes.</p>
+</section>
+
 </main>
 
 <script>
@@ -504,6 +545,11 @@ async function carregarBares(){
     $("bl-bar").innerHTML = '<option value="*">Todos os bares</option>' + ops;
     if(blAtual) $("bl-bar").value = blAtual;
 
+    $("gt-bares").innerHTML = baresLista.map(b =>
+      `<label style="display:flex; align-items:center; gap:6px; color:#111; font-weight:600; font-size:14px; cursor:pointer">
+        <input type="checkbox" value="${b.id}" style="width:auto"> ${b.nome || b.id}
+      </label>`).join("") || '<span class="mini">Cadastre um bar primeiro.</span>';
+
     renderBares();
   }catch(e){
     $("t-bares").innerHTML = '<tr><td colspan="8" class="carregando">Erro ao carregar.</td></tr>';
@@ -619,6 +665,62 @@ $("b-criar-garcom").onclick = async () => {
     carregarGarcons();
   }catch(e){ m.className = "msg erro"; m.textContent = "Não foi possível criar."; }
 };
+
+
+/* ── gestores ── */
+async function carregarGestores(){
+  try{
+    const r = await fetch(API + "/admin/gestores");
+    const lista = await r.json();
+    const nomeBar = id => (baresLista.find(b => b.id === id) || {}).nome || id;
+    $("t-gestores").innerHTML = lista.length
+      ? lista.map(g => `<tr>
+          <td><strong>${g.id}</strong></td><td>${g.nome || "—"}</td><td>${g.telefone || "—"}</td>
+          <td>${(g.bar_ids || []).map(nomeBar).join(", ") || "—"}</td>
+          <td>${g.ativo === false ? '<span class="pill neutro">inativo</span>' : '<span class="pill ok">ativo</span>'}</td>
+          <td><button class="btn-x" onclick="apagarGestor('${g.id}', '${(g.nome || "").replace(/'/g, "")}')">apagar</button></td>
+        </tr>`).join("")
+      : '<tr><td colspan="6" class="carregando">Nenhum gestor cadastrado.</td></tr>';
+  }catch(e){
+    $("t-gestores").innerHTML = '<tr><td colspan="6" class="carregando">Erro ao carregar.</td></tr>';
+  }
+}
+$("b-criar-gestor").onclick = async () => {
+  const m = $("m-gestor");
+  const id = ($("gt-id").value || "").trim();
+  const nome = ($("gt-nome").value || "").trim();
+  const senha = $("gt-senha").value;
+  const bar_ids = [...$("gt-bares").querySelectorAll("input:checked")].map(cb => cb.value);
+  if(!id || !nome || !senha || !bar_ids.length){
+    m.className = "msg erro"; m.textContent = "Preencha ID, nome, senha e marque ao menos 1 bar.";
+    return;
+  }
+  m.className = "msg"; m.textContent = "Criando…";
+  try{
+    const r = await fetch(API + "/admin/gestores", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({id, nome, senha, bar_ids, telefone: ($("gt-tel").value||"").replace(/\D/g,""), ativo: true})
+    });
+    if(r.status === 409){
+      const d = await r.json();
+      m.className = "msg erro"; m.textContent = d.detalhe || "Telefone pertence a um associado.";
+      return;
+    }
+    if(!r.ok) throw 0;
+    m.className = "msg ok"; m.textContent = "Gestor criado. Login: " + id;
+    $("gt-id").value = ""; $("gt-nome").value = ""; $("gt-senha").value = ""; $("gt-tel").value = "";
+    $("gt-bares").querySelectorAll("input:checked").forEach(cb => cb.checked = false);
+    carregarGestores();
+  }catch(e){ m.className = "msg erro"; m.textContent = "Não foi possível criar."; }
+};
+function apagarGestor(id, nome){
+  confirmarExclusao(
+    "Apagar gestor?",
+    (nome || id) + " perde o acesso ao painel imediatamente.",
+    "/admin/gestores/" + id,
+    carregarGestores
+  );
+}
 
 
 /* ── exclusao com confirmacao ── */
@@ -899,7 +1001,7 @@ async function desbloquear(tel, bar){
 }
 
 /* ── início ── */
-carregarBares().then(carregarConsumidores);
+carregarBares().then(() => { carregarConsumidores(); carregarGestores(); });
 carregarConfig();
 carregarBloqueados();
 carregarGarcons();
