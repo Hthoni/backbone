@@ -205,6 +205,39 @@ def apagar_garcom(garcom_id: str):
     if blob.exists():
         blob.delete()
 
+
+# ── Gestores (dono/gerente do bar — painel Historico/Atual/Atividade/Garcons) ──
+
+def salvar_gestor(dados: dict):
+    blob = _bucket().blob(f"gestores/{dados['id']}.json")
+    blob.upload_from_string(json.dumps(dados, ensure_ascii=False), content_type="application/json")
+
+
+def carregar_gestor(gestor_id: str):
+    blob = _bucket().blob(f"gestores/{gestor_id}.json")
+    if not blob.exists():
+        return None
+    return json.loads(blob.download_as_text())
+
+
+def listar_gestores():
+    client = storage.Client()
+    blobs = client.list_blobs(BUCKET_NAME, prefix="gestores/")
+    gestores = []
+    for blob in blobs:
+        if blob.name.endswith(".json"):
+            try:
+                gestores.append(json.loads(blob.download_as_text()))
+            except Exception:
+                pass
+    return gestores
+
+
+def apagar_gestor(gestor_id: str):
+    blob = _bucket().blob(f"gestores/{gestor_id}.json")
+    if blob.exists():
+        blob.delete()
+
 def listar_eventos():
     """Lista todos os eventos gravados (para estatisticas)."""
     client = storage.Client()
