@@ -135,9 +135,10 @@
     display:inline-block; margin-left:8px; padding:1px 8px; border-radius:999px;
     font-size:11px; font-weight:800; vertical-align:middle;
   }
-  .tag.punch{background:#2A2A2A; color:#D6D4CC}
-  .tag.resgate{background:#E8A317; color:#151000}
+  .tag.punch{background:#E8A317; color:#151000}
+  .tag.resgate{background:#D8232A; color:#fff}
   .tag.bv{background:#1F7A47; color:#FFF}
+  .feed-fim{text-align:center; color:var(--cinza-txt); font-size:13px; padding:14px 0}
 </style>
 </head>
 <body>
@@ -183,7 +184,7 @@
   <div class="cab">
     <img src="clube_logo.png" alt="Clube Backbone">
     <div style="display:flex;align-items:center;gap:12px">
-      <div class="id" id="quem3"></div>
+      <div class="id" id="quem-atividade"></div>
       <button class="sair" id="b-sair2">SAIR</button>
     </div>
   </div>
@@ -219,7 +220,7 @@
 <section id="t-fim" class="tela">
   <div class="cab">
     <img src="clube_logo.png" alt="Clube Backbone">
-    <div class="id" id="quem3"></div>
+    <div class="id" id="quem-fim"></div>
   </div>
   <div class="fim">
     <div class="selo" id="f-selo"></div>
@@ -287,7 +288,7 @@ $("b-sair").onclick = () => {
 
 function entrar(){
   const txt = garcom.nome + "<small>" + (garcom.bar_nome || garcom.bar_id) + "</small>";
-  ["quem1","quem2","quem3"].forEach(k => $(k).innerHTML = txt);
+  ["quem1","quem2","quem-atividade","quem-fim"].forEach(k => $(k).innerHTML = txt);
   mostrar("scan");
   iniciarCamera();
 }
@@ -301,16 +302,25 @@ function extrairTelefone(texto){
 }
 
 
-/* ── ABA ATIVIDADE (somente leitura) ── */
+/* ── ABA ATIVIDADE (somente leitura, scroll infinito em blocos de 30) ── */
 let feedTimer = null;
+let feedOffset = 0;
+let feedTemMais = true;
+let feedCarregando = false;
 
 function abrirAtividade(){
   pararCamera();
   mostrar("atividade");
-  $("quem3").textContent = $("quem1").textContent;
-  carregarFeed();
+  $("quem-atividade").innerHTML = $("quem1").innerHTML;
+  carregarFeed(true);
   clearInterval(feedTimer);
-  feedTimer = setInterval(carregarFeed, 30000);
+  feedTimer = setInterval(() => carregarFeed(true), 30000);
+  $("feed").onscroll = () => {
+    const el = $("feed");
+    if(el.scrollTop + el.clientHeight >= el.scrollHeight - 120){
+      carregarFeed(false);
+    }
+  };
 }
 function abrirEscanear(){
   clearInterval(feedTimer);
@@ -329,30 +339,55 @@ function horaLocal(iso){
   }catch(e){ return iso || "—"; }
 }
 
-async function carregarFeed(){
-  if(!garcom) return;
+function linhaFeed(e){
+  let tag = '<span class="tag punch">ponto</span>';
+  if(e.tipo === "resgate"){
+    tag = e.tipo_recompensa === "boas_vindas"
+      ? '<span class="tag bv">boas-vindas</span>'
+      : '<span class="tag resgate">resgate</span>';
+  }
+  return `<div class="lote">
+    <div class="l1">${e.nome}${tag}</div>
+    <div class="l2">${horaLocal(e.data)}</div>
+    <div class="l3">Garçom: ${e.garcom}</div>
+  </div>`;
+}
+
+/*
+ * reset=true  -> recomeça do zero (primeira carga, ou o refresh automático de 30s)
+ * reset=false -> busca o próximo bloco de 30 e acrescenta ao final (scroll infinito)
+ */
+async function carregarFeed(reset){
+  if(!garcom || feedCarregando) return;
+  if(!reset && !feedTemMais) return;
+
+  feedCarregando = true;
+  if(reset) feedOffset = 0;
+
   try{
-    const r = await fetch(API + "/bar/" + encodeURIComponent(garcom.bar_id) + "/atividade?limite=50");
-    const lista = await r.json();
-    if(!lista.length){
-      $("feed").innerHTML = '<div class="carregando">Nenhuma leitura registrada ainda.</div>';
-      return;
+    const url = API + "/bar/" + encodeURIComponent(garcom.bar_id) +
+      "/atividade?limite=30&offset=" + feedOffset;
+    const r = await fetch(url);
+    const d = await r.json();
+    const eventos = d.eventos || [];
+
+    if(reset){
+      $("feed").innerHTML = eventos.length
+        ? eventos.map(linhaFeed).join("")
+        : '<div class="carregando">Nenhuma leitura registrada ainda.</div>';
+    } else {
+      $("feed").insertAdjacentHTML("beforeend", eventos.map(linhaFeed).join(""));
     }
-    $("feed").innerHTML = lista.map(e => {
-      let tag = '<span class="tag punch">ponto</span>';
-      if(e.tipo === "resgate"){
-        tag = e.tipo_recompensa === "boas_vindas"
-          ? '<span class="tag bv">boas-vindas</span>'
-          : '<span class="tag resgate">resgate</span>';
-      }
-      return `<div class="lote">
-        <div class="l1">${e.nome}${tag}</div>
-        <div class="l2">${horaLocal(e.data)}</div>
-        <div class="l3">Garçom: ${e.garcom}</div>
-      </div>`;
-    }).join("");
+
+    feedOffset += eventos.length;
+    feedTemMais = !!d.tem_mais;
+    if(!feedTemMais && eventos.length){
+      $("feed").insertAdjacentHTML("beforeend", '<div class="feed-fim">Início do histórico.</div>');
+    }
   }catch(err){
-    $("feed").innerHTML = '<div class="carregando">Não foi possível carregar. Verifique a conexão.</div>';
+    if(reset) $("feed").innerHTML = '<div class="carregando">Não foi possível carregar. Verifique a conexão.</div>';
+  }finally{
+    feedCarregando = false;
   }
 }
 
