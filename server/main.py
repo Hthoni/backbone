@@ -563,6 +563,76 @@ def admin_apagar_garcom(garcom_id):
     return jsonify({"status": "apagado", "id": garcom_id})
 
 
+# ══════════════════════════════════════════════════════════════
+#  GESTORES — login e cadastro do dono/gerente do bar
+#  (painel Historico / Atual / Atividade / Garcons)
+# ══════════════════════════════════════════════════════════════
+
+@app.route("/login-gestor", methods=["POST"])
+def login_gestor():
+    """
+    Login do painel do gestor. Separado do /login do garcom porque o
+    papel e os dados devolvidos sao diferentes (bar_ids em vez de um bar so).
+    """
+    dados = request.get_json() or {}
+    gestor = storage.carregar_gestor(dados.get("id"))
+    if not gestor or gestor.get("senha") != dados.get("senha"):
+        return jsonify({"erro": "credenciais_invalidas"}), 401
+    if not gestor.get("ativo", True):
+        return jsonify({"erro": "gestor_inativo"}), 403
+
+    bar_ids = gestor.get("bar_ids", [])
+    bares_map = {b["id"]: b.get("nome", b["id"]) for b in storage.listar_bares()}
+
+    return jsonify({
+        "status": "ok",
+        "gestor_id": gestor["id"],
+        "nome": gestor["nome"],
+        # se so tiver 1 bar, o front pode pular a tela de selecao e ir direto
+        "bares": [{"id": bid, "nome": bares_map.get(bid, bid)} for bid in bar_ids],
+    })
+
+
+@app.route("/admin/gestores")
+def admin_gestores():
+    gestores = storage.listar_gestores()
+    for g in gestores:
+        g.pop("senha", None)   # nunca expor
+    return jsonify(gestores)
+
+
+@app.route("/admin/gestores", methods=["POST"])
+def admin_criar_gestor():
+    """
+    Body: {"nome":..., "id":..., "senha":..., "telefone":..., "bar_ids": [...]}
+    Mesma trava antifraude do garcom: telefone nao pode ser de associado.
+    """
+    dados = request.get_json()
+    tel_g = so_digitos(dados.get("telefone", ""))
+    if tel_g and storage.carregar_consumidor(tel_g):
+        return jsonify({"erro": "telefone_de_associado",
+                        "detalhe": "Este telefone pertence a um associado. "
+                                   "Gestor não pode ser associado — apague o cadastro dele antes."}), 409
+    dados["telefone"] = tel_g
+    dados.setdefault("id", str(uuid.uuid4())[:8])
+    dados.setdefault("bar_ids", [])
+    dados.setdefault("ativo", True)
+    storage.salvar_gestor(dados)
+
+    resposta = dict(dados)
+    resposta.pop("senha", None)
+    return jsonify({"status": "ok", "gestor": resposta})
+
+
+@app.route("/admin/gestores/<gestor_id>", methods=["DELETE"])
+def admin_apagar_gestor(gestor_id):
+    g = storage.carregar_gestor(gestor_id)
+    if not g:
+        return jsonify({"erro": "nao_encontrado"}), 404
+    storage.apagar_gestor(gestor_id)
+    return jsonify({"status": "apagado", "id": gestor_id})
+
+
 @app.route("/gwallet/<telefone>")
 def gwallet_link(telefone):
     """Redireciona para o link 'Salvar no Google Wallet' do consumidor."""
@@ -747,31 +817,150 @@ def admin_desbloquear(telefone):
 @app.route("/bar/<bar_id>/atividade")
 def atividade_bar(bar_id):
     """
-    Feed de leituras do bar (para a aba Atividade do scanner).
-    Somente leitura: nome do associado, horario, garcom, tipo.
-    ?limite=50 (max 100)
+    Feed de leituras do bar — usado na aba Atividade do scanner e no
+    painel do gestor (aba Atividade e detalhe por garcom).
+
+    ?limite=30      (max 100, default 30 — bloco do scroll infinito)
+    ?offset=0       (posicao inicial; manda offset+limite do bloco anterior
+                     para carregar o proximo)
+    ?mes=2026-07    (opcional; filtra pelo mes do evento)
+    ?garcom_id=g01  (opcional; filtra por garcom — usado na tela de
+                     detalhe do garcom, aberta a partir do card na aba Atual)
+
+    Resposta: {eventos:[...], offset, limite, total, tem_mais}
+    tem_mais indica se ha mais eventos para o proximo bloco.
     """
-    limite = min(int(request.args.get("limite", 50)), 100)
+    limite = min(int(request.args.get("limite", 30)), 100)
+    offset = max(int(request.args.get("offset", 0)), 0)
+    mes = request.args.get("mes")
+    garcom_filtro = request.args.get("garcom_id")
+
     eventos = [e for e in storage.listar_eventos()
                if e.get("bar") == bar_id and e.get("tipo") in ("punch", "resgate")]
+
+    if mes:
+        eventos = [e for e in eventos if (e.get("data") or "").startswith(mes)]
+    if garcom_filtro:
+        eventos = [e for e in eventos if e.get("garcom_id") == garcom_filtro]
+
     eventos.sort(key=lambda e: e.get("data", ""), reverse=True)
-    eventos = eventos[:limite]
+    total = len(eventos)
+    pagina = eventos[offset:offset + limite]
 
     nomes = {}
-    for tel in {e.get("telefone") for e in eventos if e.get("telefone")}:
+    for tel in {e.get("telefone") for e in pagina if e.get("telefone")}:
         c = storage.carregar_consumidor(tel)
         if c:
             nomes[tel] = c.get("nome", "")
 
     garcons = {g["id"]: g.get("nome", g["id"]) for g in storage.listar_garcons()}
 
-    return jsonify([{
-        "nome": nomes.get(e.get("telefone")) or e.get("telefone") or "—",
-        "data": e.get("data"),
-        "garcom": garcons.get(e.get("garcom_id"), e.get("garcom_id") or "—"),
-        "tipo": e.get("tipo"),
-        "tipo_recompensa": e.get("tipo_recompensa"),
-    } for e in eventos])
+    return jsonify({
+        "eventos": [{
+            "nome": nomes.get(e.get("telefone")) or e.get("telefone") or "—",
+            "data": e.get("data"),
+            "garcom": garcons.get(e.get("garcom_id"), e.get("garcom_id") or "—"),
+            "tipo": e.get("tipo"),
+            "tipo_recompensa": e.get("tipo_recompensa"),
+        } for e in pagina],
+        "offset": offset,
+        "limite": limite,
+        "total": total,
+        "tem_mais": (offset + limite) < total,
+    })
+
+
+@app.route("/bar/<bar_id>/resumo")
+def bar_resumo(bar_id):
+    """
+    Resumo do bar num periodo + quebra por garcom.
+    Alimenta as abas Atual (mes corrente) e Historico (mes selecionado)
+    do painel do gestor.
+
+    ?mes=2026-07  (default: mes corrente, formato YYYY-MM)
+
+    Categorias (mesma logica das outras estatisticas do admin):
+      cadastros -> resgates de boas_vindas (chopp de boas-vindas)
+      pontuacao -> punches (chopps de rotina)
+      resgates  -> resgates de premio (meta de 7/10 atingida)
+    """
+    mes = request.args.get("mes") or datetime.now(timezone.utc).strftime("%Y-%m")
+
+    garcons_map = {g["id"]: g.get("nome", g["id"]) for g in storage.listar_garcons()}
+
+    totais = {"cadastros": 0, "pontuacao": 0, "resgates": 0}
+    por_garcom = {}
+
+    for ev in storage.listar_eventos():
+        if ev.get("bar") != bar_id:
+            continue
+        if not (ev.get("data") or "").startswith(mes):
+            continue
+
+        tipo = ev.get("tipo")
+        if tipo == "punch":
+            cat = "pontuacao"
+        elif tipo == "resgate":
+            cat = "cadastros" if ev.get("tipo_recompensa") == "boas_vindas" else "resgates"
+        else:
+            continue
+
+        totais[cat] += 1
+
+        gid = ev.get("garcom_id")
+        if gid:
+            g = por_garcom.setdefault(gid, {
+                "garcom_id": gid, "nome": garcons_map.get(gid, gid),
+                "cadastros": 0, "pontuacao": 0, "resgates": 0,
+            })
+            g[cat] += 1
+
+    return jsonify({
+        "bar_id": bar_id,
+        "mes": mes,
+        "totais": totais,
+        "garcons": sorted(por_garcom.values(), key=lambda g: g["nome"]),
+    })
+
+
+@app.route("/bar/<bar_id>/historico")
+def bar_historico(bar_id):
+    """
+    Alimenta a aba Historico do painel do gestor numa chamada so:
+    o total geral do bar (todos os meses) + a lista de meses com
+    totais, do mais recente para o mais antigo — cada item vira
+    direto um card na tela, sem precisar de 1 request por mes.
+    """
+    totais_geral = {"cadastros": 0, "pontuacao": 0, "resgates": 0}
+    por_mes = {}
+
+    for ev in storage.listar_eventos():
+        if ev.get("bar") != bar_id:
+            continue
+        data = ev.get("data") or ""
+        if len(data) < 7:
+            continue
+        mes = data[:7]  # YYYY-MM
+
+        tipo = ev.get("tipo")
+        if tipo == "punch":
+            cat = "pontuacao"
+        elif tipo == "resgate":
+            cat = "cadastros" if ev.get("tipo_recompensa") == "boas_vindas" else "resgates"
+        else:
+            continue
+
+        totais_geral[cat] += 1
+        m = por_mes.setdefault(mes, {"mes": mes, "cadastros": 0, "pontuacao": 0, "resgates": 0})
+        m[cat] += 1
+
+    meses = sorted(por_mes.values(), key=lambda m: m["mes"], reverse=True)
+
+    return jsonify({
+        "bar_id": bar_id,
+        "totais": totais_geral,
+        "meses": meses,
+    })
 
 
 @app.route("/")
