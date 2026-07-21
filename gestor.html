@@ -36,7 +36,11 @@
     background:none; border:2px solid #444; color:var(--branco);
     font-size:13px; font-weight:700; padding:8px 13px; border-radius:999px; flex-shrink:0;
   }
-  .trocar{border-color:var(--ambar); color:var(--ambar)}
+  .trocar{
+    border-color:var(--ambar); color:var(--ambar);
+    padding:0; width:36px; height:36px; display:flex; align-items:center; justify-content:center;
+  }
+  .trocar svg{width:18px; height:18px}
   .topo-acoes{display:flex; align-items:center; gap:8px}
 
   /* ── LOGIN ── */
@@ -158,7 +162,12 @@
     <img src="clube_logo.png" alt="Clube Backbone">
     <div class="topo-acoes">
       <div class="id" id="dash-nome"></div>
-      <button class="trocar" id="b-trocar" style="display:none">TROCAR</button>
+      <button class="trocar" id="b-trocar" style="display:none" aria-label="Trocar de bar" title="Trocar de bar">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M4 7h10M14 7l-3-3M14 7l-3 3"/>
+          <path d="M16 13H6M6 13l3 3M6 13l3-3"/>
+        </svg>
+      </button>
       <button class="sair" id="b-sair-dash">SAIR</button>
     </div>
   </div>
@@ -330,7 +339,7 @@ function escolherBarPorId(id){
 function escolherBar(bar){
   barAtivo = bar;
   $("dash-nome").innerHTML = gestor.nome + "<small>" + bar.nome + "</small>";
-  $("b-trocar").style.display = (gestor.bares.length > 1) ? "inline-block" : "none";
+  $("b-trocar").style.display = (gestor.bares.length > 1) ? "flex" : "none";
   mostrar("dash");
   mudarAba("historico");
 }
