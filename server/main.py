@@ -744,6 +744,36 @@ def admin_desbloquear(telefone):
     return jsonify({"status": "ok", "total": len(lista)})
 
 
+@app.route("/bar/<bar_id>/atividade")
+def atividade_bar(bar_id):
+    """
+    Feed de leituras do bar (para a aba Atividade do scanner).
+    Somente leitura: nome do associado, horario, garcom, tipo.
+    ?limite=50 (max 100)
+    """
+    limite = min(int(request.args.get("limite", 50)), 100)
+    eventos = [e for e in storage.listar_eventos()
+               if e.get("bar") == bar_id and e.get("tipo") in ("punch", "resgate")]
+    eventos.sort(key=lambda e: e.get("data", ""), reverse=True)
+    eventos = eventos[:limite]
+
+    nomes = {}
+    for tel in {e.get("telefone") for e in eventos if e.get("telefone")}:
+        c = storage.carregar_consumidor(tel)
+        if c:
+            nomes[tel] = c.get("nome", "")
+
+    garcons = {g["id"]: g.get("nome", g["id"]) for g in storage.listar_garcons()}
+
+    return jsonify([{
+        "nome": nomes.get(e.get("telefone")) or e.get("telefone") or "—",
+        "data": e.get("data"),
+        "garcom": garcons.get(e.get("garcom_id"), e.get("garcom_id") or "—"),
+        "tipo": e.get("tipo"),
+        "tipo_recompensa": e.get("tipo_recompensa"),
+    } for e in eventos])
+
+
 @app.route("/")
 def health():
     return jsonify({"status": "ok", "sistema": "Clube Backbone", "versao": 3})
