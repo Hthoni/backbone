@@ -115,6 +115,29 @@
 
   .erro-msg{color:#FF6B6B; font-size:19px; font-weight:700; margin-bottom:16px; min-height:24px}
   .carregando{text-align:center; color:var(--cinza-txt); padding:60px 20px; font-size:20px; font-weight:600}
+  .abas{
+    display:flex; gap:6px; padding:10px 18px 0; border-bottom:1px solid #2B2B2B;
+  }
+  .abas button{
+    background:none; border:none; color:var(--cinza-txt); font-size:16px; font-weight:800;
+    padding:8px 14px 12px; cursor:pointer; border-bottom:3px solid transparent; font-family:inherit;
+  }
+  .abas button.on{color:#FFF; border-bottom-color:#D8232A}
+  .feed{padding:14px 18px; overflow-y:auto; flex:1}
+  .lote{
+    background:#141414; border:1px solid #2B2B2B; border-radius:12px;
+    padding:12px 14px; margin-bottom:10px;
+  }
+  .lote .l1{font-size:18px; font-weight:800; color:#FFF}
+  .lote .l2{font-size:14px; color:var(--cinza-txt); margin-top:2px}
+  .lote .l3{font-size:14px; color:var(--cinza-txt); margin-top:2px}
+  .lote .tag{
+    display:inline-block; margin-left:8px; padding:1px 8px; border-radius:999px;
+    font-size:11px; font-weight:800; vertical-align:middle;
+  }
+  .tag.punch{background:#2A2A2A; color:#D6D4CC}
+  .tag.resgate{background:#E8A317; color:#151000}
+  .tag.bv{background:#1F7A47; color:#FFF}
 </style>
 </head>
 <body>
@@ -145,9 +168,31 @@
       <button class="sair" id="b-sair">SAIR</button>
     </div>
   </div>
+  <div class="abas">
+    <button class="on" id="ab-escanear">Escanear</button>
+    <button id="ab-atividade">Atividade</button>
+  </div>
   <div class="scan">
     <div id="cam"></div>
     <p class="dica">Aponte a câmera<br>para o QR do cliente</p>
+  </div>
+</section>
+
+<!-- ══ ATIVIDADE (somente leitura) ══ -->
+<section id="t-atividade" class="tela">
+  <div class="cab">
+    <img src="clube_logo.png" alt="Clube Backbone">
+    <div style="display:flex;align-items:center;gap:12px">
+      <div class="id" id="quem3"></div>
+      <button class="sair" id="b-sair2">SAIR</button>
+    </div>
+  </div>
+  <div class="abas">
+    <button id="ab-escanear2">Escanear</button>
+    <button class="on">Atividade</button>
+  </div>
+  <div class="feed" id="feed">
+    <div class="carregando">Carregando…</div>
   </div>
 </section>
 
@@ -253,6 +298,62 @@ function extrairTelefone(texto){
   const m = String(texto).match(/\/q\/(\d{10,13})/);
   if(m) return m[1];
   return digitos(texto);
+}
+
+
+/* ── ABA ATIVIDADE (somente leitura) ── */
+let feedTimer = null;
+
+function abrirAtividade(){
+  pararCamera();
+  mostrar("atividade");
+  $("quem3").textContent = $("quem1").textContent;
+  carregarFeed();
+  clearInterval(feedTimer);
+  feedTimer = setInterval(carregarFeed, 30000);
+}
+function abrirEscanear(){
+  clearInterval(feedTimer);
+  mostrar("scan");
+  iniciarCamera();
+}
+$("ab-atividade").onclick = abrirAtividade;
+$("ab-escanear2").onclick = abrirEscanear;
+$("b-sair2").onclick = () => $("b-sair").onclick();
+
+function horaLocal(iso){
+  try{
+    const d = new Date(iso);
+    return d.toLocaleDateString("pt-BR", {day:"2-digit", month:"2-digit"}) + " " +
+           d.toLocaleTimeString("pt-BR", {hour:"2-digit", minute:"2-digit"});
+  }catch(e){ return iso || "—"; }
+}
+
+async function carregarFeed(){
+  if(!garcom) return;
+  try{
+    const r = await fetch(API + "/bar/" + encodeURIComponent(garcom.bar_id) + "/atividade?limite=50");
+    const lista = await r.json();
+    if(!lista.length){
+      $("feed").innerHTML = '<div class="carregando">Nenhuma leitura registrada ainda.</div>';
+      return;
+    }
+    $("feed").innerHTML = lista.map(e => {
+      let tag = '<span class="tag punch">ponto</span>';
+      if(e.tipo === "resgate"){
+        tag = e.tipo_recompensa === "boas_vindas"
+          ? '<span class="tag bv">boas-vindas</span>'
+          : '<span class="tag resgate">resgate</span>';
+      }
+      return `<div class="lote">
+        <div class="l1">${e.nome}${tag}</div>
+        <div class="l2">${horaLocal(e.data)}</div>
+        <div class="l3">Garçom: ${e.garcom}</div>
+      </div>`;
+    }).join("");
+  }catch(err){
+    $("feed").innerHTML = '<div class="carregando">Não foi possível carregar. Verifique a conexão.</div>';
+  }
 }
 
 /* ── CÂMERA ── */
