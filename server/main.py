@@ -655,6 +655,20 @@ def gwallet_criar_classe():
         return jsonify({"erro": str(e)}), 500
 
 
+@app.route("/admin/migrar-eventos", methods=["POST"])
+def admin_migrar_eventos():
+    """
+    RODAR UMA VEZ, logo apos subir esta versao.
+    Junta os eventos antigos (1 arquivo por evento) num log unico
+    (eventos/log.jsonl) — e o que deixa o painel do gestor rapido.
+    Nao apaga nenhum arquivo antigo. Seguro chamar de novo (nao duplica).
+    """
+    try:
+        return jsonify(storage.migrar_eventos_para_log())
+    except Exception as e:
+        return jsonify({"erro": str(e)}), 500
+
+
 @app.route("/admin/garcons/stats")
 def garcons_stats():
     """
