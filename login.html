@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#000000">
+<title>Clube Backbone — Painel do gestor</title>
+<style>
+  :root{
+    --preto:#000; --preto2:#141414; --linha:#2B2B2B;
+    --branco:#FFF; --cinza-campo:#E4E2DA; --cinza-txt:#A8A8A2;
+    --ambar:#E8A317; --rubro:#D8232A; --verde:#1F7A47;
+    --sb: env(safe-area-inset-bottom, 0px);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{
+    background:var(--preto); color:var(--branco);
+    font:400 17px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased; overscroll-behavior:none;
+  }
+  .tela{display:none; min-height:100dvh; flex-direction:column}
+  .tela.on{display:flex}
+
+  /* ── HEADER ── */
+  .cab{
+    display:flex; align-items:center; justify-content:space-between; gap:14px;
+    background:var(--preto); padding:calc(env(safe-area-inset-top,0px) + 12px) 18px 12px;
+    border-bottom:1px solid var(--linha); flex-shrink:0;
+  }
+  .cab img{height:36px; width:auto; display:block}
+  .cab .id{font-size:15px; font-weight:700; text-align:right; line-height:1.25}
+  .cab .id small{display:block; font-size:12px; font-weight:400; color:var(--cinza-txt)}
+  .sair, .trocar{
+    background:none; border:2px solid #444; color:var(--branco);
+    font-size:13px; font-weight:700; padding:8px 13px; border-radius:999px; flex-shrink:0;
+  }
+  .trocar{
+    border-color:var(--ambar); color:var(--ambar);
+    padding:0; width:36px; height:36px; display:flex; align-items:center; justify-content:center;
+  }
+  .trocar svg{width:18px; height:18px}
+  .topo-acoes{display:flex; align-items:center; gap:8px}
+
+  /* ── LOGIN ── */
+  .login{flex:1; display:flex; flex-direction:column; justify-content:center; padding:30px 22px calc(30px + var(--sb))}
+  .login h1{font-size:26px; font-weight:800; line-height:1.15; margin-bottom:30px}
+  label{display:block; font-size:15px; font-weight:700; letter-spacing:.05em; color:var(--branco); margin:0 0 8px 2px}
+  input{
+    width:100%; background:var(--cinza-campo); border:2px solid var(--cinza-campo); color:#111;
+    font-size:22px; font-weight:600; padding:16px; border-radius:14px; margin-bottom:20px;
+  }
+  input::placeholder{color:#8A8880; font-weight:400}
+  input:focus{outline:none; border-color:var(--ambar)}
+  .btn{
+    width:100%; border:none; border-radius:14px; padding:18px;
+    font-size:18px; font-weight:800; letter-spacing:.01em;
+  }
+  .btn-1{background:var(--branco); color:#000}
+  .btn:active{transform:scale(.98)}
+  .btn[disabled]{opacity:.45}
+  .erro-msg{color:#FF6B6B; font-size:15px; font-weight:700; margin-bottom:14px; min-height:20px}
+
+  /* ── SELEÇÃO DE BAR / CONTEÚDO GERAL ── */
+  .conteudo{flex:1; overflow-y:auto; padding:16px 18px calc(20px + var(--sb))}
+  .titulo-secao{font-size:13px; font-weight:700; letter-spacing:.08em; color:var(--cinza-txt); margin:18px 0 8px 2px; text-transform:uppercase}
+  .titulo-secao:first-child{margin-top:0}
+
+  .card{
+    background:var(--preto2); border:1px solid var(--linha); border-radius:14px;
+    padding:14px 16px; margin-bottom:10px; cursor:pointer;
+  }
+  .card:active{background:#1B1B1B}
+  .card.somatorio{border-color:var(--ambar)}
+  .card .titulo{font-size:16px; font-weight:800}
+  .card .sub{font-size:13px; color:var(--cinza-txt); margin-top:2px}
+
+  .grid-metricas{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:10px}
+  .metrica{background:#1B1B1B; border-radius:10px; padding:10px 8px; text-align:center}
+  .metrica .n{font-size:20px; font-weight:800; display:block}
+  .metrica .r{font-size:10.5px; color:var(--cinza-txt); text-transform:uppercase; letter-spacing:.04em; display:block; margin-top:2px}
+
+  .card-mes{display:flex; justify-content:space-between; align-items:center}
+  .card-mes .seta{color:var(--cinza-txt); font-size:20px}
+
+  .aviso-mes{
+    display:flex; align-items:center; gap:10px; background:#1B1600; border:1px solid var(--ambar);
+    color:var(--ambar); font-size:13px; font-weight:700; padding:10px 14px; border-radius:12px; margin-bottom:14px;
+  }
+  .aviso-mes button{background:none; border:none; color:var(--ambar); font-weight:800; text-decoration:underline; font-size:13px}
+
+  /* ── ABAS ── */
+  .abas{display:flex; gap:2px; padding:8px 10px 0; border-bottom:1px solid var(--linha); overflow-x:auto}
+  .abas button{
+    background:none; border:none; color:var(--cinza-txt); font-size:14px; font-weight:800;
+    padding:8px 12px 12px; cursor:pointer; border-bottom:3px solid transparent; font-family:inherit; white-space:nowrap;
+  }
+  .abas button.on{color:#FFF; border-bottom-color:var(--rubro)}
+
+  /* ── FEED (Atividade / detalhe do garçom) ── */
+  .feed{padding:14px 18px; overflow-y:auto; flex:1}
+  .lote{background:#141414; border:1px solid #2B2B2B; border-radius:12px; padding:12px 14px; margin-bottom:10px}
+  .lote .l1{font-size:16px; font-weight:800; color:#FFF}
+  .lote .l2{font-size:13px; color:var(--cinza-txt); margin-top:2px}
+  .lote .l3{font-size:13px; color:var(--cinza-txt); margin-top:2px}
+  .tag{display:inline-block; margin-left:8px; padding:1px 8px; border-radius:999px; font-size:11px; font-weight:800; vertical-align:middle}
+  .tag.punch{background:#E8A317; color:#151000}
+  .tag.resgate{background:#D8232A; color:#fff}
+  .tag.bv{background:#1F7A47; color:#FFF}
+  .feed-fim{text-align:center; color:var(--cinza-txt); font-size:13px; padding:14px 0}
+
+  /* ── SCANNER EMBUTIDO (aba Scanner) ── */
+  .scn-aba{flex:1; display:flex; flex-direction:column; overflow:hidden}
+  .scn-estado{flex:1; display:flex; flex-direction:column; overflow:hidden}
+
+  .scn-camera{flex:1; display:flex; flex-direction:column; padding:20px 18px calc(20px + var(--sb))}
+  #scn-cam{
+    width:100%; aspect-ratio:1; border-radius:22px; overflow:hidden;
+    background:var(--preto2); border:2px solid var(--linha); position:relative;
+  }
+  #scn-cam video{width:100%!important; height:100%!important; object-fit:cover}
+  #scn-cam::after{
+    content:""; position:absolute; inset:14%; border:4px solid var(--ambar);
+    border-radius:16px; pointer-events:none;
+  }
+  .scn-dica{text-align:center; font-size:22px; font-weight:800; line-height:1.25; margin:auto 0; padding:22px 0}
+
+  .scn-flood{flex:1; display:flex; flex-direction:column; justify-content:center; padding:26px 22px; text-align:center; overflow-y:auto}
+  .scn-flood.pontuar{background:var(--ambar); color:#150F00}
+  .scn-flood.resgatar{background:var(--rubro); color:#fff}
+  .scn-flood.boas{background:var(--verde); color:#fff}
+  .scn-acao{font-size:20px; font-weight:900; letter-spacing:.12em; margin-bottom:14px}
+  .scn-nome{font-size:34px; font-weight:800; line-height:1.05; margin-bottom:18px; word-break:break-word}
+  .scn-frase{font-size:24px; line-height:1.25; font-weight:800; margin-bottom:16px}
+  .scn-avisinho{font-size:18px; line-height:1.35; font-weight:700; padding:14px 16px; border-radius:12px; background:rgba(0,0,0,.18); display:block}
+  .scn-trilha{display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin:0 0 20px}
+  .scn-pt{width:18px; height:18px; border-radius:50%; border:3px solid currentColor; opacity:.4}
+  .scn-pt.cheio{background:currentColor; opacity:1}
+  .scn-pt.novo{opacity:1; box-shadow:0 0 0 5px rgba(0,0,0,.2)}
+  .scn-acoes{display:flex; gap:10px; padding:14px 18px calc(16px + var(--sb)); background:var(--preto)}
+  .scn-acoes .btn{flex:1; padding:20px 8px; font-size:16px}
+  .btn-2{background:transparent; color:var(--branco); border:2px solid #555}
+
+  .scn-resultado{flex:1; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; padding:26px 22px}
+  .scn-selo{width:96px; height:96px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:50px; font-weight:700; margin-bottom:22px}
+  .scn-selo.ok{background:var(--verde); color:#fff}
+  .scn-selo.erro{background:var(--rubro); color:#fff}
+  .scn-resultado h2{font-size:28px; font-weight:800; line-height:1.15; margin-bottom:12px}
+  .scn-resultado p{font-size:18px; font-weight:600; line-height:1.35; color:var(--branco); max-width:320px}
+  .scn-rodape{padding:14px 18px calc(16px + var(--sb))}
+
+  .carregando{text-align:center; color:var(--cinza-txt); padding:40px 20px; font-size:15px; font-weight:600}
+
+  /* ── DETALHE DO GARÇOM ── */
+  .voltar{
+    background:none; border:none; color:var(--branco); font-size:15px; font-weight:700;
+    padding:10px 4px; margin:4px 0 0 14px; cursor:pointer; font-family:inherit;
+  }
+  .detalhe-cab{padding:6px 18px 14px}
+  .detalhe-cab .nome{font-size:22px; font-weight:800}
+  .detalhe-cab .periodo{font-size:13px; color:var(--cinza-txt); margin-top:2px}
+</style>
+</head>
+<body>
+
+<!-- ══ LOGIN ══ -->
+<section id="t-login" class="tela on">
+  <div class="cab">
+    <img src="clube_logo.png" alt="Clube Backbone">
+    <div class="id">PAINEL DO GESTOR</div>
+  </div>
+  <div class="login">
+    <h1>Entre para ver os números do seu bar.</h1>
+    <label for="i-id">SEU CÓDIGO</label>
+    <input id="i-id" type="text" autocapitalize="none" autocomplete="username" placeholder="ex.: gestor01">
+    <label for="i-senha">SENHA</label>
+    <input id="i-senha" type="password" autocomplete="current-password" placeholder="••••••">
+    <div class="erro-msg" id="erro-login"></div>
+    <button class="btn btn-1" id="b-entrar">ENTRAR</button>
+  </div>
+</section>
+
+<!-- ══ SELEÇÃO DE BAR ══ -->
+<section id="t-selecao" class="tela">
+  <div class="cab">
+    <img src="clube_logo.png" alt="Clube Backbone">
+    <div class="topo-acoes">
+      <div class="id" id="sel-nome"></div>
+      <button class="sair" id="b-sair-sel">SAIR</button>
+    </div>
+  </div>
+  <div class="conteudo">
+    <div class="titulo-secao">Escolha o bar</div>
+    <div id="sel-lista"><div class="carregando">Carregando…</div></div>
+  </div>
+</section>
+
+<!-- ══ DASHBOARD ══ -->
+<section id="t-dash" class="tela">
+  <div class="cab">
+    <img src="clube_logo.png" alt="Clube Backbone">
+    <div class="topo-acoes">
+      <div class="id" id="dash-nome"></div>
+      <button class="trocar" id="b-trocar" style="display:none" aria-label="Trocar de bar" title="Trocar de bar">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M4 7h10M14 7l-3-3M14 7l-3 3"/>
+          <path d="M16 13H6M6 13l3 3M6 13l3-3"/>
+        </svg>
+      </button>
+      <button class="sair" id="b-sair-dash">SAIR</button>
+    </div>
+  </div>
+  <div class="abas">
+    <button data-aba="historico" id="ab-historico">Histórico</button>
+    <button data-aba="atual" id="ab-atual">Atual</button>
+    <button data-aba="atividade" id="ab-atividade">Atividade</button>
+    <button data-aba="scanner" id="ab-scanner">Scanner</button>
+  </div>
+
+  <!-- Histórico -->
+  <div class="conteudo aba-conteudo" id="aba-historico">
+    <div id="hist-corpo"><div class="carregando">Carregando…</div></div>
+  </div>
+
+  <!-- Atual (também usada para meses passados do Histórico) -->
+  <div class="conteudo aba-conteudo" id="aba-atual" style="display:none">
+    <div id="atual-aviso"></div>
+    <div id="atual-corpo"><div class="carregando">Carregando…</div></div>
+  </div>
+
+  <!-- Atividade -->
+  <div class="feed aba-conteudo" id="aba-atividade" style="display:none">
+    <div class="carregando">Carregando…</div>
+  </div>
+
+  <!-- Scanner (embutido — mesmo header e abas continuam visíveis) -->
+  <div class="scn-aba aba-conteudo" id="aba-scanner" style="display:none">
+    <div class="scn-estado" id="scn-camera">
+      <div class="scn-camera">
+        <div id="scn-cam"></div>
+        <p class="scn-dica">Aponte a câmera<br>para o QR do cliente</p>
+      </div>
+    </div>
+
+    <div class="scn-estado" id="scn-conf" style="display:none">
+      <div class="scn-flood" id="scn-flood">
+        <div class="scn-acao" id="scn-acao"></div>
+        <div class="scn-nome" id="scn-nome"></div>
+        <div class="scn-trilha" id="scn-trilha"></div>
+        <div class="scn-frase" id="scn-frase"></div>
+        <div id="scn-aviso"></div>
+      </div>
+      <div class="scn-acoes">
+        <button class="btn btn-2" id="scn-cancelar">CANCELAR</button>
+        <button class="btn btn-1" id="scn-confirmar">CONFIRMAR</button>
+      </div>
+    </div>
+
+    <div class="scn-estado" id="scn-fim" style="display:none">
+      <div class="scn-resultado">
+        <div class="scn-selo" id="scn-selo"></div>
+        <h2 id="scn-titulo"></h2>
+        <p id="scn-texto"></p>
+      </div>
+      <div class="scn-rodape">
+        <button class="btn btn-1" id="scn-novo">ESCANEAR O PRÓXIMO</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ DETALHE DO GARÇOM (só chega aqui tocando no card, na aba Atual) ══ -->
+<section id="t-detalhe" class="tela">
+  <div class="cab">
+    <img src="clube_logo.png" alt="Clube Backbone">
+    <div class="topo-acoes">
+      <button class="sair" id="b-sair-det">SAIR</button>
+    </div>
+  </div>
+  <button class="voltar" id="b-voltar-detalhe">‹ Voltar</button>
+  <div class="detalhe-cab">
+    <div class="nome" id="det-nome"></div>
+    <div class="periodo" id="det-periodo"></div>
+  </div>
+  <div class="feed" id="det-feed"><div class="carregando">Carregando…</div></div>
+</section>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<script>
+const API = "https://backbone-650557630362.us-central1.run.app";
+const $ = id => document.getElementById(id);
+
+let gestor = null;       // {gestor_id, nome, bares:[{id,nome}]}
+let barAtivo = null;     // {id, nome}
+let mesAtual = "";       // YYYY-MM real, calculado uma vez
+let mesSelecionado = ""; // mes exibido na aba Atual (pode ser passado)
+
+function mostrar(qual){
+  document.querySelectorAll(".tela").forEach(t => t.classList.remove("on"));
+  $("t-" + qual).classList.add("on");
+}
+
+function mesHoje(){
+  const d = new Date();
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0");
+}
+function nomeMes(m){
+  const [ano, mes] = m.split("-");
+  const nomes = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
+  return nomes[parseInt(mes, 10) - 1] + " de " + ano;
+}
+function horaLocal(iso){
+  try{
+    const d = new Date(iso);
+    return d.toLocaleDateString("pt-BR", {day:"2-digit", month:"2-digit"}) + " " +
+           d.toLocaleTimeString("pt-BR", {hour:"2-digit", minute:"2-digit"});
+  }catch(e){ return iso || "—"; }
+}
+function linhaFeed(e){
+  let tag = '<span class="tag punch">ponto</span>';
+  if(e.tipo === "resgate"){
+    tag = e.tipo_recompensa === "boas_vindas"
+      ? '<span class="tag bv">boas-vindas</span>'
+      : '<span class="tag resgate">resgate</span>';
+  }
+  return `<div class="lote">
+    <div class="l1">${e.nome}${tag}</div>
+    <div class="l2">${horaLocal(e.data)}</div>
+    <div class="l3">Garçom: ${e.garcom}</div>
+  </div>`;
+}
+
+/* ══ LOGIN ══ */
+$("b-entrar").onclick = async () => {
+  const id = $("i-id").value.trim();
+  const senha = $("i-senha").value;
+  if(!id || !senha){ $("erro-login").textContent = "Preencha o código e a senha."; return; }
+  $("b-entrar").disabled = true;
+  $("b-entrar").textContent = "ENTRANDO…";
+  try{
+    const r = await fetch(API + "/login-gestor", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({id, senha})
+    });
+    const d = await r.json();
+    if(!r.ok){
+      $("erro-login").textContent = d.erro === "gestor_inativo"
+        ? "Seu acesso está desativado. Fale com a Backbone."
+        : "Código ou senha incorretos.";
+      return;
+    }
+    if(!d.bares || !d.bares.length){
+      $("erro-login").textContent = "Seu usuário não tem nenhum bar vinculado. Fale com a Backbone.";
+      return;
+    }
+    gestor = d;
+    localStorage.setItem("bb_gestor", JSON.stringify(d));
+    mesAtual = mesHoje();
+    if(gestor.bares.length === 1){
+      escolherBar(gestor.bares[0]);
+    } else {
+      mostrarSelecaoBar();
+    }
+  }catch(e){
+    $("erro-login").textContent = "Sem conexão. Tente de novo.";
+  }finally{
+    $("b-entrar").disabled = false;
+    $("b-entrar").textContent = "ENTRAR";
+  }
+};
+function sair(){
+  localStorage.removeItem("bb_gestor");
+  gestor = null; barAtivo = null;
+  mostrar("login");
+}
+$("b-sair-sel").onclick = sair;
+$("b-sair-dash").onclick = sair;
+$("b-sair-det").onclick = sair;
+
+/* ══ SELEÇÃO DE BAR ══ */
+async function mostrarSelecaoBar(){
+  mostrar("selecao");
+  $("sel-nome").textContent = gestor.nome;
+  const lista = $("sel-lista");
+  lista.innerHTML = '<div class="carregando">Carregando…</div>';
+
+  // soma consolidada do mes atual, um card por bar tambem
+  try{
+    const resumos = await Promise.all(
+      gestor.bares.map(b => fetch(API + "/bar/" + encodeURIComponent(b.id) + "/resumo").then(r => r.json()))
+    );
+    const soma = {cadastros:0, pontuacao:0, resgates:0};
+    resumos.forEach(r => { soma.cadastros += r.totais.cadastros; soma.pontuacao += r.totais.pontuacao; soma.resgates += r.totais.resgates; });
+
+    let html = `<div class="card somatorio">
+      <div class="titulo">Todos os bares</div>
+      <div class="sub">${nomeMes(mesAtual)}</div>
+      ${gridMetricas(soma)}
+    </div>`;
+
+    html += gestor.bares.map((b, i) => `<div class="card" onclick='escolherBarPorId("${b.id}")'>
+      <div class="titulo">${b.nome}</div>
+      <div class="sub">${nomeMes(mesAtual)}</div>
+      ${gridMetricas(resumos[i].totais)}
+    </div>`).join("");
+
+    lista.innerHTML = html;
+  }catch(e){
+    lista.innerHTML = '<div class="carregando">Não foi possível carregar. Verifique a conexão.</div>';
+  }
+}
+function escolherBarPorId(id){
+  escolherBar(gestor.bares.find(b => b.id === id));
+}
+function escolherBar(bar){
+  barAtivo = bar;
+  $("dash-nome").innerHTML = gestor.nome + "<small>" + bar.nome + "</small>";
+  $("b-trocar").style.display = (gestor.bares.length > 1) ? "flex" : "none";
+  mostrar("dash");
+  mudarAba("historico");
+}
+$("b-trocar").onclick = mostrarSelecaoBar;
+
+function gridMetricas(t){
+  return `<div class="grid-metricas">
+    <div class="metrica"><span class="n">${t.cadastros}</span><span class="r">Boas-vindas</span></div>
+    <div class="metrica"><span class="n">${t.pontuacao}</span><span class="r">Pontuação</span></div>
+    <div class="metrica"><span class="n">${t.resgates}</span><span class="r">Resgates</span></div>
+  </div>`;
+}
+
+/* ══ ABAS DO DASHBOARD ══ */
+let atividadeTimer = null;
+
+function mudarAba(aba){
+  document.querySelectorAll(".abas button").forEach(b => b.classList.toggle("on", b.dataset.aba === aba));
+  document.querySelectorAll(".aba-conteudo").forEach(c => c.style.display = "none");
+  $("aba-" + aba).style.display = (aba === "scanner") ? "flex" : "block";
+  clearInterval(atividadeTimer);
+  if(aba !== "scanner") scnPararCamera();
+
+  if(aba === "historico") carregarHistorico();
+  if(aba === "atual"){ mesSelecionado = mesAtual; carregarAtual(); }
+  if(aba === "atividade"){
+    carregarFeedGenerico("atividade", { container: "aba-atividade" }, true);
+    atividadeTimer = setInterval(() => carregarFeedGenerico("atividade", { container: "aba-atividade" }, true), 30000);
+  }
+  if(aba === "scanner"){ scnMostrar("camera"); scnIniciarCamera(); }
+}
+document.querySelectorAll(".abas button").forEach(b => b.onclick = () => mudarAba(b.dataset.aba));
+
+/* ── Histórico ── */
+async function carregarHistorico(){
+  $("hist-corpo").innerHTML = '<div class="carregando">Carregando…</div>';
+  try{
+    const r = await fetch(API + "/bar/" + encodeURIComponent(barAtivo.id) + "/historico");
+    const d = await r.json();
+
+    let html = `<div class="titulo-secao">Totais</div>
+      <div class="card somatorio">
+        <div class="titulo">Desde o início</div>
+        ${gridMetricas(d.totais)}
+      </div>
+      <div class="titulo-secao">Por mês</div>`;
+
+    html += d.meses.length ? d.meses.map(m => `<div class="card card-mes" onclick='abrirMes("${m.mes}")'>
+        <div>
+          <div class="titulo">${nomeMes(m.mes)}</div>
+          ${gridMetricas(m)}
+        </div>
+      </div>`).join("") : '<div class="carregando">Nenhum evento registrado ainda.</div>';
+
+    $("hist-corpo").innerHTML = html;
+  }catch(e){
+    $("hist-corpo").innerHTML = '<div class="carregando">Não foi possível carregar.</div>';
+  }
+}
+function abrirMes(mes){
+  mesSelecionado = mes;
+  mudarAba("atual");
+}
+
+/* ── Atual (mês corrente ou mês escolhido no Histórico) ── */
+let garconsAtuais = [];
+
+async function carregarAtual(){
+  const foraDoMesAtual = mesSelecionado !== mesAtual;
+  $("atual-aviso").innerHTML = foraDoMesAtual
+    ? `<div class="aviso-mes">Mostrando ${nomeMes(mesSelecionado)}. <button onclick="mudarAba('atual')">Voltar ao mês atual</button></div>`
+    : "";
+  $("atual-corpo").innerHTML = '<div class="carregando">Carregando…</div>';
+  try{
+    const r = await fetch(API + "/bar/" + encodeURIComponent(barAtivo.id) + "/resumo?mes=" + mesSelecionado);
+    const d = await r.json();
+    garconsAtuais = d.garcons || [];
+
+    let html = `<div class="titulo-secao">${nomeMes(mesSelecionado)}</div>
+      <div class="card somatorio">
+        <div class="titulo">${barAtivo.nome}</div>
+        ${gridMetricas(d.totais)}
+      </div>
+      <div class="titulo-secao">Por garçom</div>`;
+
+    html += garconsAtuais.length ? garconsAtuais.map(g => `<div class="card" onclick='abrirDetalheGarcom("${g.garcom_id}")'>
+        <div class="titulo">${g.nome}</div>
+        ${gridMetricas(g)}
+      </div>`).join("") : '<div class="carregando">Nenhum garçom com movimento neste mês.</div>';
+
+    $("atual-corpo").innerHTML = html;
+  }catch(e){
+    $("atual-corpo").innerHTML = '<div class="carregando">Não foi possível carregar.</div>';
+  }
+}
+
+/* ══ FEED GENÉRICO (Atividade da aba, e detalhe do garçom) — scroll infinito em blocos de 30 ══ */
+const feedEstado = {}; // chave -> {offset, temMais, carregando}
+
+async function carregarFeedGenerico(chave, opts, reset){
+  const st = feedEstado[chave] || (feedEstado[chave] = {offset:0, temMais:true, carregando:false});
+  if(st.carregando) return;
+  if(!reset && !st.temMais) return;
+
+  st.carregando = true;
+  if(reset) st.offset = 0;
+
+  const el = $(opts.container);
+  try{
+    let url = API + "/bar/" + encodeURIComponent(barAtivo.id) + "/atividade?limite=30&offset=" + st.offset;
+    if(opts.mes) url += "&mes=" + encodeURIComponent(opts.mes);
+    if(opts.garcom_id) url += "&garcom_id=" + encodeURIComponent(opts.garcom_id);
+
+    const r = await fetch(url);
+    const d = await r.json();
+    const eventos = d.eventos || [];
+
+    if(reset){
+      el.innerHTML = eventos.length ? eventos.map(linhaFeed).join("") : '<div class="carregando">Nenhuma leitura neste período.</div>';
+    } else {
+      el.insertAdjacentHTML("beforeend", eventos.map(linhaFeed).join(""));
+    }
+
+    st.offset += eventos.length;
+    st.temMais = !!d.tem_mais;
+    if(!st.temMais && eventos.length){
+      el.insertAdjacentHTML("beforeend", '<div class="feed-fim">Início do histórico.</div>');
+    }
+  }catch(e){
+    if(reset) el.innerHTML = '<div class="carregando">Não foi possível carregar.</div>';
+  }finally{
+    st.carregando = false;
+  }
+}
+$("aba-atividade").onscroll = function(){
+  if(this.scrollTop + this.clientHeight >= this.scrollHeight - 120){
+    carregarFeedGenerico("atividade", { container: "aba-atividade" }, false);
+  }
+};
+
+/* ══ DETALHE DO GARÇOM (só acessível tocando no card, na aba Atual) ══ */
+function abrirDetalheGarcom(garcomId){
+  const g = garconsAtuais.find(x => x.garcom_id === garcomId);
+  clearInterval(atividadeTimer);
+  mostrar("detalhe");
+  $("det-nome").textContent = g ? g.nome : garcomId;
+  $("det-periodo").textContent = nomeMes(mesSelecionado);
+  $("det-feed").innerHTML = '<div class="carregando">Carregando…</div>';
+  carregarFeedGenerico("detalhe", { container: "det-feed", mes: mesSelecionado, garcom_id: garcomId }, true);
+}
+$("b-voltar-detalhe").onclick = () => { mostrar("dash"); };
+$("det-feed").onscroll = function(){
+  if(this.scrollTop + this.clientHeight >= this.scrollHeight - 120){
+    carregarFeedGenerico("detalhe", { container: "det-feed" }, false);
+  }
+};
+
+/* ══ SCANNER EMBUTIDO ══ */
+let scnLeitor = null;
+let scnPendente = null;
+
+function scnMostrar(sub){
+  document.querySelectorAll(".scn-estado").forEach(e => e.style.display = "none");
+  $("scn-" + sub).style.display = "flex";
+}
+function extrairTelefone(texto){
+  const m = String(texto).match(/\/q\/(\d{10,13})/);
+  if(m) return m[1];
+  return (texto || "").replace(/\D/g, "");
+}
+async function scnIniciarCamera(){
+  if(scnLeitor) return;
+  scnLeitor = new Html5Qrcode("scn-cam", { verbose:false });
+  try{
+    await scnLeitor.start(
+      { facingMode: "environment" },
+      { fps:10, qrbox:{width:220, height:220} },
+      texto => { scnPararCamera(); scnConsultar(extrairTelefone(texto)); },
+      () => {}
+    );
+  }catch(e){
+    $("scn-cam").innerHTML = '<div class="carregando">Câmera indisponível.<br>Libere o acesso à câmera e recarregue a página.</div>';
+    scnLeitor = null;
+  }
+}
+function scnPararCamera(){
+  if(!scnLeitor) return;
+  scnLeitor.stop().catch(()=>{}).finally(() => { try{ scnLeitor.clear(); }catch(e){} scnLeitor = null; });
+}
+
+async function scnConsultar(telefone){
+  scnMostrar("conf");
+  $("scn-flood").className = "scn-flood";
+  $("scn-acao").textContent = "";
+  $("scn-nome").textContent = "Consultando…";
+  $("scn-trilha").innerHTML = ""; $("scn-frase").textContent = ""; $("scn-aviso").innerHTML = "";
+
+  try{
+    const r = await fetch(API + "/consumidor/" + telefone);
+    if(!r.ok){ scnConcluir("erro", "Cartão não encontrado", "Esse cliente não está cadastrado no Clube."); return; }
+    const c = await r.json();
+
+    const meta = c.meta || c.punches_para_recompensa || 10;
+    const punches = c.punches || 0;
+    const abertas = (c.recompensas || []).filter(x => !x.resgatada);
+    abertas.sort((a,b) => (a.tipo === "boas_vindas" ? 0 : 1) - (b.tipo === "boas_vindas" ? 0 : 1));
+
+    let plano;
+    if(abertas.length && abertas[0].tipo === "boas_vindas"){
+      plano = { cor:"boas", acao:"BOAS-VINDAS", frase:"Entregue 1 chopp grátis",
+        aviso:"É o chopp de cadastro. Não conta ponto na cartela.",
+        pontos:{ cheios:punches, meta, novo:-1 } };
+    } else if(abertas.length){
+      plano = { cor:"resgatar", acao:"RESGATE", frase:"Entregue 1 chopp grátis",
+        aviso:"A cartela está cheia. Ao confirmar, ela zera e uma nova começa.",
+        pontos:{ cheios:meta, meta, novo:-1 } };
+    } else {
+      const vira = punches + 1;
+      const fecha = vira >= meta;
+      plano = { cor:"pontuar", acao:"REGISTRAR CHOPP",
+        frase: fecha ? "Este chopp FECHA a cartela" : "Marcar o chopp " + vira + " de " + meta,
+        aviso: fecha ? "Ao confirmar, o cliente ganha 1 chopp grátis. Avise ele."
+                     : "Faltam " + (meta - vira) + " para o chopp grátis.",
+        pontos:{ cheios:punches, meta, novo: vira - 1 } };
+    }
+
+    scnPendente = { telefone, plano };
+    scnPintar(c.nome, plano);
+  }catch(e){
+    scnConcluir("erro", "Sem conexão", "Verifique a internet e tente de novo.");
+  }
+}
+function scnPintar(nome, p){
+  $("scn-flood").className = "scn-flood " + p.cor;
+  $("scn-acao").textContent = p.acao;
+  $("scn-nome").textContent = nome;
+  $("scn-frase").textContent = p.frase;
+  $("scn-aviso").innerHTML = '<span class="scn-avisinho">' + p.aviso + "</span>";
+  let html = "";
+  for(let i = 0; i < p.pontos.meta; i++){
+    const cls = ["scn-pt"];
+    if(i < p.pontos.cheios) cls.push("cheio");
+    if(i === p.pontos.novo) cls.push("cheio","novo");
+    html += '<span class="' + cls.join(" ") + '"></span>';
+  }
+  $("scn-trilha").innerHTML = html;
+}
+$("scn-cancelar").onclick = () => { scnPendente = null; scnMostrar("camera"); scnIniciarCamera(); };
+$("scn-confirmar").onclick = async () => {
+  if(!scnPendente) return;
+  $("scn-confirmar").disabled = true;
+  $("scn-confirmar").textContent = "GRAVANDO…";
+  try{
+    const r = await fetch(API + "/scan", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ telefone: scnPendente.telefone, garcom_id: gestor.gestor_id, bar: barAtivo.id })
+    });
+    const d = await r.json();
+    if(!r.ok){ scnConcluir("erro", "Não deu certo", d.erro || "Tente novamente."); return; }
+    scnConcluir("ok",
+      d.acao === "resgate" ? "Entregue o chopp" : (d.recompensa_gerada ? "Cartela fechada!" : "Chopp registrado"),
+      d.mensagem_garcom || "");
+  }catch(e){
+    scnConcluir("erro", "Sem conexão", "O chopp NÃO foi registrado. Tente de novo.");
+  }finally{
+    $("scn-confirmar").disabled = false;
+    $("scn-confirmar").textContent = "CONFIRMAR";
+  }
+};
+function scnConcluir(tipo, titulo, texto){
+  $("scn-selo").className = "scn-selo " + tipo;
+  $("scn-selo").textContent = tipo === "ok" ? "✓" : "!";
+  $("scn-titulo").textContent = titulo;
+  $("scn-texto").textContent = texto;
+  scnPendente = null;
+  scnMostrar("fim");
+}
+$("scn-novo").onclick = () => { scnMostrar("camera"); scnIniciarCamera(); };
+
+/* ══ INÍCIO ══ */
+(function(){
+  mesAtual = mesHoje();
+  const salvo = localStorage.getItem("bb_gestor");
+  if(salvo){
+    try{
+      gestor = JSON.parse(salvo);
+      if(gestor.bares && gestor.bares.length === 1) escolherBar(gestor.bares[0]);
+      else mostrarSelecaoBar();
+      return;
+    }catch(e){}
+  }
+  mostrar("login");
+})();
+</script>
+</body>
+</html>
