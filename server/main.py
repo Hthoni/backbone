@@ -218,11 +218,16 @@ def scan():
     if not consumidor:
         return jsonify({"erro": "consumidor_nao_encontrado"}), 404
 
+    # quem esta escaneando pode ser um garcom OU um gestor (o gestor entra
+    # no scanner com a propria credencial, sem precisar de um login extra)
     garcom = storage.carregar_garcom(garcom_id)
-    if not garcom:
-        return jsonify({"erro": "garcom_nao_encontrado"}), 404
-    if not _garcom_pertence_bar(garcom, bar):
-        return jsonify({"erro": "bar_diferente"}), 403
+    if garcom:
+        if not _garcom_pertence_bar(garcom, bar):
+            return jsonify({"erro": "bar_diferente"}), 403
+    else:
+        gestor = storage.carregar_gestor(garcom_id)
+        if not gestor or bar not in gestor.get("bar_ids", []):
+            return jsonify({"erro": "garcom_nao_encontrado"}), 404
 
     config = storage.carregar_config()
     consumidor.setdefault("recompensas", [])
@@ -864,6 +869,7 @@ def atividade_bar(bar_id):
             nomes[tel] = c.get("nome", "")
 
     garcons = {g["id"]: g.get("nome", g["id"]) for g in storage.listar_garcons()}
+    garcons.update({g["id"]: g.get("nome", g["id"]) for g in storage.listar_gestores()})
 
     return jsonify({
         "eventos": [{
@@ -897,6 +903,7 @@ def bar_resumo(bar_id):
     mes = request.args.get("mes") or datetime.now(timezone.utc).strftime("%Y-%m")
 
     garcons_map = {g["id"]: g.get("nome", g["id"]) for g in storage.listar_garcons()}
+    garcons_map.update({g["id"]: g.get("nome", g["id"]) for g in storage.listar_gestores()})
 
     totais = {"cadastros": 0, "pontuacao": 0, "resgates": 0}
     por_garcom = {}
