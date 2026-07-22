@@ -371,8 +371,9 @@ $("b-entrar").onclick = async () => {
 };
 function sair(){
   localStorage.removeItem("bb_gestor");
+  scnPararCamera();
   gestor = null; barAtivo = null;
-  mostrar("login");
+  location.href = "login.html";
 }
 $("b-sair-sel").onclick = sair;
 $("b-sair-dash").onclick = sair;
