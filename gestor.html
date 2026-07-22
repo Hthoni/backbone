@@ -41,12 +41,6 @@
     padding:0; width:36px; height:36px; display:flex; align-items:center; justify-content:center;
   }
   .trocar svg{width:18px; height:18px}
-  .scanner-link{
-    border:2px solid #444; color:var(--branco); background:none;
-    padding:0; width:36px; height:36px; border-radius:999px; flex-shrink:0;
-    display:flex; align-items:center; justify-content:center; text-decoration:none;
-  }
-  .scanner-link svg{width:18px; height:18px}
   .topo-acoes{display:flex; align-items:center; gap:8px}
 
   /* ── LOGIN ── */
@@ -168,12 +162,6 @@
     <img src="clube_logo.png" alt="Clube Backbone">
     <div class="topo-acoes">
       <div class="id" id="dash-nome"></div>
-      <a class="scanner-link" href="scanner.html" aria-label="Abrir o scanner" title="Abrir o scanner">
-        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M3 6V4a1 1 0 011-1h2M17 6V4a1 1 0 00-1-1h-2M3 14v2a1 1 0 001 1h2M17 14v2a1 1 0 01-1 1h-2"/>
-          <rect x="7" y="7" width="6" height="6" rx="1"/>
-        </svg>
-      </a>
       <button class="trocar" id="b-trocar" style="display:none" aria-label="Trocar de bar" title="Trocar de bar">
         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M4 7h10M14 7l-3-3M14 7l-3 3"/>
@@ -187,6 +175,7 @@
     <button data-aba="historico" id="ab-historico">Histórico</button>
     <button data-aba="atual" id="ab-atual">Atual</button>
     <button data-aba="atividade" id="ab-atividade">Atividade</button>
+    <button id="ab-scanner">Scanner</button>
   </div>
 
   <!-- Histórico -->
@@ -382,6 +371,16 @@ function mudarAba(aba){
   }
 }
 document.querySelectorAll(".abas button").forEach(b => b.onclick = () => mudarAba(b.dataset.aba));
+
+$("ab-scanner").onclick = () => {
+  const params = new URLSearchParams({
+    gestor_id: gestor.gestor_id,
+    nome: gestor.nome,
+    bar_id: barAtivo.id,
+    bar_nome: barAtivo.nome,
+  });
+  window.location.href = "scanner.html?" + params.toString();
+};
 
 /* ── Histórico ── */
 async function carregarHistorico(){
