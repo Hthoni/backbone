@@ -522,6 +522,22 @@ $("b-novo").onclick = () => { mostrar("scan"); iniciarCamera(); };
 
 /* ── INÍCIO ── */
 (function(){
+  // entrada direta vinda do botao "Scanner" do painel do gestor —
+  // o gestor ja provou quem e no login-gestor, nao pede senha de novo.
+  // Fica so na memoria (nao grava em bb_garcom) para nao sobrescrever
+  // a sessao salva de um garcom de verdade que use o mesmo aparelho.
+  const params = new URLSearchParams(location.search);
+  if(params.has("gestor_id")){
+    garcom = {
+      garcom_id: params.get("gestor_id"),
+      nome: params.get("nome") || "",
+      bar_id: params.get("bar_id") || "",
+      bar_nome: params.get("bar_nome") || "",
+    };
+    entrar();
+    return;
+  }
+
   const salvo = localStorage.getItem("bb_garcom");
   if(salvo){ try{ garcom = JSON.parse(salvo); entrar(); return; }catch(e){} }
   mostrar("login");
