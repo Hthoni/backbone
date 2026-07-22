@@ -605,15 +605,11 @@ def admin_gestores():
 def admin_criar_gestor():
     """
     Body: {"nome":..., "id":..., "senha":..., "telefone":..., "bar_ids": [...]}
-    Mesma trava antifraude do garcom: telefone nao pode ser de associado.
+    Sem trava de associado aqui (diferente do garcom): um associado
+    PODE ser gestor — sao papeis diferentes, sem conflito de fluxo.
     """
     dados = request.get_json()
-    tel_g = so_digitos(dados.get("telefone", ""))
-    if tel_g and storage.carregar_consumidor(tel_g):
-        return jsonify({"erro": "telefone_de_associado",
-                        "detalhe": "Este telefone pertence a um associado. "
-                                   "Gestor não pode ser associado — apague o cadastro dele antes."}), 409
-    dados["telefone"] = tel_g
+    dados["telefone"] = so_digitos(dados.get("telefone", ""))
     dados.setdefault("id", str(uuid.uuid4())[:8])
     dados.setdefault("bar_ids", [])
     dados.setdefault("ativo", True)
