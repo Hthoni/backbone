@@ -306,7 +306,7 @@
     </table>
   </div>
   <div class="cartao">
-    <h2 style="font-size:16px">Novo bar</h2>
+    <h2 style="font-size:16px" id="bar-form-titulo">Novo bar</h2>
     <div class="linha">
       <div>
         <label>ID (CÓDIGO)</label>
@@ -323,6 +323,7 @@
     </div>
     <div class="mini" style="margin:-4px 0 14px">ID sem espaços nem acentos. Ex.: Backbone_Partage</div>
     <button class="btn" id="b-criar-bar">Criar bar</button>
+    <button class="btn sec" id="b-cancelar-bar" style="display:none; width:auto; margin-left:8px; padding:13px 22px">Cancelar edição</button>
     <div class="msg" id="m-bar"></div>
   </div>
   <p class="mini">⚠️ O ID deve ser idêntico ao usado no campo "Indicador" do BotConversa e no bar_id dos garçons. Maiúsculas contam.</p>
@@ -339,6 +340,14 @@
     <div style="flex:0">
       <button class="btn sec" id="b-stats">Atualizar números</button>
     </div>
+    <div style="max-width:220px">
+      <label>FILTRAR POR BAR</label>
+      <select id="g-filtro-bar"><option value="">Todos os bares</option></select>
+    </div>
+    <div style="max-width:240px">
+      <label>BUSCAR GARÇOM</label>
+      <input id="g-busca" type="text" placeholder="nome…">
+    </div>
   </div>
   <p class="mini" style="margin:-6px 0 14px">Cada célula mostra <strong>últimos X dias / total</strong>. Cadastros = chopps de boas-vindas entregues · Consumos = chopps pagos marcados · Resgates = prêmios de meta entregues.</p>
   <div class="cartao" style="padding:0; overflow-x:auto">
@@ -348,7 +357,7 @@
     </table>
   </div>
   <div class="cartao">
-    <h2 style="font-size:16px">Novo garçom</h2>
+    <h2 style="font-size:16px" id="garcom-form-titulo">Novo garçom</h2>
     <div class="linha">
       <div>
         <label>ID DE LOGIN (ex.: g01)</label>
@@ -372,6 +381,7 @@
       </div>
     </div>
     <button class="btn" id="b-criar-garcom">Criar garçom</button>
+    <button class="btn sec" id="b-cancelar-garcom" style="display:none; width:auto; margin-left:8px; padding:13px 22px">Cancelar edição</button>
     <div class="msg" id="m-garcom"></div>
   </div>
 </section>
@@ -387,7 +397,7 @@
     </table>
   </div>
   <div class="cartao">
-    <h2 style="font-size:16px">Novo gestor</h2>
+    <h2 style="font-size:16px" id="gestor-form-titulo">Novo gestor</h2>
     <div class="linha">
       <div>
         <label>ID DE LOGIN (ex.: gestor01)</label>
@@ -414,6 +424,7 @@
       </div>
     </div>
     <button class="btn" id="b-criar-gestor">Criar gestor</button>
+    <button class="btn sec" id="b-cancelar-gestor" style="display:none; width:auto; margin-left:8px; padding:13px 22px">Cancelar edição</button>
     <div class="msg" id="m-gestor"></div>
   </div>
   <p class="mini">Se o gestor tiver só 1 bar marcado, o painel dele pula direto pro dashboard. Com mais de 1, ele vê uma tela de seleção antes.</p>
@@ -548,6 +559,10 @@ async function carregarBares(){
     $("bl-bar").innerHTML = '<option value="*">Todos os bares</option>' + ops;
     if(blAtual) $("bl-bar").value = blAtual;
 
+    const gFiltroAtual = $("g-filtro-bar").value;
+    $("g-filtro-bar").innerHTML = '<option value="">Todos os bares</option>' + ops;
+    if(gFiltroAtual) $("g-filtro-bar").value = gFiltroAtual;
+
     $("gt-bares-btn").disabled = !baresLista.length;
     montarDropdownBaresGestor();
 
@@ -579,7 +594,7 @@ function renderBares(){
       <td><strong>${b.id}</strong></td><td>${b.nome || "—"}</td><td>${b.cidade || "—"}</td>
       ${cel(s,"associados")}${cel(s,"boasvindas")}${cel(s,"metas")}
       <td><button class="btn-x" style="color:#D6D4CC;border-color:#4A4A4A" onclick="abrirQrBar('${b.id}')">Gerar QR Code e link</button></td>
-      <td><button class="btn-x" onclick="apagarBar('${b.id}')">apagar</button></td>
+      <td><button class="btn-x" style="color:var(--ambar);border-color:#5A4A1A" onclick='editarBar("${b.id}")'>editar</button> <button class="btn-x" onclick="apagarBar('${b.id}')">apagar</button></td>
     </tr>`;
   }).join("");
 
@@ -593,6 +608,33 @@ function renderBares(){
 
   $("t-bares").innerHTML = linhas + totalRow;
 }
+let editandoBarId = null;
+let editandoBarOriginal = null;
+
+function editarBar(id){
+  const b = baresLista.find(x => x.id === id);
+  if(!b) return;
+  editandoBarId = id;
+  editandoBarOriginal = b;
+  $("b-id").value = b.id; $("b-id").disabled = true;
+  $("b-nome").value = b.nome || "";
+  $("b-cidade").value = b.cidade || "";
+  $("bar-form-titulo").textContent = "Editar bar — " + b.id;
+  $("b-criar-bar").textContent = "Salvar alterações";
+  $("b-cancelar-bar").style.display = "inline-block";
+  $("aba-bares").scrollIntoView({behavior:"smooth", block:"start"});
+}
+function cancelarEdicaoBar(){
+  editandoBarId = null; editandoBarOriginal = null;
+  $("b-id").value = ""; $("b-id").disabled = false;
+  $("b-nome").value = ""; $("b-cidade").value = "";
+  $("bar-form-titulo").textContent = "Novo bar";
+  $("b-criar-bar").textContent = "Criar bar";
+  $("b-cancelar-bar").style.display = "none";
+  $("m-bar").textContent = "";
+}
+$("b-cancelar-bar").onclick = cancelarEdicaoBar;
+
 $("b-criar-bar").onclick = async () => {
   const m = $("m-bar");
   const id = ($("b-id").value || "").trim();
@@ -600,20 +642,23 @@ $("b-criar-bar").onclick = async () => {
   const cidade = ($("b-cidade").value || "").trim();
   if(!id || !nome){ m.className = "msg erro"; m.textContent = "Preencha o ID e o nome."; return; }
   if(/[\s]/.test(id)){ m.className = "msg erro"; m.textContent = "O ID não pode ter espaços."; return; }
-  m.className = "msg"; m.textContent = "Criando…";
+  m.className = "msg"; m.textContent = editandoBarId ? "Salvando…" : "Criando…";
+  const criado_em = editandoBarOriginal?.criado_em || new Date().toISOString();
   try{
     const r = await fetch(API + "/admin/bares", {
       method:"POST", headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({id, nome, cidade, criado_em: new Date().toISOString()})
+      body: JSON.stringify({id, nome, cidade, criado_em})
     });
     if(!r.ok) throw 0;
-    m.className = "msg ok"; m.textContent = "Bar criado.";
-    $("b-id").value = ""; $("b-nome").value = ""; $("b-cidade").value = "";
+    m.className = "msg ok"; m.textContent = editandoBarId ? "Bar atualizado." : "Bar criado.";
+    cancelarEdicaoBar();
     carregarBares();
-  }catch(e){ m.className = "msg erro"; m.textContent = "Não foi possível criar."; }
+  }catch(e){ m.className = "msg erro"; m.textContent = "Não foi possível salvar."; }
 };
 
 /* ── garçons ── */
+let garconsLista = [];
+let garconsStats = {};
 async function carregarGarcons(){
   const dias = parseInt($("g-dias")?.value || "30", 10);
   try{
@@ -621,39 +666,82 @@ async function carregarGarcons(){
       fetch(API + "/admin/garcons"),
       fetch(API + "/admin/garcons/stats?dias=" + dias)
     ]);
-    const lista = await rg.json();
-    const stats = (await rs.json()).garcons || {};
-    const cel = (s, cat) => {
-      if(!s) return '<td class="num">0 / 0</td>';
-      return `<td class="num">${s[cat+"_janela"]} / ${s[cat+"_total"]}</td>`;
-    };
-    $("t-garcons").innerHTML = lista.length
-      ? lista.map(g => {
-          const s = stats[g.id];
-          return `<tr>
-          <td><strong>${g.id}</strong></td><td>${g.nome || "—"}</td><td>${g.telefone || "—"}</td><td>${g.bar_id || "—"}</td>
-          ${cel(s,"cadastros")}${cel(s,"consumos")}${cel(s,"resgates")}
-          <td>${g.ativo === false ? '<span class="pill neutro">inativo</span>' : '<span class="pill ok">ativo</span>'}</td>
-          <td><button class="btn-x" onclick="apagarGarcom('${g.id}', '${(g.nome || "").replace(/'/g, "")}')">apagar</button></td>
-        </tr>`;}).join("")
-      : '<tr><td colspan="9" class="carregando">Nenhum garçom cadastrado.</td></tr>';
+    garconsLista = await rg.json();
+    garconsStats = (await rs.json()).garcons || {};
+    renderGarcons();
   }catch(e){
     $("t-garcons").innerHTML = '<tr><td colspan="8" class="carregando">Erro ao carregar.</td></tr>';
   }
 }
+function renderGarcons(){
+  const barFiltro = $("g-filtro-bar").value;
+  const busca = ($("g-busca").value || "").trim().toLowerCase();
+  const lista = garconsLista.filter(g =>
+    (!barFiltro || g.bar_id === barFiltro) &&
+    (!busca || (g.nome || "").toLowerCase().includes(busca))
+  );
+  const cel = (s, cat) => {
+    if(!s) return '<td class="num">0 / 0</td>';
+    return `<td class="num">${s[cat+"_janela"]} / ${s[cat+"_total"]}</td>`;
+  };
+  $("t-garcons").innerHTML = lista.length
+    ? lista.map(g => {
+        const s = garconsStats[g.id];
+        return `<tr>
+        <td><strong>${g.id}</strong></td><td>${g.nome || "—"}</td><td>${g.telefone || "—"}</td><td>${g.bar_id || "—"}</td>
+        ${cel(s,"cadastros")}${cel(s,"consumos")}${cel(s,"resgates")}
+        <td>${g.ativo === false ? '<span class="pill neutro">inativo</span>' : '<span class="pill ok">ativo</span>'}</td>
+        <td><button class="btn-x" style="color:var(--ambar);border-color:#5A4A1A" onclick='editarGarcom("${g.id}")'>editar</button> <button class="btn-x" onclick="apagarGarcom('${g.id}', '${(g.nome || "").replace(/'/g, "")}')">apagar</button></td>
+      </tr>`;}).join("")
+    : '<tr><td colspan="9" class="carregando">Nenhum garçom encontrado.</td></tr>';
+}
+$("g-filtro-bar").onchange = renderGarcons;
+$("g-busca").oninput = renderGarcons;
+
+let editandoGarcomId = null;
+function editarGarcom(id){
+  const g = garconsLista.find(x => x.id === id);
+  if(!g) return;
+  editandoGarcomId = id;
+  $("g-id").value = g.id; $("g-id").disabled = true;
+  $("g-nome").value = g.nome || "";
+  $("g-senha").value = "";
+  $("g-senha").placeholder = "deixe em branco para manter a atual";
+  $("g-tel").value = g.telefone || "";
+  $("g-bar").value = g.bar_id || "";
+  $("garcom-form-titulo").textContent = "Editar garçom — " + g.id;
+  $("b-criar-garcom").textContent = "Salvar alterações";
+  $("b-cancelar-garcom").style.display = "inline-block";
+  $("aba-garcons").scrollIntoView({behavior:"smooth", block:"start"});
+}
+function cancelarEdicaoGarcom(){
+  editandoGarcomId = null;
+  $("g-id").value = ""; $("g-id").disabled = false;
+  $("g-nome").value = ""; $("g-senha").value = ""; $("g-senha").placeholder = "senha do garçom"; $("g-tel").value = "";
+  $("garcom-form-titulo").textContent = "Novo garçom";
+  $("b-criar-garcom").textContent = "Criar garçom";
+  $("b-cancelar-garcom").style.display = "none";
+  $("m-garcom").textContent = "";
+}
+$("b-cancelar-garcom").onclick = cancelarEdicaoGarcom;
+
 $("b-criar-garcom").onclick = async () => {
   const m = $("m-garcom");
   const id = ($("g-id").value || "").trim();
   const nome = ($("g-nome").value || "").trim();
   const senha = $("g-senha").value;
   const bar_id = $("g-bar").value;
-  if(!id || !nome || !senha || !bar_id){ m.className = "msg erro"; m.textContent = "Preencha todos os campos."; return; }
-  m.className = "msg"; m.textContent = "Criando…";
+  if(!id || !nome || !bar_id || (!editandoGarcomId && !senha)){
+    m.className = "msg erro"; m.textContent = "Preencha todos os campos."; return;
+  }
+  m.className = "msg"; m.textContent = editandoGarcomId ? "Salvando…" : "Criando…";
   try{
     const barNome = $("g-bar").selectedOptions[0]?.textContent || bar_id;
+    const corpo = {id, nome, bar_id, bar_nome: barNome, telefone: ($("g-tel").value||"").replace(/\D/g,""), ativo: true};
+    if(senha) corpo.senha = senha; // em branco na edicao = mantem a senha atual (backend preserva)
     const r = await fetch(API + "/admin/garcons", {
       method:"POST", headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({id, nome, senha, bar_id, bar_nome: barNome, telefone: ($("g-tel").value||"").replace(/\D/g,""), ativo: true})
+      body: JSON.stringify(corpo)
     });
     if(r.status === 409){
       const d = await r.json();
@@ -661,10 +749,10 @@ $("b-criar-garcom").onclick = async () => {
       return;
     }
     if(!r.ok) throw 0;
-    m.className = "msg ok"; m.textContent = "Garçom criado. Login: " + id;
-    $("g-id").value = ""; $("g-nome").value = ""; $("g-senha").value = "";
+    m.className = "msg ok"; m.textContent = editandoGarcomId ? "Garçom atualizado." : "Garçom criado. Login: " + id;
+    cancelarEdicaoGarcom();
     carregarGarcons();
-  }catch(e){ m.className = "msg erro"; m.textContent = "Não foi possível criar."; }
+  }catch(e){ m.className = "msg erro"; m.textContent = "Não foi possível salvar."; }
 };
 
 
@@ -736,38 +824,72 @@ $("gt-bares-btn").onclick = ev => {
 };
 
 /* ── gestores ── */
+let gestoresLista = [];
 async function carregarGestores(){
   try{
     const r = await fetch(API + "/admin/gestores");
-    const lista = await r.json();
+    gestoresLista = await r.json();
     const nomeBar = id => id === "*" ? "Todos os bares" : (baresLista.find(b => b.id === id) || {}).nome || id;
-    $("t-gestores").innerHTML = lista.length
-      ? lista.map(g => `<tr>
+    $("t-gestores").innerHTML = gestoresLista.length
+      ? gestoresLista.map(g => `<tr>
           <td><strong>${g.id}</strong></td><td>${g.nome || "—"}</td><td>${g.telefone || "—"}</td>
           <td>${(g.bar_ids || []).map(nomeBar).join(", ") || "—"}</td>
           <td>${g.ativo === false ? '<span class="pill neutro">inativo</span>' : '<span class="pill ok">ativo</span>'}</td>
-          <td><button class="btn-x" onclick="apagarGestor('${g.id}', '${(g.nome || "").replace(/'/g, "")}')">apagar</button></td>
+          <td><button class="btn-x" style="color:var(--ambar);border-color:#5A4A1A" onclick='editarGestor("${g.id}")'>editar</button> <button class="btn-x" onclick="apagarGestor('${g.id}', '${(g.nome || "").replace(/'/g, "")}')">apagar</button></td>
         </tr>`).join("")
       : '<tr><td colspan="6" class="carregando">Nenhum gestor cadastrado.</td></tr>';
   }catch(e){
     $("t-gestores").innerHTML = '<tr><td colspan="6" class="carregando">Erro ao carregar.</td></tr>';
   }
 }
+
+let editandoGestorId = null;
+function editarGestor(id){
+  const g = gestoresLista.find(x => x.id === id);
+  if(!g) return;
+  editandoGestorId = id;
+  $("gt-id").value = g.id; $("gt-id").disabled = true;
+  $("gt-nome").value = g.nome || "";
+  $("gt-senha").value = "";
+  $("gt-senha").placeholder = "deixe em branco para manter a atual";
+  $("gt-tel").value = g.telefone || "";
+  gtBaresSelecionados = new Set(g.bar_ids || []);
+  montarDropdownBaresGestor();
+  $("gestor-form-titulo").textContent = "Editar gestor — " + g.id;
+  $("b-criar-gestor").textContent = "Salvar alterações";
+  $("b-cancelar-gestor").style.display = "inline-block";
+  $("aba-gestores").scrollIntoView({behavior:"smooth", block:"start"});
+}
+function cancelarEdicaoGestor(){
+  editandoGestorId = null;
+  $("gt-id").value = ""; $("gt-id").disabled = false;
+  $("gt-nome").value = ""; $("gt-senha").value = ""; $("gt-senha").placeholder = "senha do gestor"; $("gt-tel").value = "";
+  gtBaresSelecionados.clear();
+  montarDropdownBaresGestor();
+  $("gestor-form-titulo").textContent = "Novo gestor";
+  $("b-criar-gestor").textContent = "Criar gestor";
+  $("b-cancelar-gestor").style.display = "none";
+  $("m-gestor").textContent = "";
+}
+$("b-cancelar-gestor").onclick = cancelarEdicaoGestor;
+
 $("b-criar-gestor").onclick = async () => {
   const m = $("m-gestor");
   const id = ($("gt-id").value || "").trim();
   const nome = ($("gt-nome").value || "").trim();
   const senha = $("gt-senha").value;
   const bar_ids = [...gtBaresSelecionados];
-  if(!id || !nome || !senha || !bar_ids.length){
+  if(!id || !nome || !bar_ids.length || (!editandoGestorId && !senha)){
     m.className = "msg erro"; m.textContent = "Preencha ID, nome, senha e marque ao menos 1 bar.";
     return;
   }
-  m.className = "msg"; m.textContent = "Criando…";
+  m.className = "msg"; m.textContent = editandoGestorId ? "Salvando…" : "Criando…";
   try{
+    const corpo = {id, nome, bar_ids, telefone: ($("gt-tel").value||"").replace(/\D/g,""), ativo: true};
+    if(senha) corpo.senha = senha;
     const r = await fetch(API + "/admin/gestores", {
       method:"POST", headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({id, nome, senha, bar_ids, telefone: ($("gt-tel").value||"").replace(/\D/g,""), ativo: true})
+      body: JSON.stringify(corpo)
     });
     if(r.status === 409){
       const d = await r.json();
@@ -775,12 +897,10 @@ $("b-criar-gestor").onclick = async () => {
       return;
     }
     if(!r.ok) throw 0;
-    m.className = "msg ok"; m.textContent = "Gestor criado. Login: " + id;
-    $("gt-id").value = ""; $("gt-nome").value = ""; $("gt-senha").value = ""; $("gt-tel").value = "";
-    gtBaresSelecionados.clear();
-    montarDropdownBaresGestor();
+    m.className = "msg ok"; m.textContent = editandoGestorId ? "Gestor atualizado." : "Gestor criado. Login: " + id;
+    cancelarEdicaoGestor();
     carregarGestores();
-  }catch(e){ m.className = "msg erro"; m.textContent = "Não foi possível criar."; }
+  }catch(e){ m.className = "msg erro"; m.textContent = "Não foi possível salvar."; }
 };
 function apagarGestor(id, nome){
   confirmarExclusao(
