@@ -202,6 +202,11 @@
     <img src="clube_logo.png" alt="Clube Backbone">
     <div class="topo-acoes">
       <div class="id" id="dash-nome"></div>
+      <button class="trocar" id="b-painel" style="display:none" aria-label="Voltar para escolha de painel" title="Voltar para escolha de painel">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M10 4l-6 6 6 6M4 10h12"/>
+        </svg>
+      </button>
       <button class="trocar" id="b-trocar" style="display:none" aria-label="Trocar de bar" title="Trocar de bar">
         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M4 7h10M14 7l-3-3M14 7l-3 3"/>
@@ -371,6 +376,7 @@ $("b-entrar").onclick = async () => {
 };
 function sair(){
   localStorage.removeItem("bb_gestor");
+  localStorage.removeItem("bb_admin");
   scnPararCamera();
   gestor = null; barAtivo = null;
   location.href = "login.html";
@@ -430,11 +436,13 @@ function escolherBar(bar){
   barAtivo = bar;
   $("dash-nome").innerHTML = gestor.nome + "<small>" + bar.nome + "</small>";
   $("b-trocar").style.display = (gestor.bares.length > 1) ? "flex" : "none";
+  $("b-painel").style.display = localStorage.getItem("bb_admin") ? "flex" : "none";
   $("ab-scanner").style.display = (bar.id === "*") ? "none" : "";
   mostrar("dash");
   mudarAba("historico");
 }
 $("b-trocar").onclick = mostrarSelecaoBar;
+$("b-painel").onclick = () => { location.href = "escolha.html"; };
 
 function gridMetricas(t){
   return `<div class="grid-metricas">
