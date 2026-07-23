@@ -306,6 +306,39 @@ def apagar_gestor(gestor_id: str):
         blob.delete()
 
 
+# ── Admins (acesso total — admin.html + gestor.html como master) ──
+
+def salvar_admin(dados: dict):
+    blob = _bucket().blob(f"admins/{dados['id']}.json")
+    blob.upload_from_string(json.dumps(dados, ensure_ascii=False), content_type="application/json")
+
+
+def carregar_admin(admin_id: str):
+    blob = _bucket().blob(f"admins/{admin_id}.json")
+    if not blob.exists():
+        return None
+    return json.loads(blob.download_as_text())
+
+
+def listar_admins():
+    client = storage.Client()
+    blobs = client.list_blobs(BUCKET_NAME, prefix="admins/")
+    admins = []
+    for blob in blobs:
+        if blob.name.endswith(".json"):
+            try:
+                admins.append(json.loads(blob.download_as_text()))
+            except Exception:
+                pass
+    return admins
+
+
+def apagar_admin(admin_id: str):
+    blob = _bucket().blob(f"admins/{admin_id}.json")
+    if blob.exists():
+        blob.delete()
+
+
 def carregar_bloqueados():
     """
     Lista de bloqueios de associacao (antifraude), POR BAR.
