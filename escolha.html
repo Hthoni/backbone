@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#000000">
+<title>Clube Backbone — Escolher painel</title>
+<style>
+  :root{
+    --preto:#000; --preto2:#141414; --linha:#2B2B2B;
+    --branco:#FFF; --cinza-txt:#A8A8A2; --ambar:#E8A317;
+    --sb: env(safe-area-inset-bottom, 0px);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{
+    background:var(--preto); color:var(--branco);
+    font:400 20px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased; display:flex; flex-direction:column; min-height:100dvh;
+  }
+  .cab{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:calc(env(safe-area-inset-top,0px) + 18px) 22px 6px;
+  }
+  .cab img{height:40px}
+  .sair{
+    background:none; border:2px solid #444; color:var(--branco);
+    font-size:13px; font-weight:700; padding:8px 13px; border-radius:999px;
+  }
+  .corpo{flex:1; display:flex; flex-direction:column; justify-content:center; padding:24px 22px calc(24px + var(--sb)); gap:14px}
+  .corpo h1{font-size:24px; font-weight:800; margin-bottom:8px}
+  .opcao{
+    display:block; background:var(--preto2); border:1px solid var(--linha); border-radius:16px;
+    padding:24px; text-decoration:none; color:var(--branco); cursor:pointer;
+  }
+  .opcao:active{background:#1B1B1B}
+  .opcao .titulo{font-size:20px; font-weight:800; margin-bottom:4px}
+  .opcao .desc{font-size:14px; color:var(--cinza-txt)}
+  .opcao.gestor .titulo{color:var(--ambar)}
+</style>
+</head>
+<body>
+
+<div class="cab">
+  <img src="clube_logo.png" alt="Clube Backbone">
+  <button class="sair" id="b-sair">SAIR</button>
+</div>
+
+<div class="corpo">
+  <h1 id="titulo">Qual painel você quer abrir?</h1>
+
+  <a class="opcao" href="admin.html">
+    <div class="titulo">Administração</div>
+    <div class="desc">Associados, push, configuração, bares, garçons e gestores.</div>
+  </a>
+
+  <a class="opcao gestor" href="#" id="op-gestor">
+    <div class="titulo">Gestão de bares</div>
+    <div class="desc">Histórico, atual, atividade e scanner — como gestor master, vendo todos os bares.</div>
+  </a>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+(function(){
+  const salvo = localStorage.getItem("bb_admin");
+  if(!salvo){ location.href = "login.html"; return; }
+  try{
+    const admin = JSON.parse(salvo);
+    $("titulo").textContent = "Olá, " + (admin.nome || "") + ". Qual painel você quer abrir?";
+  }catch(e){ location.href = "login.html"; }
+})();
+
+$("op-gestor").onclick = (ev) => {
+  ev.preventDefault();
+  const salvo = localStorage.getItem("bb_admin");
+  const admin = salvo ? JSON.parse(salvo) : {admin_id:"admin", nome:"Admin"};
+  // entra no gestor.html ja logado, como gestor master (ve "*" = todos os bares)
+  localStorage.setItem("bb_gestor", JSON.stringify({
+    gestor_id: admin.admin_id,
+    nome: admin.nome,
+    bares: [{ id: "*", nome: "Todos os bares" }],
+  }));
+  location.href = "gestor.html";
+};
+
+$("b-sair").onclick = () => {
+  localStorage.removeItem("bb_admin");
+  localStorage.removeItem("bb_gestor");
+  location.href = "login.html";
+};
+</script>
+</body>
+</html>
