@@ -73,15 +73,26 @@ const $ = id => document.getElementById(id);
   }catch(e){ location.href = "login.html"; }
 })();
 
-$("op-gestor").onclick = (ev) => {
+const API = "https://backbone-650557630362.us-central1.run.app";
+
+$("op-gestor").onclick = async (ev) => {
   ev.preventDefault();
   const salvo = localStorage.getItem("bb_admin");
   const admin = salvo ? JSON.parse(salvo) : {admin_id:"admin", nome:"Admin"};
-  // entra no gestor.html ja logado, como gestor master (ve "*" = todos os bares)
+
+  let baresReais = [];
+  try{
+    const r = await fetch(API + "/admin/bares");
+    baresReais = await r.json();
+  }catch(e){}
+
+  // entra no gestor.html ja logado, como gestor master. "*" abre direto
+  // no agregado "Todos os bares", e os bares reais ficam disponiveis
+  // pra ele trocar e ver um bar individualmente quando quiser.
   localStorage.setItem("bb_gestor", JSON.stringify({
     gestor_id: admin.admin_id,
     nome: admin.nome,
-    bares: [{ id: "*", nome: "Todos os bares" }],
+    bares: [{ id: "*", nome: "Todos os bares" }, ...baresReais.map(b => ({id: b.id, nome: b.nome || b.id}))],
   }));
   location.href = "gestor.html";
 };
