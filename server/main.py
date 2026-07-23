@@ -645,6 +645,54 @@ def admin_apagar_gestor(gestor_id):
     return jsonify({"status": "apagado", "id": gestor_id})
 
 
+# ══════════════════════════════════════════════════════════════
+#  ADMINS — acesso total (login.html tenta garcom, depois gestor,
+#  depois admin). Um admin acessa o admin.html E o gestor.html
+#  (como gestor master, ve "*" = todos os bares).
+# ══════════════════════════════════════════════════════════════
+
+@app.route("/login-admin", methods=["POST"])
+def login_admin():
+    dados = request.get_json() or {}
+    admin = storage.carregar_admin(dados.get("id"))
+    if not admin or admin.get("senha") != dados.get("senha"):
+        return jsonify({"erro": "credenciais_invalidas"}), 401
+    if not admin.get("ativo", True):
+        return jsonify({"erro": "admin_inativo"}), 403
+    return jsonify({"status": "ok", "admin_id": admin["id"], "nome": admin["nome"]})
+
+
+@app.route("/admin/admins")
+def admin_listar_admins():
+    admins = storage.listar_admins()
+    for a in admins:
+        a.pop("senha", None)
+    return jsonify(admins)
+
+
+@app.route("/admin/admins", methods=["POST"])
+def admin_criar_admin():
+    dados = request.get_json()
+    existente = storage.carregar_admin(dados.get("id")) if dados.get("id") else None
+    if existente and not dados.get("senha"):
+        dados["senha"] = existente.get("senha")
+    dados.setdefault("id", str(uuid.uuid4())[:8])
+    dados.setdefault("ativo", True)
+    storage.salvar_admin(dados)
+    resposta = dict(dados)
+    resposta.pop("senha", None)
+    return jsonify({"status": "ok", "admin": resposta})
+
+
+@app.route("/admin/admins/<admin_id>", methods=["DELETE"])
+def admin_apagar_admin(admin_id):
+    a = storage.carregar_admin(admin_id)
+    if not a:
+        return jsonify({"erro": "nao_encontrado"}), 404
+    storage.apagar_admin(admin_id)
+    return jsonify({"status": "apagado", "id": admin_id})
+
+
 @app.route("/gwallet/<telefone>")
 def gwallet_link(telefone):
     """Redireciona para o link 'Salvar no Google Wallet' do consumidor."""
