@@ -362,7 +362,10 @@ $("b-entrar").onclick = async () => {
     gestor = d;
     localStorage.setItem("bb_gestor", JSON.stringify(d));
     mesAtual = mesHoje();
-    if(gestor.bares.length === 1){
+    const master = gestor.bares.find(b => b.id === "*");
+    if(master){
+      escolherBar(master);
+    } else if(gestor.bares.length === 1){
       escolherBar(gestor.bares[0]);
     } else {
       mostrarSelecaoBar();
@@ -725,7 +728,9 @@ $("scn-novo").onclick = () => { scnMostrar("camera"); scnIniciarCamera(); };
   if(salvo){
     try{
       gestor = JSON.parse(salvo);
-      if(gestor.bares && gestor.bares.length === 1) escolherBar(gestor.bares[0]);
+      const master = (gestor.bares || []).find(b => b.id === "*");
+      if(master) escolherBar(master);
+      else if(gestor.bares && gestor.bares.length === 1) escolherBar(gestor.bares[0]);
       else mostrarSelecaoBar();
       return;
     }catch(e){}
