@@ -499,6 +499,11 @@ def admin_criar_garcom():
                         "detalhe": "Este telefone pertence a um associado. "
                                    "Funcionário não pode ser associado — apague o cadastro dele antes."}), 409
     dados["telefone"] = tel_g
+
+    existente = storage.carregar_garcom(dados.get("id")) if dados.get("id") else None
+    if existente and not dados.get("senha"):
+        dados["senha"] = existente.get("senha")  # edicao sem trocar senha: mantem a atual
+
     dados.setdefault("id", str(uuid.uuid4())[:8])
     storage.salvar_garcom(dados)
     return jsonify({"status": "ok", "garcom": dados})
@@ -616,6 +621,11 @@ def admin_criar_gestor():
     """
     dados = request.get_json()
     dados["telefone"] = so_digitos(dados.get("telefone", ""))
+
+    existente = storage.carregar_gestor(dados.get("id")) if dados.get("id") else None
+    if existente and not dados.get("senha"):
+        dados["senha"] = existente.get("senha")  # edicao sem trocar senha: mantem a atual
+
     dados.setdefault("id", str(uuid.uuid4())[:8])
     dados.setdefault("bar_ids", [])
     dados.setdefault("ativo", True)
