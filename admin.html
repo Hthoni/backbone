@@ -152,7 +152,11 @@
 
 <header>
   <img src="clube_logo.png" alt="Clube Backbone">
-  <div class="t">ADMIN</div>
+  <div style="display:flex; align-items:center; gap:10px">
+    <div class="t">ADMIN</div>
+    <button class="btn sec" id="b-trocar-painel" style="display:none; width:auto; padding:8px 14px; font-size:12px; letter-spacing:.08em">TROCAR</button>
+    <button class="btn sec" id="b-sair-admin" style="width:auto; padding:8px 14px; font-size:12px; letter-spacing:.08em">SAIR</button>
+  </div>
 </header>
 
 <nav>
@@ -162,6 +166,7 @@
   <button data-aba="bares">Bares</button>
   <button data-aba="garcons">Garçons</button>
   <button data-aba="gestores">Gestores</button>
+  <button data-aba="admins">Admins</button>
 </nav>
 
 <main>
@@ -338,7 +343,7 @@
       <input id="g-dias" type="number" min="1" max="365" value="30">
     </div>
     <div style="flex:0">
-      <button class="btn sec" id="b-stats">Atualizar números</button>
+      <button class="btn sec" id="b-stats">Atualizar</button>
     </div>
     <div style="max-width:220px">
       <label>FILTRAR POR BAR</label>
@@ -430,11 +435,56 @@
   <p class="mini">Se o gestor tiver só 1 bar marcado, o painel dele pula direto pro dashboard. Com mais de 1, ele vê uma tela de seleção antes.</p>
 </section>
 
+<!-- ══ ADMINS ══ -->
+<section class="aba" id="aba-admins">
+  <h2>Admins</h2>
+  <p class="sub">Acesso total: abre o admin.html e o gestor.html como gestor master (vê "Todos os bares"). Use com moderação.</p>
+  <div class="cartao" style="padding:0; overflow-x:auto">
+    <table>
+      <thead><tr><th>ID (login)</th><th>NOME</th><th>STATUS</th><th></th></tr></thead>
+      <tbody id="t-admins"><tr><td colspan="4" class="carregando">Carregando…</td></tr></tbody>
+    </table>
+  </div>
+  <div class="cartao">
+    <h2 style="font-size:16px" id="admin-form-titulo">Novo admin</h2>
+    <div class="linha">
+      <div>
+        <label>ID DE LOGIN</label>
+        <input id="ad-id" type="text" placeholder="henrique">
+      </div>
+      <div>
+        <label>NOME</label>
+        <input id="ad-nome" type="text" placeholder="Henrique">
+      </div>
+      <div>
+        <label>SENHA</label>
+        <input id="ad-senha" type="text" placeholder="senha do admin">
+      </div>
+    </div>
+    <button class="btn" id="b-criar-admin">Criar admin</button>
+    <button class="btn sec" id="b-cancelar-admin" style="display:none; width:auto; margin-left:8px; padding:13px 22px">Cancelar edição</button>
+    <div class="msg" id="m-admin"></div>
+  </div>
+</section>
+
 </main>
 
 <script>
 const API = "https://backbone-650557630362.us-central1.run.app";
 const $ = id => document.getElementById(id);
+
+/* ── acesso: exige login de admin ── */
+(function(){
+  const salvo = localStorage.getItem("bb_admin");
+  if(!salvo){ location.href = "login.html"; return; }
+  $("b-trocar-painel").style.display = "inline-block";
+})();
+$("b-trocar-painel").onclick = () => { location.href = "escolha.html"; };
+$("b-sair-admin").onclick = () => {
+  localStorage.removeItem("bb_admin");
+  localStorage.removeItem("bb_gestor");
+  location.href = "login.html";
+};
 
 /* ── navegação ── */
 document.querySelectorAll("nav button").forEach(b => {
@@ -593,7 +643,7 @@ function renderBares(){
     return `<tr>
       <td><strong>${b.id}</strong></td><td>${b.nome || "—"}</td><td>${b.cidade || "—"}</td>
       ${cel(s,"associados")}${cel(s,"boasvindas")}${cel(s,"metas")}
-      <td><button class="btn-x" style="color:#D6D4CC;border-color:#4A4A4A" onclick="abrirQrBar('${b.id}')">Gerar QR Code e link</button></td>
+      <td><button class="btn-x" style="color:#D6D4CC;border-color:#4A4A4A" onclick="abrirQrBar('${b.id}')">QR / Link</button></td>
       <td><button class="btn-x" style="color:var(--ambar);border-color:#5A4A1A" onclick='editarBar("${b.id}")'>editar</button> <button class="btn-x" onclick="apagarBar('${b.id}')">apagar</button></td>
     </tr>`;
   }).join("");
@@ -911,6 +961,81 @@ function apagarGestor(id, nome){
   );
 }
 
+/* ── admins ── */
+let adminsLista = [];
+async function carregarAdmins(){
+  try{
+    const r = await fetch(API + "/admin/admins");
+    adminsLista = await r.json();
+    $("t-admins").innerHTML = adminsLista.length
+      ? adminsLista.map(a => `<tr>
+          <td><strong>${a.id}</strong></td><td>${a.nome || "—"}</td>
+          <td>${a.ativo === false ? '<span class="pill neutro">inativo</span>' : '<span class="pill ok">ativo</span>'}</td>
+          <td><button class="btn-x" style="color:var(--ambar);border-color:#5A4A1A" onclick='editarAdmin("${a.id}")'>editar</button> <button class="btn-x" onclick="apagarAdmin('${a.id}', '${(a.nome || "").replace(/'/g, "")}')">apagar</button></td>
+        </tr>`).join("")
+      : '<tr><td colspan="4" class="carregando">Nenhum admin cadastrado.</td></tr>';
+  }catch(e){
+    $("t-admins").innerHTML = '<tr><td colspan="4" class="carregando">Erro ao carregar.</td></tr>';
+  }
+}
+
+let editandoAdminId = null;
+function editarAdmin(id){
+  const a = adminsLista.find(x => x.id === id);
+  if(!a) return;
+  editandoAdminId = id;
+  $("ad-id").value = a.id; $("ad-id").disabled = true;
+  $("ad-nome").value = a.nome || "";
+  $("ad-senha").value = "";
+  $("ad-senha").placeholder = "deixe em branco para manter a atual";
+  $("admin-form-titulo").textContent = "Editar admin — " + a.id;
+  $("b-criar-admin").textContent = "Salvar alterações";
+  $("b-cancelar-admin").style.display = "inline-block";
+  $("aba-admins").scrollIntoView({behavior:"smooth", block:"start"});
+}
+function cancelarEdicaoAdmin(){
+  editandoAdminId = null;
+  $("ad-id").value = ""; $("ad-id").disabled = false;
+  $("ad-nome").value = ""; $("ad-senha").value = ""; $("ad-senha").placeholder = "senha do admin";
+  $("admin-form-titulo").textContent = "Novo admin";
+  $("b-criar-admin").textContent = "Criar admin";
+  $("b-cancelar-admin").style.display = "none";
+  $("m-admin").textContent = "";
+}
+$("b-cancelar-admin").onclick = cancelarEdicaoAdmin;
+
+$("b-criar-admin").onclick = async () => {
+  const m = $("m-admin");
+  const id = ($("ad-id").value || "").trim();
+  const nome = ($("ad-nome").value || "").trim();
+  const senha = $("ad-senha").value;
+  if(!id || !nome || (!editandoAdminId && !senha)){
+    m.className = "msg erro"; m.textContent = "Preencha ID, nome e senha.";
+    return;
+  }
+  m.className = "msg"; m.textContent = editandoAdminId ? "Salvando…" : "Criando…";
+  try{
+    const corpo = {id, nome, ativo: true};
+    if(senha) corpo.senha = senha;
+    const r = await fetch(API + "/admin/admins", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify(corpo)
+    });
+    if(!r.ok) throw 0;
+    m.className = "msg ok"; m.textContent = editandoAdminId ? "Admin atualizado." : "Admin criado. Login: " + id;
+    cancelarEdicaoAdmin();
+    carregarAdmins();
+  }catch(e){ m.className = "msg erro"; m.textContent = "Não foi possível salvar."; }
+};
+function apagarAdmin(id, nome){
+  confirmarExclusao(
+    "Apagar admin?",
+    (nome || id) + " perde o acesso total imediatamente.",
+    "/admin/admins/" + id,
+    carregarAdmins
+  );
+}
+
 
 /* ── exclusao com confirmacao ── */
 function fecharModal(){ document.getElementById("modal").classList.remove("on"); }
@@ -1191,6 +1316,7 @@ async function desbloquear(tel, bar){
 
 /* ── início ── */
 carregarBares().then(() => { carregarConsumidores(); carregarGestores(); });
+carregarAdmins();
 carregarConfig();
 carregarBloqueados();
 carregarGarcons();
