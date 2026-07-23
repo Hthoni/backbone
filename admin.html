@@ -691,6 +691,21 @@ function montarDropdownBaresGestor(){
   };
   painel.appendChild(tn);
 
+  const lbMaster = document.createElement("label");
+  lbMaster.style.cssText = "font-weight:800; color:#8A6A00; border-bottom:1px solid #ddd; padding-bottom:8px; margin-bottom:4px";
+  const cbMaster = document.createElement("input");
+  cbMaster.type = "checkbox";
+  cbMaster.value = "*";
+  cbMaster.checked = gtBaresSelecionados.has("*");
+  cbMaster.onchange = () => {
+    if(cbMaster.checked) gtBaresSelecionados.add("*");
+    else gtBaresSelecionados.delete("*");
+    atualizarBotaoBaresGestor();
+  };
+  lbMaster.appendChild(cbMaster);
+  lbMaster.appendChild(document.createTextNode(" Todos os bares (master)"));
+  painel.appendChild(lbMaster);
+
   baresLista.forEach(b => {
     const lb = document.createElement("label");
     const cb = document.createElement("input");
@@ -725,7 +740,7 @@ async function carregarGestores(){
   try{
     const r = await fetch(API + "/admin/gestores");
     const lista = await r.json();
-    const nomeBar = id => (baresLista.find(b => b.id === id) || {}).nome || id;
+    const nomeBar = id => id === "*" ? "Todos os bares" : (baresLista.find(b => b.id === id) || {}).nome || id;
     $("t-gestores").innerHTML = lista.length
       ? lista.map(g => `<tr>
           <td><strong>${g.id}</strong></td><td>${g.nome || "—"}</td><td>${g.telefone || "—"}</td>
