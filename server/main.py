@@ -226,7 +226,7 @@ def scan():
             return jsonify({"erro": "bar_diferente"}), 403
     else:
         gestor = storage.carregar_gestor(garcom_id)
-        if not gestor or bar not in gestor.get("bar_ids", []):
+        if not gestor or ("*" not in gestor.get("bar_ids", []) and bar not in gestor.get("bar_ids", [])):
             return jsonify({"erro": "garcom_nao_encontrado"}), 404
 
     config = storage.carregar_config()
@@ -588,6 +588,7 @@ def login_gestor():
 
     bar_ids = gestor.get("bar_ids", [])
     bares_map = {b["id"]: b.get("nome", b["id"]) for b in storage.listar_bares()}
+    bares_map["*"] = "Todos os bares"
 
     return jsonify({
         "status": "ok",
@@ -851,7 +852,7 @@ def atividade_bar(bar_id):
     garcom_filtro = request.args.get("garcom_id")
 
     eventos = [e for e in storage.listar_eventos()
-               if e.get("bar") == bar_id and e.get("tipo") in ("punch", "resgate")]
+               if (bar_id == "*" or e.get("bar") == bar_id) and e.get("tipo") in ("punch", "resgate")]
 
     if mes:
         eventos = [e for e in eventos if (e.get("data") or "").startswith(mes)]
@@ -909,7 +910,7 @@ def bar_resumo(bar_id):
     por_garcom = {}
 
     for ev in storage.listar_eventos():
-        if ev.get("bar") != bar_id:
+        if bar_id != "*" and ev.get("bar") != bar_id:
             continue
         if not (ev.get("data") or "").startswith(mes):
             continue
@@ -952,7 +953,7 @@ def bar_historico(bar_id):
     por_mes = {}
 
     for ev in storage.listar_eventos():
-        if ev.get("bar") != bar_id:
+        if bar_id != "*" and ev.get("bar") != bar_id:
             continue
         data = ev.get("data") or ""
         if len(data) < 7:
