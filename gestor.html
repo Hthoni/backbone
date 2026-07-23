@@ -386,27 +386,39 @@ async function mostrarSelecaoBar(){
   const lista = $("sel-lista");
   lista.innerHTML = '<div class="carregando">Carregando…</div>';
 
-  // soma consolidada do mes atual, um card por bar tambem
+  const master = gestor.bares.find(b => b.id === "*");
+  const reais = gestor.bares.filter(b => b.id !== "*");
+
   try{
     const resumos = await Promise.all(
-      gestor.bares.map(b => fetch(API + "/bar/" + encodeURIComponent(b.id) + "/resumo").then(r => r.json()))
+      reais.map(b => fetch(API + "/bar/" + encodeURIComponent(b.id) + "/resumo").then(r => r.json()))
     );
-    const soma = {cadastros:0, pontuacao:0, resgates:0};
-    resumos.forEach(r => { soma.cadastros += r.totais.cadastros; soma.pontuacao += r.totais.pontuacao; soma.resgates += r.totais.resgates; });
 
-    let html = `<div class="card somatorio">
-      <div class="titulo">Todos os bares</div>
-      <div class="sub">${nomeMes(mesAtual)}</div>
-      ${gridMetricas(soma)}
-    </div>`;
+    let topo;
+    if(master){
+      const rm = await fetch(API + "/bar/*/resumo").then(r => r.json());
+      topo = `<div class="card somatorio" onclick='escolherBarPorId("*")'>
+        <div class="titulo">Todos os bares</div>
+        <div class="sub">${nomeMes(mesAtual)}</div>
+        ${gridMetricas(rm.totais)}
+      </div>`;
+    } else {
+      const soma = {cadastros:0, pontuacao:0, resgates:0};
+      resumos.forEach(r => { soma.cadastros += r.totais.cadastros; soma.pontuacao += r.totais.pontuacao; soma.resgates += r.totais.resgates; });
+      topo = `<div class="card somatorio">
+        <div class="titulo">Todos os bares</div>
+        <div class="sub">${nomeMes(mesAtual)}</div>
+        ${gridMetricas(soma)}
+      </div>`;
+    }
 
-    html += gestor.bares.map((b, i) => `<div class="card" onclick='escolherBarPorId("${b.id}")'>
+    const linhas = reais.map((b, i) => `<div class="card" onclick='escolherBarPorId("${b.id}")'>
       <div class="titulo">${b.nome}</div>
       <div class="sub">${nomeMes(mesAtual)}</div>
       ${gridMetricas(resumos[i].totais)}
     </div>`).join("");
 
-    lista.innerHTML = html;
+    lista.innerHTML = topo + linhas;
   }catch(e){
     lista.innerHTML = '<div class="carregando">Não foi possível carregar. Verifique a conexão.</div>';
   }
@@ -418,6 +430,7 @@ function escolherBar(bar){
   barAtivo = bar;
   $("dash-nome").innerHTML = gestor.nome + "<small>" + bar.nome + "</small>";
   $("b-trocar").style.display = (gestor.bares.length > 1) ? "flex" : "none";
+  $("ab-scanner").style.display = (bar.id === "*") ? "none" : "";
   mostrar("dash");
   mudarAba("historico");
 }
