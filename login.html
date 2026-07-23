@@ -101,6 +101,22 @@ $("b-entrar").onclick = async () => {
       return;
     }
 
+    // nao era gestor (ou senha errada) — tenta como admin
+    const ra = await fetch(API + "/login-admin", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({id, senha})
+    });
+    if(ra.ok){
+      const d = await ra.json();
+      localStorage.setItem("bb_admin", JSON.stringify(d));
+      location.href = "escolha.html";
+      return;
+    }
+    if(ra.status !== 401 && ra.status !== 403){
+      erro.textContent = "O servidor demorou para responder (pode estar acordando). Tente de novo em alguns segundos.";
+      return;
+    }
+
     erro.textContent = "Código ou senha incorretos.";
   }catch(e){
     erro.textContent = "Sem conexão. Tente de novo.";
