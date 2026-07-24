@@ -124,8 +124,9 @@
   }
   .abas button.on{color:#FFF; border-bottom-color:#D8232A}
   .feed{padding:14px 18px; overflow-y:auto; flex:1}
-  .tutorial-corpo{flex:1; overflow-y:auto; display:flex; flex-direction:column}
-  #tutorial-frame{width:100%; border:0; display:block; flex-shrink:0}
+  .tutorial-corpo{flex:1; overflow-y:auto; overflow-x:hidden; display:flex; flex-direction:column}
+  #tutorial-frame-wrap{width:100%; overflow:hidden; flex-shrink:0}
+  #tutorial-frame{border:0; display:block; transform-origin:top left}
   .tutorial-rodape{padding:16px 18px calc(18px + var(--sb)); background:var(--preto)}
   .lote{
     background:#141414; border:1px solid #2B2B2B; border-radius:12px;
@@ -217,7 +218,9 @@
     <button class="on">Tutorial</button>
   </div>
   <div class="tutorial-corpo" id="tutorial-corpo">
-    <iframe id="tutorial-frame" src="como_funciona.html" title="Como funciona o Clube Backbone"></iframe>
+    <div id="tutorial-frame-wrap">
+      <iframe id="tutorial-frame" src="como_funciona.html" title="Como funciona o Clube Backbone"></iframe>
+    </div>
     <div class="tutorial-rodape">
       <button class="btn btn-1" id="b-tutorial-continuar">COMEÇAR</button>
     </div>
@@ -370,7 +373,8 @@ function abrirTutorial(){
   pararCamera();
   mostrar("tutorial");
   const primeiroAcesso = !garcom.tutorial_visto;
-  $("b-tutorial-continuar").textContent = primeiroAcesso ? "COMEÇAR" : "VOLTAR AO SCANNER";
+  // na revisita (aba Tutorial, já visto antes) fica só os slides — sem botão nenhum
+  $(".tutorial-rodape").style.display = primeiroAcesso ? "block" : "none";
 }
 $("ab-tutorial").onclick = abrirTutorial;
 $("ab-tutorial2").onclick = abrirTutorial;
@@ -378,18 +382,46 @@ $("ab-escanear3").onclick = abrirEscanear;
 $("ab-atividade3").onclick = abrirAtividade;
 $("b-sair3").onclick = () => $("b-sair").onclick();
 
-$("tutorial-frame").onload = function(){
+/*
+ * O bundle do Claude Design desempacota imagens/fontes de forma assincrona
+ * DEPOIS do evento onload do iframe — medir a altura logo no onload pega o
+ * documento ainda incompleto (baixo demais), cortando o resto do conteudo
+ * e deixando o botao "Começar" flutuando no meio da tela.
+ * Por isso: fica checando a altura em intervalos, e só fixa o tamanho
+ * quando ela parar de crescer por 2 checagens seguidas (ou apos um teto
+ * de tempo, pra nunca travar caso algo dê errado).
+ */
+function medirEAjustarIframe(tentativas, ultimaAltura, estavel){
   if(tutorialFrameAjustado) return;
-  try{
-    const doc = this.contentWindow.document;
-    const altura = doc.documentElement.scrollHeight || doc.body.scrollHeight;
-    if(altura > 0){ this.style.height = altura + "px"; tutorialFrameAjustado = true; }
-  }catch(e){
-    // se por algum motivo nao der pra medir (ex.: arquivo ainda nao existe no repo),
-    // cai num tamanho generoso em vez de ficar sem nada na tela
-    this.style.height = "2400px";
+  const iframe = $("tutorial-frame");
+  let doc;
+  try{ doc = iframe.contentWindow.document; }catch(e){
+    iframe.style.width = "100%"; iframe.style.height = "2400px";
+    tutorialFrameAjustado = true;
+    return;
   }
-};
+  const alturaAtual = doc.documentElement.scrollHeight || doc.body.scrollHeight || 0;
+  const parou = alturaAtual > 0 && alturaAtual === ultimaAltura;
+  const novaEstavel = parou ? estavel + 1 : 0;
+
+  // 2 checagens seguidas com a mesma altura = considerado estavel.
+  // Teto de 40 tentativas (~6s) pra nao ficar esperando pra sempre.
+  if(novaEstavel >= 2 || tentativas >= 40){
+    const larguraConteudo = doc.documentElement.scrollWidth || doc.body.scrollWidth;
+    const larguraTela = $("tutorial-frame-wrap").clientWidth;
+    if(alturaAtual > 0 && larguraConteudo > 0 && larguraTela > 0){
+      const escala = Math.min(1, larguraTela / larguraConteudo); // só encolhe, nunca amplia
+      iframe.style.width = larguraConteudo + "px";
+      iframe.style.height = alturaAtual + "px";
+      iframe.style.transform = "scale(" + escala + ")";
+      $("tutorial-frame-wrap").style.height = (alturaAtual * escala) + "px";
+    }
+    tutorialFrameAjustado = true;
+    return;
+  }
+  setTimeout(() => medirEAjustarIframe(tentativas + 1, alturaAtual, novaEstavel), 150);
+}
+$("tutorial-frame").onload = () => medirEAjustarIframe(0, -1, 0);
 
 $("b-tutorial-continuar").onclick = async () => {
   if(!garcom.tutorial_visto){
