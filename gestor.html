@@ -288,6 +288,8 @@
   <div class="detalhe-cab">
     <div class="nome" id="det-nome"></div>
     <div class="periodo" id="det-periodo"></div>
+    <button class="btn btn-2" id="b-resetar-tutorial" style="width:auto; margin-top:10px; padding:8px 14px; font-size:13px">Resetar tutorial de primeiro acesso</button>
+    <div id="det-tutorial-msg" style="font-size:12px; color:var(--cinza-txt); margin-top:6px; min-height:16px"></div>
   </div>
   <div class="feed" id="det-feed"><div class="carregando">Carregando…</div></div>
 </section>
@@ -695,12 +697,16 @@ $("aba-atividade").onscroll = function(){
 };
 
 /* ══ DETALHE DO GARÇOM (só acessível tocando no card, na aba Atual) ══ */
+let detalheGarcomId = null;
+
 function abrirDetalheGarcom(garcomId){
   const g = garconsAtuais.find(x => x.garcom_id === garcomId);
   clearInterval(atividadeTimer);
+  detalheGarcomId = garcomId;
   mostrar("detalhe");
   $("det-nome").textContent = g ? g.nome : garcomId;
   $("det-periodo").textContent = nomeMes(mesSelecionado);
+  $("det-tutorial-msg").textContent = "";
   $("det-feed").innerHTML = '<div class="carregando">Carregando…</div>';
   carregarFeedGenerico("detalhe", { container: "det-feed", mes: mesSelecionado, garcom_id: garcomId }, true);
 }
@@ -708,6 +714,25 @@ $("b-voltar-detalhe").onclick = () => { mostrar("dash"); };
 $("det-feed").onscroll = function(){
   if(this.scrollTop + this.clientHeight >= this.scrollHeight - 120){
     carregarFeedGenerico("detalhe", { container: "det-feed" }, false);
+  }
+};
+
+$("b-resetar-tutorial").onclick = async () => {
+  if(!detalheGarcomId) return;
+  const btn = $("b-resetar-tutorial");
+  const msg = $("det-tutorial-msg");
+  btn.disabled = true; btn.textContent = "Resetando…";
+  try{
+    const r = await fetch(API + "/garcom/" + encodeURIComponent(detalheGarcomId) + "/tutorial-visto", {
+      method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ visto: false }),
+    });
+    if(!r.ok) throw 0;
+    msg.textContent = "Pronto — no próximo login dele, o tutorial aparece de novo.";
+  }catch(e){
+    msg.textContent = "Não foi possível resetar. Tente de novo.";
+  }finally{
+    btn.disabled = false; btn.textContent = "Resetar tutorial de primeiro acesso";
   }
 };
 
