@@ -753,11 +753,14 @@ function extrairTelefone(texto){
 }
 async function scnIniciarCamera(){
   if(scnLeitor) return;
-  scnLeitor = new Html5Qrcode("scn-cam", { verbose:false });
+  scnLeitor = new Html5Qrcode("scn-cam", { verbose:false, formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE] });
   try{
     await scnLeitor.start(
       { facingMode: "environment" },
-      { fps:10, qrbox:{width:220, height:220} },
+      {
+        fps:10, qrbox:{width:220, height:220},
+        experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+      },
       texto => { scnPararCamera(); scnConsultar(extrairTelefone(texto)); },
       () => {}
     );
