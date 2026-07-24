@@ -160,7 +160,7 @@
 </header>
 
 <nav>
-  <button class="on" data-aba="consumidores">Associados</button>
+  <button class="on" data-aba="consumidores">Sócios</button>
   <button data-aba="push">Push</button>
   <button data-aba="config">Configuração</button>
   <button data-aba="bares">Bares</button>
@@ -171,9 +171,9 @@
 
 <main>
 
-<!-- ══ ASSOCIADOS ══ -->
+<!-- ══ SÓCIOS ══ -->
 <section class="aba on" id="aba-consumidores">
-  <h2>Associados</h2>
+  <h2>Sócios</h2>
   <div class="linha">
     <div style="max-width:280px">
       <label>FILTRAR POR BAR</label>
@@ -199,11 +199,11 @@
 <!-- ══ PUSH ══ -->
 <section class="aba" id="aba-push">
   <h2>Push manual</h2>
-  <p class="sub">Envia uma notificação para o cartão de um associado. Só chega para quem instalou o cartão na Wallet.</p>
+  <p class="sub">Envia uma notificação para o cartão de um sócio. Só chega para quem instalou o cartão na Wallet.</p>
   <div class="cartao">
     <div class="linha">
       <div>
-        <label>TELEFONE DO ASSOCIADO</label>
+        <label>TELEFONE DO SÓCIO</label>
         <input id="p-tel" type="tel" placeholder="5521999998888">
       </div>
     </div>
@@ -217,7 +217,7 @@
   <p class="mini">O texto substitui o campo "Último aviso" do verso do cartão e dispara a notificação. Textos repetidos não geram novo push — mude o texto para notificar de novo.</p>
 
   <h2 style="margin-top:30px">Push em massa</h2>
-  <p class="sub">Filtre os associados como numa planilha, revise a seleção e dispare para todos de uma vez.</p>
+  <p class="sub">Filtre os sócios como numa planilha, revise a seleção e dispare para todos de uma vez.</p>
   <div class="cartao">
     <div style="overflow-x:auto">
       <table id="pm-tabela">
@@ -303,10 +303,10 @@
       <button class="btn sec" id="b-atualizar">Atualizar</button>
     </div>
   </div>
-  <p class="mini" style="margin:-6px 0 14px">Cada célula mostra <strong>últimos X dias / total</strong>. Associados = cadastros do bar · Boas-vindas = chopps de cadastro entregues · Metas = chopps de cartela cheia entregues.</p>
+  <p class="mini" style="margin:-6px 0 14px">Cada célula mostra <strong>últimos X dias / total</strong>. Sócios = cadastros do bar · Boas-vindas = chopps de cadastro entregues · Resgates = chopps de cartela cheia entregues.</p>
   <div class="cartao" style="padding:0; overflow-x:auto">
     <table>
-      <thead><tr><th>ID (código)</th><th>NOME</th><th>CIDADE</th><th class="num">ASSOCIADOS</th><th class="num">BOAS-VINDAS</th><th class="num">METAS</th><th></th><th></th></tr></thead>
+      <thead><tr><th>ID (código)</th><th>NOME</th><th>CIDADE</th><th class="num">SÓCIOS</th><th class="num">BOAS-VINDAS</th><th class="num">RESGATES</th><th></th><th></th></tr></thead>
       <tbody id="t-bares"><tr><td colspan="3" class="carregando">Carregando…</td></tr></tbody>
     </table>
   </div>
@@ -506,7 +506,7 @@ async function carregarConsumidores(){
     const r = await fetch(url);
     const lista = await r.json();
     if(!lista.length){
-      tb.innerHTML = '<tr><td colspan="10" class="carregando">Nenhum associado' + (bar ? " neste bar" : "") + '.</td></tr>';
+      tb.innerHTML = '<tr><td colspan="10" class="carregando">Nenhum sócio' + (bar ? " neste bar" : "") + '.</td></tr>';
       $("resumo").textContent = "";
       return;
     }
@@ -529,7 +529,7 @@ async function carregarConsumidores(){
       </tr>`;
     }).join("");
     const totIndicados = lista.filter(c => c.padrinho).length;
-    $("resumo").textContent = lista.length + " associados" + (bar ? " no bar" : "") +
+    $("resumo").textContent = lista.length + " sócios" + (bar ? " no bar" : "") +
       " · " + totIndicados + " vieram por indicação";
   }catch(e){
     tb.innerHTML = '<tr><td colspan="10" class="carregando">Erro ao carregar. O servidor pode estar acordando — tente de novo.</td></tr>';
@@ -555,7 +555,7 @@ $("b-push").onclick = async () => {
     m.className = "msg ok";
     m.textContent = d.enviados > 0
       ? "Push enviado para " + d.enviados + " dispositivo(s)."
-      : "Aviso gravado, mas nenhum dispositivo registrado — o associado ainda não instalou o cartão.";
+      : "Aviso gravado, mas nenhum dispositivo registrado — o sócio ainda não instalou o cartão.";
   }catch(e){ m.className = "msg erro"; m.textContent = "Sem conexão."; }
 };
 
@@ -598,7 +598,7 @@ async function carregarBares(){
     baresLista = await rb.json();
     baresStats = (await rs.json()).bares || {};
 
-    // popular selects (garcom, filtro de associados, filtro de bares)
+    // popular selects (garcom, filtro de sócios, filtro de bares)
     const ops = baresLista.map(b => `<option value="${b.id}">${b.nome || b.id}</option>`).join("");
     $("g-bar").innerHTML = ops;
     $("f-bar").innerHTML = '<option value="">Todos os bares</option>' + ops;
@@ -643,7 +643,7 @@ function renderBares(){
     return `<tr>
       <td><strong>${b.id}</strong></td><td>${b.nome || "—"}</td><td>${b.cidade || "—"}</td>
       ${cel(s,"associados")}${cel(s,"boasvindas")}${cel(s,"metas")}
-      <td>
+      <td style="white-space:nowrap">
         <button class="btn-x" style="color:#D6D4CC;border-color:#4A4A4A" onclick="abrirQrBar('${b.id}')">QR / Link</button>
         <button class="btn-x" style="color:var(--ambar);border-color:#5A4A1A" onclick="baixarDisplayBar('${b.id}', this)">Display</button>
       </td>
@@ -798,7 +798,7 @@ $("b-criar-garcom").onclick = async () => {
     });
     if(r.status === 409){
       const d = await r.json();
-      m.className = "msg erro"; m.textContent = d.detalhe || "Telefone pertence a um associado.";
+      m.className = "msg erro"; m.textContent = d.detalhe || "Telefone pertence a um sócio.";
       return;
     }
     if(!r.ok) throw 0;
@@ -1062,7 +1062,7 @@ function confirmarExclusao(titulo, texto, url, aoTerminar){
 
 function apagarConsumidor(tel, nome){
   confirmarExclusao(
-    "Apagar associado?",
+    "Apagar sócio?",
     (nome || tel) + " (" + tel + ") será removido para sempre, junto com o registro de push. O cartão na Wallet dele deixa de atualizar.",
     "/admin/consumidores/" + tel,
     carregarConsumidores
@@ -1071,7 +1071,7 @@ function apagarConsumidor(tel, nome){
 function apagarBar(id){
   confirmarExclusao(
     "Apagar bar?",
-    "O bar " + id + " será removido. Garçons e associados vinculados a ele NÃO são apagados, mas o scan deles passa a falhar.",
+    "O bar " + id + " será removido. Garçons e sócios vinculados a ele NÃO são apagados, mas o scan deles passa a falhar.",
     "/admin/bares/" + id,
     carregarBares
   );
@@ -1178,7 +1178,7 @@ function pmRender(){
   const lista = pmFiltrados();
   const corpo = $("pm-corpo");
   if(!lista.length){
-    corpo.innerHTML = '<tr><td colspan="10" class="carregando">Nenhum associado passa nos filtros.</td></tr>';
+    corpo.innerHTML = '<tr><td colspan="10" class="carregando">Nenhum sócio passa nos filtros.</td></tr>';
   } else {
     corpo.innerHTML = lista.map(c => {
       const marcado = !pmDesmarcados.has(c.telefone);
@@ -1228,7 +1228,7 @@ $("pm-enviar").onclick = async () => {
   const texto = $("pm-texto").value.trim();
   const m = $("pm-resultado");
   if(!tels.length || !texto){
-    m.className = "msg erro"; m.textContent = "Selecione associados e escreva o texto."; return;
+    m.className = "msg erro"; m.textContent = "Selecione sócios e escreva o texto."; return;
   }
   m.className = "msg"; m.textContent = "Enviando para " + tels.length + "…";
   try{
@@ -1300,13 +1300,13 @@ async function baixarArteQr(link, barId, btnEl, msgEl){
     const tplBmp = await createImageBitmap(await rTpl.blob());
     ctx.drawImage(tplBmp, 0, 0, 2000, 3000);
 
-    const qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=600x600&data=" + encodeURIComponent(link);
+    const qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=660x660&data=" + encodeURIComponent(link);
     const rQr = await fetch(qrUrl);
     if(!rQr.ok) throw new Error("Falha ao gerar o QR");
     const qrBmp = await createImageBitmap(await rQr.blob());
 
     // posicao da caixa cinza do template (medida no arquivo original 2000x3000)
-    const boxX = 660, boxY = 1870, boxSize = 679, pad = 40;
+    const boxX = 660, boxY = 1870, boxSize = 679, pad = 8;
     ctx.drawImage(qrBmp, boxX + pad, boxY + pad, boxSize - pad * 2, boxSize - pad * 2);
 
     canvas.toBlob(blob => {
