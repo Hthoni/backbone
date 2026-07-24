@@ -232,6 +232,7 @@
   <div class="conteudo aba-conteudo" id="aba-atual" style="display:none">
     <div id="atual-aviso"></div>
     <div id="atual-corpo"><div class="carregando">Carregando…</div></div>
+    <button class="btn" id="b-adicionar-garcom" style="display:none; background:var(--verde); color:#fff; margin-top:6px">+ Adicionar Garçom</button>
   </div>
 
   <!-- Atividade -->
@@ -289,6 +290,49 @@
     <div class="periodo" id="det-periodo"></div>
   </div>
   <div class="feed" id="det-feed"><div class="carregando">Carregando…</div></div>
+</section>
+
+<!-- ══ NOVO GARÇOM ══ -->
+<section id="t-novo-garcom" class="tela">
+  <div class="cab">
+    <img src="clube_logo.png" alt="Clube Backbone">
+    <button class="sair" id="b-fechar-novo-garcom">CANCELAR</button>
+  </div>
+  <div class="conteudo">
+    <h1 style="font-size:22px; font-weight:800; margin-bottom:4px">Novo garçom</h1>
+    <p style="font-size:13px; color:var(--cinza-txt); margin-bottom:20px">Bar: <strong id="ng-bar-nome" style="color:var(--branco)"></strong></p>
+
+    <label for="ng-id">ID DE LOGIN (ex.: g01)</label>
+    <input id="ng-id" type="text" autocapitalize="none" placeholder="g01">
+
+    <label for="ng-nome">NOME</label>
+    <input id="ng-nome" type="text" placeholder="Nome do garçom">
+
+    <label for="ng-senha">SENHA</label>
+    <input id="ng-senha" type="text" placeholder="senha do garçom">
+
+    <label for="ng-tel">TELEFONE (opcional)</label>
+    <input id="ng-tel" type="tel" placeholder="5521999998888">
+
+    <div class="erro-msg" id="ng-erro"></div>
+    <button class="btn btn-1" id="b-salvar-novo-garcom">Salvar e gerar QR</button>
+  </div>
+</section>
+
+<!-- ══ QR DE ACESSO DO NOVO GARÇOM ══ -->
+<section id="t-qr-garcom" class="tela">
+  <div class="cab">
+    <img src="clube_logo.png" alt="Clube Backbone">
+  </div>
+  <div class="conteudo" style="align-items:center; text-align:center">
+    <h1 style="font-size:22px; font-weight:800; margin-bottom:6px">Garçom criado!</h1>
+    <p style="font-size:14px; color:var(--cinza-txt); margin-bottom:22px" id="qrg-nome"></p>
+    <img id="qrg-img" alt="QR de acesso ao login" style="width:220px; height:220px; border-radius:12px; background:#FFF; padding:10px; margin:0 auto 18px; display:block">
+    <p style="font-size:13px; color:var(--cinza-txt); margin-bottom:8px">Peça pro garçom escanear esse QR no celular dele — cai direto na tela de login.</p>
+    <div style="background:var(--preto2); border:1px solid var(--linha); border-radius:10px; padding:10px 12px; font-size:12px; color:var(--cinza-txt); word-break:break-all; margin-bottom:18px" id="qrg-link"></div>
+    <button class="btn btn-2" id="b-copiar-link-garcom" style="margin-bottom:12px">Copiar link</button>
+    <button class="btn btn-1" id="b-concluir-garcom">Concluir</button>
+  </div>
 </section>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
@@ -441,6 +485,7 @@ function escolherBar(bar){
   $("b-trocar").style.display = (gestor.bares.length > 1) ? "flex" : "none";
   $("b-painel").style.display = localStorage.getItem("bb_admin") ? "flex" : "none";
   $("ab-scanner").style.display = (bar.id === "*") ? "none" : "";
+  $("b-adicionar-garcom").style.display = (bar.id === "*") ? "none" : "block";
   mostrar("dash");
   mudarAba("historico");
 }
@@ -537,6 +582,69 @@ async function carregarAtual(){
     $("atual-corpo").innerHTML = '<div class="carregando">Não foi possível carregar.</div>';
   }
 }
+
+/* ── Adicionar garçom (rodapé da aba Atual, só em bar real) ── */
+$("b-adicionar-garcom").onclick = () => {
+  $("ng-bar-nome").textContent = barAtivo.nome;
+  $("ng-id").value = ""; $("ng-nome").value = ""; $("ng-senha").value = ""; $("ng-tel").value = "";
+  $("ng-erro").textContent = "";
+  mostrar("novo-garcom");
+};
+$("b-fechar-novo-garcom").onclick = () => mostrar("dash");
+
+$("b-salvar-novo-garcom").onclick = async () => {
+  const erro = $("ng-erro");
+  const btn = $("b-salvar-novo-garcom");
+  const id = ($("ng-id").value || "").trim();
+  const nome = ($("ng-nome").value || "").trim();
+  const senha = $("ng-senha").value;
+  const telefone = ($("ng-tel").value || "").replace(/\D/g, "");
+  erro.textContent = "";
+  if(!id || !nome || !senha){
+    erro.textContent = "Preencha ID, nome e senha.";
+    return;
+  }
+  btn.disabled = true; btn.textContent = "Salvando…";
+  try{
+    const r = await fetch(API + "/admin/garcons", {
+      method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({
+        id, nome, senha, telefone,
+        bar_id: barAtivo.id, bar_nome: barAtivo.nome, ativo: true,
+      }),
+    });
+    if(r.status === 409){
+      const d = await r.json();
+      erro.textContent = d.detalhe || "Telefone pertence a um associado.";
+      return;
+    }
+    if(!r.ok) throw 0;
+    abrirQrNovoGarcom(nome);
+    carregarAtual();
+  }catch(e){
+    erro.textContent = "Não foi possível salvar. Tente de novo.";
+  }finally{
+    btn.disabled = false; btn.textContent = "Salvar e gerar QR";
+  }
+};
+
+function abrirQrNovoGarcom(nome){
+  const link = location.origin + location.pathname.replace(/gestor\.html$/, "") + "login.html";
+  $("qrg-nome").textContent = nome + " já pode entrar pelo QR abaixo.";
+  $("qrg-img").src = "https://api.qrserver.com/v1/create-qr-code/?size=440x440&data=" + encodeURIComponent(link);
+  $("qrg-link").textContent = link;
+  mostrar("qr-garcom");
+}
+$("b-copiar-link-garcom").onclick = async () => {
+  const link = $("qrg-link").textContent;
+  const b = $("b-copiar-link-garcom");
+  try{
+    await navigator.clipboard.writeText(link);
+    b.textContent = "Copiado!";
+    setTimeout(() => b.textContent = "Copiar link", 1500);
+  }catch(e){ alert(link); }
+};
+$("b-concluir-garcom").onclick = () => mostrar("dash");
 
 /* ══ FEED GENÉRICO (Atividade da aba, e detalhe do garçom) — scroll infinito em blocos de 30 ══ */
 const feedEstado = {}; // chave -> {offset, temMais, carregando}
