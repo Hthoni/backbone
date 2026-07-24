@@ -311,7 +311,7 @@
     <label for="ng-senha">SENHA</label>
     <input id="ng-senha" type="text" placeholder="senha do garçom">
 
-    <label for="ng-tel">TELEFONE (opcional)</label>
+    <label for="ng-tel">TELEFONE</label>
     <input id="ng-tel" type="tel" placeholder="5521999998888">
 
     <div class="erro-msg" id="ng-erro"></div>
@@ -600,8 +600,12 @@ $("b-salvar-novo-garcom").onclick = async () => {
   const senha = $("ng-senha").value;
   const telefone = ($("ng-tel").value || "").replace(/\D/g, "");
   erro.textContent = "";
-  if(!id || !nome || !senha){
-    erro.textContent = "Preencha ID, nome e senha.";
+  if(!id || !nome || !senha || !telefone){
+    erro.textContent = "Preencha ID, nome, senha e telefone.";
+    return;
+  }
+  if(telefone.length < 10 || telefone.length > 13){
+    erro.textContent = "Telefone inválido — confira o DDD e o número.";
     return;
   }
   btn.disabled = true; btn.textContent = "Salvando…";
