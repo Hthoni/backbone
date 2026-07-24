@@ -483,15 +483,18 @@ def login():
 @app.route("/garcom/<garcom_id>/tutorial-visto", methods=["POST"])
 def marcar_tutorial_visto(garcom_id):
     """
-    Marca que o garcom ja viu o tutorial de 'Como funciona' no primeiro
-    acesso. So mexe nesse campo — preserva todo o resto do cadastro
+    Marca (ou desmarca, via {"visto": false} no corpo) se o garcom ja viu
+    o tutorial de 'Como funciona'. O reset e usado pelo gestor quando o
+    garcom troca de aparelho ou precisa rever o tutorial.
+    So mexe nesse campo — preserva todo o resto do cadastro
     (senha, telefone, bar, etc.), ao contrario de reusar o POST de
     criacao/edicao que sobrescreveria o registro inteiro.
     """
     garcom = storage.carregar_garcom(garcom_id)
     if not garcom:
         return jsonify({"erro": "nao_encontrado"}), 404
-    garcom["tutorial_visto"] = True
+    dados = request.get_json(silent=True) or {}
+    garcom["tutorial_visto"] = bool(dados.get("visto", True))
     storage.salvar_garcom(garcom)
     return jsonify({"status": "ok"})
 
