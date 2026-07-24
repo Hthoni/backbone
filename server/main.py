@@ -996,6 +996,16 @@ def bar_resumo(bar_id):
     totais = {"cadastros": 0, "pontuacao": 0, "resgates": 0}
     por_garcom = {}
 
+    # todo garcom do bar aparece desde ja, mesmo com zero atividade —
+    # senao um garcom recem-criado some da lista ate escanear o 1o chopp
+    if bar_id != "*":
+        for g in storage.listar_garcons():
+            if g.get("bar_id") == bar_id:
+                por_garcom[g["id"]] = {
+                    "garcom_id": g["id"], "nome": g.get("nome", g["id"]),
+                    "cadastros": 0, "pontuacao": 0, "resgates": 0,
+                }
+
     for ev in storage.listar_eventos():
         if bar_id != "*" and ev.get("bar") != bar_id:
             continue
