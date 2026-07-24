@@ -124,6 +124,9 @@
   }
   .abas button.on{color:#FFF; border-bottom-color:#D8232A}
   .feed{padding:14px 18px; overflow-y:auto; flex:1}
+  .tutorial-corpo{flex:1; overflow-y:auto; display:flex; flex-direction:column}
+  #tutorial-frame{width:100%; border:0; display:block; flex-shrink:0}
+  .tutorial-rodape{padding:16px 18px calc(18px + var(--sb)); background:var(--preto)}
   .lote{
     background:#141414; border:1px solid #2B2B2B; border-radius:12px;
     padding:12px 14px; margin-bottom:10px;
@@ -172,6 +175,7 @@
   <div class="abas">
     <button class="on" id="ab-escanear">Escanear</button>
     <button id="ab-atividade">Atividade</button>
+    <button id="ab-tutorial">Tutorial</button>
   </div>
   <div class="scan">
     <div id="cam"></div>
@@ -191,9 +195,32 @@
   <div class="abas">
     <button id="ab-escanear2">Escanear</button>
     <button class="on">Atividade</button>
+    <button id="ab-tutorial2">Tutorial</button>
   </div>
   <div class="feed" id="feed">
     <div class="carregando">Carregando…</div>
+  </div>
+</section>
+
+<!-- ══ TUTORIAL / COMO FUNCIONA ══ -->
+<section id="t-tutorial" class="tela">
+  <div class="cab">
+    <img src="clube_logo.png" alt="Clube Backbone">
+    <div style="display:flex;align-items:center;gap:12px">
+      <div class="id" id="quem-tutorial"></div>
+      <button class="sair" id="b-sair3">SAIR</button>
+    </div>
+  </div>
+  <div class="abas" id="abas-tutorial">
+    <button id="ab-escanear3">Escanear</button>
+    <button id="ab-atividade3">Atividade</button>
+    <button class="on">Tutorial</button>
+  </div>
+  <div class="tutorial-corpo" id="tutorial-corpo">
+    <iframe id="tutorial-frame" src="como_funciona.html" title="Como funciona o Clube Backbone"></iframe>
+    <div class="tutorial-rodape">
+      <button class="btn btn-1" id="b-tutorial-continuar">COMEÇAR</button>
+    </div>
   </div>
 </section>
 
@@ -288,9 +315,13 @@ $("b-sair").onclick = () => {
 
 function entrar(){
   const txt = garcom.nome + "<small>" + (garcom.bar_nome || garcom.bar_id) + "</small>";
-  ["quem1","quem2","quem-atividade","quem-fim"].forEach(k => $(k).innerHTML = txt);
-  mostrar("scan");
-  iniciarCamera();
+  ["quem1","quem2","quem-atividade","quem-fim","quem-tutorial"].forEach(k => $(k).innerHTML = txt);
+  if(!garcom.tutorial_visto){
+    abrirTutorial();
+  } else {
+    mostrar("scan");
+    iniciarCamera();
+  }
 }
 
 /* Extrai o telefone do QR: aceita a URL /q/<tel> (formato novo)
@@ -330,6 +361,46 @@ function abrirEscanear(){
 $("ab-atividade").onclick = abrirAtividade;
 $("ab-escanear2").onclick = abrirEscanear;
 $("b-sair2").onclick = () => $("b-sair").onclick();
+
+/* ── ABA TUTORIAL / COMO FUNCIONA ── */
+let tutorialFrameAjustado = false;
+
+function abrirTutorial(){
+  clearInterval(feedTimer);
+  pararCamera();
+  mostrar("tutorial");
+  const primeiroAcesso = !garcom.tutorial_visto;
+  $("b-tutorial-continuar").textContent = primeiroAcesso ? "COMEÇAR" : "VOLTAR AO SCANNER";
+}
+$("ab-tutorial").onclick = abrirTutorial;
+$("ab-tutorial2").onclick = abrirTutorial;
+$("ab-escanear3").onclick = abrirEscanear;
+$("ab-atividade3").onclick = abrirAtividade;
+$("b-sair3").onclick = () => $("b-sair").onclick();
+
+$("tutorial-frame").onload = function(){
+  if(tutorialFrameAjustado) return;
+  try{
+    const doc = this.contentWindow.document;
+    const altura = doc.documentElement.scrollHeight || doc.body.scrollHeight;
+    if(altura > 0){ this.style.height = altura + "px"; tutorialFrameAjustado = true; }
+  }catch(e){
+    // se por algum motivo nao der pra medir (ex.: arquivo ainda nao existe no repo),
+    // cai num tamanho generoso em vez de ficar sem nada na tela
+    this.style.height = "2400px";
+  }
+};
+
+$("b-tutorial-continuar").onclick = async () => {
+  if(!garcom.tutorial_visto){
+    try{
+      await fetch(API + "/garcom/" + encodeURIComponent(garcom.garcom_id) + "/tutorial-visto", { method:"POST" });
+    }catch(e){}
+    garcom.tutorial_visto = true;
+    localStorage.setItem("bb_garcom", JSON.stringify(garcom));
+  }
+  abrirEscanear();
+};
 
 function horaLocal(iso){
   try{
@@ -533,6 +604,7 @@ $("b-novo").onclick = () => { mostrar("scan"); iniciarCamera(); };
       nome: params.get("nome") || "",
       bar_id: params.get("bar_id") || "",
       bar_nome: params.get("bar_nome") || "",
+      tutorial_visto: true,
     };
     entrar();
     return;
