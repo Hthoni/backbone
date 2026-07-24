@@ -218,16 +218,23 @@ def scan():
     if not consumidor:
         return jsonify({"erro": "consumidor_nao_encontrado"}), 404
 
-    # quem esta escaneando pode ser um garcom OU um gestor (o gestor entra
-    # no scanner com a propria credencial, sem precisar de um login extra)
+    # quem esta escaneando pode ser um garcom, um gestor, OU um admin
+    # (admin e gestor entram no scanner com a propria credencial, sem
+    # precisar de um cadastro de garcom a parte)
     garcom = storage.carregar_garcom(garcom_id)
     if garcom:
         if not _garcom_pertence_bar(garcom, bar):
             return jsonify({"erro": "bar_diferente"}), 403
     else:
         gestor = storage.carregar_gestor(garcom_id)
-        if not gestor or ("*" not in gestor.get("bar_ids", []) and bar not in gestor.get("bar_ids", [])):
-            return jsonify({"erro": "garcom_nao_encontrado"}), 404
+        if gestor:
+            if "*" not in gestor.get("bar_ids", []) and bar not in gestor.get("bar_ids", []):
+                return jsonify({"erro": "bar_diferente"}), 403
+        else:
+            admin = storage.carregar_admin(garcom_id)
+            if not admin:
+                return jsonify({"erro": "garcom_nao_encontrado"}), 404
+            # admin pode escanear em qualquer bar, sem checagem adicional
 
     config = storage.carregar_config()
     consumidor.setdefault("recompensas", [])
@@ -929,6 +936,7 @@ def atividade_bar(bar_id):
 
     garcons = {g["id"]: g.get("nome", g["id"]) for g in storage.listar_garcons()}
     garcons.update({g["id"]: g.get("nome", g["id"]) for g in storage.listar_gestores()})
+    garcons.update({a["id"]: a.get("nome", a["id"]) for a in storage.listar_admins()})
 
     return jsonify({
         "eventos": [{
@@ -963,6 +971,7 @@ def bar_resumo(bar_id):
 
     garcons_map = {g["id"]: g.get("nome", g["id"]) for g in storage.listar_garcons()}
     garcons_map.update({g["id"]: g.get("nome", g["id"]) for g in storage.listar_gestores()})
+    garcons_map.update({a["id"]: a.get("nome", a["id"]) for a in storage.listar_admins()})
 
     totais = {"cadastros": 0, "pontuacao": 0, "resgates": 0}
     por_garcom = {}
