@@ -454,11 +454,17 @@ async function carregarFeed(reset){
 /* ── CÂMERA ── */
 async function iniciarCamera(){
   if(leitor) return;
-  leitor = new Html5Qrcode("cam", { verbose:false });
+  leitor = new Html5Qrcode("cam", { verbose:false, formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE] });
   try{
     await leitor.start(
       { facingMode: "environment" },
-      { fps:10, qrbox:{width:240, height:240} },
+      {
+        fps:10, qrbox:{width:240, height:240},
+        // usa a API nativa do navegador quando disponivel (Android/Chrome
+        // recente) — mais robusta que o leitor em JS puro, ajuda bastante
+        // quando a leitura e de tela de celular (reflexo, contraste baixo)
+        experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+      },
       texto => { pararCamera(); consultar(extrairTelefone(texto)); },
       () => {}
     );
