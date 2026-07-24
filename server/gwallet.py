@@ -136,6 +136,18 @@ def _payload_objeto(consumidor):
 
     aviso = consumidor.get("aviso", "")
 
+    # Mesmo texto do verso do cartao Apple (mantido identico nos dois
+    # wallets) — inclui a instrucao de indicacao por QR, sem link/WhatsApp.
+    regras = (
+        f"Apresente este cartão ao(à) atendente a cada chopp Backbone consumido. "
+        f"Quando você completar o décimo consumido, você ganhará um Chopp Backbone Pilsen 300 ml.\n\n"
+        f"Para resgatar seu chopp, o(a) atendente deve escanear o QR do seu cartão mais uma vez. "
+        f"Feito isto, você ganha o chopp e abre uma nova cartela, começando em 0/{meta}.\n\n"
+        f"Indique amigos e ganhe pontos com o consumo deles!!\n\n"
+        f"Apresente seu QR à câmera do telefone do seu amigo, e ele poderá se cadastrar "
+        f"tendo você como indicador!"
+    )
+
     return {
         "id": id_objeto(tel),
         "classId": id_classe(),
@@ -164,12 +176,7 @@ def _payload_objeto(consumidor):
         "textModulesData": [
             {"id": "situacao", "header": "Situação", "body": situacao},
             {"id": "aviso", "header": "Último aviso", "body": aviso or "—"},
-            {
-                "id": "regras",
-                "header": "Como funciona",
-                "body": f"A cada {meta} chopps, o próximo é por nossa conta. "
-                        "Apresente este cartão ao atendente a cada pedido.",
-            },
+            {"id": "regras", "header": "Como funciona", "body": regras},
         ],
     }
 
