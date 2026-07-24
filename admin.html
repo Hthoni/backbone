@@ -643,7 +643,10 @@ function renderBares(){
     return `<tr>
       <td><strong>${b.id}</strong></td><td>${b.nome || "—"}</td><td>${b.cidade || "—"}</td>
       ${cel(s,"associados")}${cel(s,"boasvindas")}${cel(s,"metas")}
-      <td><button class="btn-x" style="color:#D6D4CC;border-color:#4A4A4A" onclick="abrirQrBar('${b.id}')">QR / Link</button></td>
+      <td>
+        <button class="btn-x" style="color:#D6D4CC;border-color:#4A4A4A" onclick="abrirQrBar('${b.id}')">QR / Link</button>
+        <button class="btn-x" style="color:var(--ambar);border-color:#5A4A1A" onclick="baixarDisplayBar('${b.id}', this)">Display</button>
+      </td>
       <td><button class="btn-x" style="color:var(--ambar);border-color:#5A4A1A" onclick='editarBar("${b.id}")'>editar</button> <button class="btn-x" onclick="apagarBar('${b.id}')">apagar</button></td>
     </tr>`;
   }).join("");
@@ -1259,6 +1262,7 @@ function abrirQrBar(id){
   document.getElementById("mq-img").src =
     "https://api.qrserver.com/v1/create-qr-code/?size=480x480&data=" + encodeURIComponent(link);
   document.getElementById("mq-link").textContent = link;
+  document.getElementById("mq-arte-msg").textContent = "";
   const b = document.getElementById("mq-copiar");
   b.textContent = "Copiar link";
   b.onclick = async () => {
@@ -1268,9 +1272,57 @@ function abrirQrBar(id){
       setTimeout(() => b.textContent = "Copiar link", 1500);
     }catch(e){ alert(link); }
   };
+  document.getElementById("mq-baixar-arte").onclick = () =>
+    baixarArteQr(link, id, document.getElementById("mq-baixar-arte"), document.getElementById("mq-arte-msg"));
   document.getElementById("modal-qr").classList.add("on");
 }
 function fecharModalQr(){ document.getElementById("modal-qr").classList.remove("on"); }
+
+/* Atalho direto na linha do bar: baixa o display sem abrir o modal */
+function baixarDisplayBar(id, btnEl){
+  const link = "https://hthoni.github.io/backbone/cadastro.html?indicador=" + encodeURIComponent(id);
+  baixarArteQr(link, id, btnEl, null);
+}
+
+/* ── arte pronta pra imprimir: template + QR compostos num canvas ── */
+async function baixarArteQr(link, barId, btnEl, msgEl){
+  const textoOriginal = btnEl.textContent;
+  btnEl.disabled = true; btnEl.textContent = "Gerando…";
+  if(msgEl) msgEl.textContent = "";
+  try{
+    const canvas = document.createElement("canvas");
+    canvas.width = 2000; canvas.height = 3000;
+    const ctx = canvas.getContext("2d");
+
+    // template.png precisa estar na raiz do repo, junto do clube_logo.png
+    const rTpl = await fetch("template_qr_bar.png");
+    if(!rTpl.ok) throw new Error("template_qr_bar.png não encontrado no repositório");
+    const tplBmp = await createImageBitmap(await rTpl.blob());
+    ctx.drawImage(tplBmp, 0, 0, 2000, 3000);
+
+    const qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=600x600&data=" + encodeURIComponent(link);
+    const rQr = await fetch(qrUrl);
+    if(!rQr.ok) throw new Error("Falha ao gerar o QR");
+    const qrBmp = await createImageBitmap(await rQr.blob());
+
+    // posicao da caixa cinza do template (medida no arquivo original 2000x3000)
+    const boxX = 660, boxY = 1870, boxSize = 679, pad = 40;
+    ctx.drawImage(qrBmp, boxX + pad, boxY + pad, boxSize - pad * 2, boxSize - pad * 2);
+
+    canvas.toBlob(blob => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = "clube-backbone-display-" + barId + ".png";
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+      btnEl.disabled = false; btnEl.textContent = textoOriginal;
+    }, "image/png");
+  }catch(e){
+    btnEl.disabled = false; btnEl.textContent = textoOriginal;
+    if(msgEl) msgEl.textContent = "Não foi possível gerar: " + e.message;
+    else alert("Não foi possível gerar o display: " + e.message);
+  }
+}
 
 $("b-atualizar").onclick = carregarBares;
 $("b-filtro").onchange = renderBares;
@@ -1343,6 +1395,10 @@ pmCarregar();
       <button class="btn sec" onclick="fecharModalQr()">Fechar</button>
       <button class="btn" id="mq-copiar">Copiar link</button>
     </div>
+    <div class="acoes" style="margin-top:10px">
+      <button class="btn" id="mq-baixar-arte" style="background:var(--ambar); color:#151000">Baixar arte para imprimir</button>
+    </div>
+    <div class="mini" id="mq-arte-msg" style="margin-top:8px"></div>
   </div>
 </div>
 </body>
