@@ -25,7 +25,6 @@ TEAM_ID = os.environ.get("APPLE_TEAM_ID", "43BNWL8WH7")
 ORG_NAME = os.environ.get("ORG_NAME", "Backbone Cervejaria Artesanal")
 WEB_SERVICE_URL = os.environ.get("WEB_SERVICE_URL", "https://backbone-650557630362.us-central1.run.app")
 CARDAPIO_URL = os.environ.get("CARDAPIO_URL", "https://hthoni.github.io/backbone/")
-WHATSAPP_NUM = os.environ.get("WHATSAPP_NUM", "5521999999999")
 
 BASE = os.path.dirname(__file__)
 TEMPLATE_DIR = os.path.join(BASE, "pass_template")   # icon.png, logo.png e @2x/@3x
@@ -125,17 +124,6 @@ def montar_pass_json(consumidor, aviso=None):
         "textAlignment": "PKTextAlignmentRight",
     })
 
-    # Mensagem no formato que o fluxo do BotConversa espera:
-    # "Quero participar do Clube Backbone {palavra}, ... padrinho:{telefone}"
-    # A palavra-chave direciona o afilhado ao fluxo do bar do padrinho.
-    palavra = consumidor.get("palavra_chave", "") or ""
-    _msg = (
-        f"Quero participar do Clube Backbone {palavra}, "
-        f"a convite do associado padrinho:{consumidor['telefone']}"
-    )
-    from urllib.parse import quote
-    link_indicacao = f"https://wa.me/{WHATSAPP_NUM}?text={quote(_msg)}"
-
     verso = [
         # ESTE CAMPO E O MOTOR DO PUSH.
         # changeMessage "%@" faz a notificacao repetir o proprio valor.
@@ -151,25 +139,14 @@ def montar_pass_json(consumidor, aviso=None):
             "key": "regras",
             "label": "Como funciona",
             "value": (
-                f"A cada {meta} chopps consumidos, o próximo é por nossa conta. "
-                f"Apresente este cartão ao garçom a cada chopp.\n\n"
-                f"Indique amigos: quando um indicado seu fecha a cartela dele, "
-                f"você ganha um ponto na sua.\n\n"
-                f"Atenção: com a cartela cheia você para de pontuar. "
-                f"Resgate seu chopp para abrir uma cartela nova."
+                f"Apresente este cartão ao(à) atendente a cada chopp Backbone consumido. "
+                f"Quando você completar o décimo consumido, você ganhará um Chopp Backbone Pilsen 300 ml.\n\n"
+                f"Para resgatar seu chopp, o(a) atendente deve escanear o QR do seu cartão mais uma vez. "
+                f"Feito isto, você ganha o chopp e abre uma nova cartela, começando em 0/{meta}.\n\n"
+                f"Indique amigos e ganhe pontos com o consumo deles!!\n\n"
+                f"Apresente seu QR à câmera do telefone do seu amigo, e ele poderá se cadastrar "
+                f"tendo você como indicador!"
             ),
-        },
-        {
-            "key": "indicar",
-            "label": "Indique um amigo",
-            "attributedValue": f"<a href='{link_indicacao}'>Enviar convite pelo WhatsApp</a>",
-        },
-        {
-            # Texto puro (nao attributedValue): o iOS deixa segurar o dedo e COPIAR.
-            # Serve para colar em grupo, Instagram, e-mail - onde o link clicavel nao chega.
-            "key": "link_convite",
-            "label": "Seu link de convite (toque e segure para copiar)",
-            "value": link_indicacao,
         },
         {
             "key": "cardapio",
