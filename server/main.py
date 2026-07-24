@@ -476,7 +476,24 @@ def login():
     return jsonify({
         "status": "ok", "garcom_id": garcom["id"], "nome": garcom["nome"],
         "bar_id": garcom["bar_id"], "bar_nome": garcom.get("bar_nome", ""),
+        "tutorial_visto": garcom.get("tutorial_visto", False),
     })
+
+
+@app.route("/garcom/<garcom_id>/tutorial-visto", methods=["POST"])
+def marcar_tutorial_visto(garcom_id):
+    """
+    Marca que o garcom ja viu o tutorial de 'Como funciona' no primeiro
+    acesso. So mexe nesse campo — preserva todo o resto do cadastro
+    (senha, telefone, bar, etc.), ao contrario de reusar o POST de
+    criacao/edicao que sobrescreveria o registro inteiro.
+    """
+    garcom = storage.carregar_garcom(garcom_id)
+    if not garcom:
+        return jsonify({"erro": "nao_encontrado"}), 404
+    garcom["tutorial_visto"] = True
+    storage.salvar_garcom(garcom)
+    return jsonify({"status": "ok"})
 
 
 @app.route("/admin/bares")
