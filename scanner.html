@@ -221,7 +221,7 @@
     <div id="tutorial-frame-wrap">
       <iframe id="tutorial-frame" src="como_funciona.html" title="Como funciona o Clube Backbone"></iframe>
     </div>
-    <div class="tutorial-rodape">
+    <div class="tutorial-rodape" id="tutorial-rodape">
       <button class="btn btn-1" id="b-tutorial-continuar">COMEÇAR</button>
     </div>
   </div>
@@ -374,7 +374,7 @@ function abrirTutorial(){
   mostrar("tutorial");
   const primeiroAcesso = !garcom.tutorial_visto;
   // na revisita (aba Tutorial, já visto antes) fica só os slides — sem botão nenhum
-  $(".tutorial-rodape").style.display = primeiroAcesso ? "block" : "none";
+  $("tutorial-rodape").style.display = primeiroAcesso ? "block" : "none";
 }
 $("ab-tutorial").onclick = abrirTutorial;
 $("ab-tutorial2").onclick = abrirTutorial;
