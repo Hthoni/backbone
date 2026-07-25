@@ -176,8 +176,8 @@
   <h2>Sócios</h2>
   <div class="linha">
     <div style="max-width:280px">
-      <label>FILTRAR POR BAR</label>
-      <select id="f-bar"><option value="">Todos os bares</option></select>
+      <label>BUSCAR SÓCIO</label>
+      <input id="soc-busca" type="text" placeholder="nome…">
     </div>
     <div style="flex:0">
       <button class="btn sec" id="b-recarregar">Recarregar</button>
@@ -186,9 +186,14 @@
   <div class="cartao" style="padding:0; overflow-x:auto">
     <table>
       <thead><tr>
-        <th>NOME</th><th>TELEFONE</th><th>BAR</th><th>TEMPORADA</th>
+        <th>NOME</th><th>TELEFONE</th>
+        <th><span class="f-col-soc" data-campo="bar"></span></th>
+        <th><span class="f-col-soc" data-campo="temporada"></span></th>
         <th class="num">PONTOS</th><th class="num">META</th>
-        <th class="num">INDICADOS</th><th>PADRINHO</th><th>PRÊMIO</th><th></th>
+        <th class="num">INDICADOS</th>
+        <th><span class="f-col-soc" data-campo="padrinho"></span></th>
+        <th><span class="f-col-soc" data-campo="premio"></span></th>
+        <th></th>
       </tr></thead>
       <tbody id="t-consumidores"><tr><td colspan="10" class="carregando">Carregando…</td></tr></tbody>
     </table>
@@ -496,47 +501,124 @@ document.querySelectorAll("nav button").forEach(b => {
   };
 });
 
-/* ── associados ── */
+/* ── sócios ── */
+let consumidoresLista = [];
+let socFiltros = {}; // campo -> Set de valores aceitos (ausente = todos)
+
+const SOC_CAMPOS = [
+  {id:"bar", rotulo:"Bar", extrai: c => c.indicador || "—"},
+  {id:"temporada", rotulo:"Temporada", extrai: c => c.temporada || "—"},
+  {id:"padrinho", rotulo:"Padrinho", extrai: c => c.padrinho ? "com padrinho" : "sem padrinho"},
+  {id:"premio", rotulo:"Prêmio", extrai: c => (c.recompensas_disponiveis > 0) ? "pendente" : "—"},
+];
+
 async function carregarConsumidores(){
-  const bar = $("f-bar").value;
   const tb = $("t-consumidores");
   tb.innerHTML = '<tr><td colspan="10" class="carregando">Carregando…</td></tr>';
   try{
-    const url = API + "/admin/consumidores" + (bar ? "?bar=" + encodeURIComponent(bar) : "");
-    const r = await fetch(url);
-    const lista = await r.json();
-    if(!lista.length){
-      tb.innerHTML = '<tr><td colspan="10" class="carregando">Nenhum sócio' + (bar ? " neste bar" : "") + '.</td></tr>';
-      $("resumo").textContent = "";
-      return;
-    }
-    lista.sort((a,b) => (b.cadastro_em || "").localeCompare(a.cadastro_em || ""));
-    tb.innerHTML = lista.map(c => {
-      const premio = c.recompensas_disponiveis > 0
-        ? '<span class="pill atencao">Pendente</span>'
-        : '<span class="pill neutro">—</span>';
-      return `<tr>
-        <td><strong>${c.nome || "—"}</strong></td>
-        <td>${c.telefone}</td>
-        <td>${c.indicador || "—"}</td>
-        <td>${c.temporada || "—"}</td>
-        <td class="num">${c.punches ?? 0}</td>
-        <td class="num">${c.meta ?? "—"}</td>
-        <td class="num">${c.total_indicados ?? 0}</td>
-        <td>${c.padrinho || "—"}</td>
-        <td>${premio}</td>
-        <td><button class="btn-x" onclick="apagarConsumidor('${c.telefone}', '${(c.nome || "").replace(/'/g, "")}')">apagar</button></td>
-      </tr>`;
-    }).join("");
-    const totIndicados = lista.filter(c => c.padrinho).length;
-    $("resumo").textContent = lista.length + " sócios" + (bar ? " no bar" : "") +
-      " · " + totIndicados + " vieram por indicação";
+    const r = await fetch(API + "/admin/consumidores");
+    consumidoresLista = await r.json();
+    montarFiltrosSoc();
+    renderConsumidores();
   }catch(e){
     tb.innerHTML = '<tr><td colspan="10" class="carregando">Erro ao carregar. O servidor pode estar acordando — tente de novo.</td></tr>';
   }
 }
+
+function socFiltrados(){
+  const busca = ($("soc-busca").value || "").trim().toLowerCase();
+  return consumidoresLista.filter(c => SOC_CAMPOS.every(f => {
+    const s = socFiltros[f.id];
+    return !s || s.has(f.extrai(c));
+  }) && (!busca || (c.nome || "").toLowerCase().includes(busca)));
+}
+
+function montarFiltrosSoc(){
+  SOC_CAMPOS.forEach(f => {
+    const alvo = document.querySelector('.f-col-soc[data-campo="' + f.id + '"]');
+    if(!alvo) return;
+    alvo.innerHTML = "";
+    const valores = [...new Set(consumidoresLista.map(f.extrai))].sort();
+    const drop = document.createElement("div");
+    drop.className = "f-drop";
+    const sel = socFiltros[f.id];
+    const btn = document.createElement("button");
+    btn.className = "f-btn f-col-btn" + (sel ? " ativo" : "");
+    btn.textContent = f.rotulo.toUpperCase() + (sel ? " (" + sel.size + ") ▾" : " ▾");
+    const painel = document.createElement("div");
+    painel.className = "f-painel";
+    const tn = document.createElement("div");
+    tn.className = "tn";
+    tn.innerHTML = "<span data-a='todos'>Todos</span><span data-a='nenhum'>Nenhum</span>";
+    painel.appendChild(tn);
+    valores.forEach(v => {
+      const lb = document.createElement("label");
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = !sel || sel.has(v);
+      cb.onchange = () => {
+        const marcados = [...painel.querySelectorAll("label input")].filter(x => x.checked)
+          .map(x => x.dataset.v);
+        socFiltros[f.id] = marcados.length === valores.length ? null : new Set(marcados);
+        if(!socFiltros[f.id]) delete socFiltros[f.id];
+        renderConsumidores(); montarFiltrosSoc();
+        painel.classList.add("on");
+      };
+      cb.dataset.v = v;
+      lb.appendChild(cb);
+      lb.appendChild(document.createTextNode(v));
+      painel.appendChild(lb);
+    });
+    tn.onclick = ev => {
+      const a = ev.target.dataset.a;
+      if(!a) return;
+      if(a === "todos"){ delete socFiltros[f.id]; }
+      else { socFiltros[f.id] = new Set(); }
+      renderConsumidores(); montarFiltrosSoc();
+    };
+    btn.onclick = ev => {
+      ev.stopPropagation();
+      document.querySelectorAll(".f-painel").forEach(p => { if(p !== painel) p.classList.remove("on"); });
+      painel.classList.toggle("on");
+    };
+    if(f.id === "padrinho" || f.id === "premio") painel.style.cssText += "left:auto; right:0";
+    drop.appendChild(btn); drop.appendChild(painel);
+    alvo.appendChild(drop);
+  });
+}
+
+function renderConsumidores(){
+  const tb = $("t-consumidores");
+  const lista = socFiltrados();
+  if(!lista.length){
+    tb.innerHTML = '<tr><td colspan="10" class="carregando">Nenhum sócio encontrado.</td></tr>';
+    $("resumo").textContent = "";
+    return;
+  }
+  lista.sort((a,b) => (b.cadastro_em || "").localeCompare(a.cadastro_em || ""));
+  tb.innerHTML = lista.map(c => {
+    const premio = c.recompensas_disponiveis > 0
+      ? '<span class="pill atencao">Pendente</span>'
+      : '<span class="pill neutro">—</span>';
+    return `<tr>
+      <td><strong>${c.nome || "—"}</strong></td>
+      <td>${c.telefone}</td>
+      <td>${c.indicador || "—"}</td>
+      <td>${c.temporada || "—"}</td>
+      <td class="num">${c.punches ?? 0}</td>
+      <td class="num">${c.meta ?? "—"}</td>
+      <td class="num">${c.total_indicados ?? 0}</td>
+      <td>${c.padrinho || "—"}</td>
+      <td>${premio}</td>
+      <td><button class="btn-x" onclick="apagarConsumidor('${c.telefone}', '${(c.nome || "").replace(/'/g, "")}')">apagar</button></td>
+    </tr>`;
+  }).join("");
+  const totIndicados = lista.filter(c => c.padrinho).length;
+  $("resumo").textContent = lista.length + " sócios (de " + consumidoresLista.length + " no total) · " +
+    totIndicados + " vieram por indicação";
+}
 $("b-recarregar").onclick = carregarConsumidores;
-$("f-bar").onchange = carregarConsumidores;
+$("soc-busca").oninput = renderConsumidores;
 
 /* ── push ── */
 $("b-push").onclick = async () => {
@@ -598,10 +680,9 @@ async function carregarBares(){
     baresLista = await rb.json();
     baresStats = (await rs.json()).bares || {};
 
-    // popular selects (garcom, filtro de sócios, filtro de bares)
+    // popular selects (garcom, filtro de bares)
     const ops = baresLista.map(b => `<option value="${b.id}">${b.nome || b.id}</option>`).join("");
     $("g-bar").innerHTML = ops;
-    $("f-bar").innerHTML = '<option value="">Todos os bares</option>' + ops;
     const filtroAtual = $("b-filtro").value;
     $("b-filtro").innerHTML = '<option value="">Todos os bares</option>' + ops;
     $("b-filtro").value = filtroAtual;
