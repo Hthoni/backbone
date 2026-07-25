@@ -513,7 +513,7 @@ async function carregarConsumidores(){
     lista.sort((a,b) => (b.cadastro_em || "").localeCompare(a.cadastro_em || ""));
     tb.innerHTML = lista.map(c => {
       const premio = c.recompensas_disponiveis > 0
-        ? '<span class="pill atencao">' + c.recompensas_disponiveis + ' pendente' + (c.recompensas_disponiveis > 1 ? 's' : '') + '</span>'
+        ? '<span class="pill atencao">Pendente</span>'
         : '<span class="pill neutro">—</span>';
       return `<tr>
         <td><strong>${c.nome || "—"}</strong></td>
@@ -712,15 +712,22 @@ $("b-criar-bar").onclick = async () => {
 /* ── garçons ── */
 let garconsLista = [];
 let garconsStats = {};
+let gestoresParaGarcons = [];
+let adminsParaGarcons = [];
+
 async function carregarGarcons(){
   const dias = parseInt($("g-dias")?.value || "30", 10);
   try{
-    const [rg, rs] = await Promise.all([
+    const [rg, rs, rt, ra] = await Promise.all([
       fetch(API + "/admin/garcons"),
-      fetch(API + "/admin/garcons/stats?dias=" + dias)
+      fetch(API + "/admin/garcons/stats?dias=" + dias),
+      fetch(API + "/admin/gestores"),
+      fetch(API + "/admin/admins"),
     ]);
     garconsLista = await rg.json();
     garconsStats = (await rs.json()).garcons || {};
+    gestoresParaGarcons = await rt.json();
+    adminsParaGarcons = await ra.json();
     renderGarcons();
   }catch(e){
     $("t-garcons").innerHTML = '<tr><td colspan="8" class="carregando">Erro ao carregar.</td></tr>';
@@ -729,7 +736,28 @@ async function carregarGarcons(){
 function renderGarcons(){
   const barFiltro = $("g-filtro-bar").value;
   const busca = ($("g-busca").value || "").trim().toLowerCase();
-  const lista = garconsLista.filter(g =>
+
+  // gestores/admins que escanearam aparecem nas estatisticas (o backend
+  // nao filtra por "e garcom de verdade"), mas nao estao em garconsLista —
+  // sem isso, o total de socios "some" entre a aba Socios e esta aba.
+  // So entram aqui quando NENHUM filtro de bar esta ativo, porque a
+  // atividade de gestor/admin nao fica presa a um unico bar.
+  const idsGarcons = new Set(garconsLista.map(g => g.id));
+  const extras = !barFiltro ? Object.keys(garconsStats)
+    .filter(id => !idsGarcons.has(id))
+    .map(id => {
+      const gestor = gestoresParaGarcons.find(x => x.id === id);
+      const admin = gestor ? null : adminsParaGarcons.find(x => x.id === id);
+      const quem = gestor || admin;
+      if(!quem) return null; // scan de origem desconhecida — nao inventa linha
+      return {
+        id, nome: quem.nome || id, telefone: quem.telefone || "",
+        tipo: gestor ? "Gestor" : "Admin", ativo: true,
+      };
+    })
+    .filter(Boolean) : [];
+
+  const lista = [...garconsLista, ...extras].filter(g =>
     (!barFiltro || g.bar_id === barFiltro) &&
     (!busca || (g.nome || "").toLowerCase().includes(busca))
   );
@@ -740,11 +768,18 @@ function renderGarcons(){
   $("t-garcons").innerHTML = lista.length
     ? lista.map(g => {
         const s = garconsStats[g.id];
+        const barCel = g.tipo ? `<span class="pill atencao">${g.tipo}</span>` : (g.bar_id || "—");
+        const statusCel = g.tipo
+          ? '<span class="pill neutro">—</span>'
+          : (g.ativo === false ? '<span class="pill neutro">inativo</span>' : '<span class="pill ok">ativo</span>');
+        const acoesCel = g.tipo
+          ? `<span class="mini">gerencie na aba ${g.tipo === "Admin" ? "Admins" : "Gestores"}</span>`
+          : `<button class="btn-x" style="color:var(--ambar);border-color:#5A4A1A" onclick='editarGarcom("${g.id}")'>editar</button> <button class="btn-x" onclick="apagarGarcom('${g.id}', '${(g.nome || "").replace(/'/g, "")}')">apagar</button>`;
         return `<tr>
-        <td><strong>${g.id}</strong></td><td>${g.nome || "—"}</td><td>${g.telefone || "—"}</td><td>${g.bar_id || "—"}</td>
+        <td><strong>${g.id}</strong></td><td>${g.nome || "—"}</td><td>${g.telefone || "—"}</td><td>${barCel}</td>
         ${cel(s,"cadastros")}${cel(s,"consumos")}${cel(s,"resgates")}
-        <td>${g.ativo === false ? '<span class="pill neutro">inativo</span>' : '<span class="pill ok">ativo</span>'}</td>
-        <td><button class="btn-x" style="color:var(--ambar);border-color:#5A4A1A" onclick='editarGarcom("${g.id}")'>editar</button> <button class="btn-x" onclick="apagarGarcom('${g.id}', '${(g.nome || "").replace(/'/g, "")}')">apagar</button></td>
+        <td>${statusCel}</td>
+        <td>${acoesCel}</td>
       </tr>`;}).join("")
     : '<tr><td colspan="9" class="carregando">Nenhum garçom encontrado.</td></tr>';
 }
