@@ -542,9 +542,23 @@ def admin_consumidores():
     todos = storage.listar_consumidores()
     if bar_filtro:
         todos = [c for c in todos if c.get("indicador") == bar_filtro]
+
+    # dias distintos que cada telefone teve o QR escaneado (punch ou
+    # resgate) — cadastro nao conta, e o mesmo dia com varios scans conta 1
+    dias_por_telefone = {}
+    for ev in storage.listar_eventos():
+        if ev.get("tipo") not in ("punch", "resgate"):
+            continue
+        tel = ev.get("telefone")
+        data = (ev.get("data") or "")[:10]  # YYYY-MM-DD
+        if not tel or not data:
+            continue
+        dias_por_telefone.setdefault(tel, set()).add(data)
+
     for c in todos:
         c["recompensas_disponiveis"] = len(_disponiveis(c))
         c["total_indicados"] = len(c.get("indicados", []))
+        c["dias_visitados"] = len(dias_por_telefone.get(c.get("telefone"), ()))
         c.pop("auth_token", None)   # nunca expor
     return jsonify(todos)
 
