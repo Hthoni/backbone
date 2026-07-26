@@ -188,14 +188,15 @@
       <thead><tr>
         <th>NOME</th><th>TELEFONE</th>
         <th><span class="f-col-soc" data-campo="bar"></span></th>
-        <th><span class="f-col-soc" data-campo="temporada"></span></th>
         <th class="num">PONTOS</th><th class="num">META</th>
         <th class="num">INDICADOS</th>
         <th><span class="f-col-soc" data-campo="padrinho"></span></th>
         <th><span class="f-col-soc" data-campo="premio"></span></th>
+        <th><span class="f-col-soc" data-campo="visitas"></span></th>
+        <th>ADESÃO</th>
         <th></th>
       </tr></thead>
-      <tbody id="t-consumidores"><tr><td colspan="10" class="carregando">Carregando…</td></tr></tbody>
+      <tbody id="t-consumidores"><tr><td colspan="11" class="carregando">Carregando…</td></tr></tbody>
     </table>
   </div>
   <div class="mini" id="resumo"></div>
@@ -235,9 +236,10 @@
           <th><span class="f-col" data-campo="time"></span></th>
           <th><span class="f-col" data-campo="pend"></span></th>
           <th class="num"><span class="f-col" data-campo="resg"></span></th>
+          <th class="num"><span class="f-col" data-campo="visitas"></span></th>
           <th><span class="f-col" data-campo="cep"></span></th>
         </tr></thead>
-        <tbody id="pm-corpo"><tr><td colspan="10" class="carregando">Carregando…</td></tr></tbody>
+        <tbody id="pm-corpo"><tr><td colspan="11" class="carregando">Carregando…</td></tr></tbody>
       </table>
     </div>
     <div class="msg" id="pm-contador" style="color:var(--ambar)"></div>
@@ -507,21 +509,24 @@ let socFiltros = {}; // campo -> Set de valores aceitos (ausente = todos)
 
 const SOC_CAMPOS = [
   {id:"bar", rotulo:"Bar", extrai: c => c.indicador || "—"},
-  {id:"temporada", rotulo:"Temporada", extrai: c => c.temporada || "—"},
   {id:"padrinho", rotulo:"Padrinho", extrai: c => c.padrinho ? "com padrinho" : "sem padrinho"},
   {id:"premio", rotulo:"Prêmio", extrai: c => (c.recompensas_disponiveis > 0) ? "pendente" : "—"},
+  {id:"visitas", rotulo:"Visitas", extrai: c => {
+      const v = c.dias_visitados || 0;
+      return v === 0 ? "0" : (v <= 2 ? "1-2" : (v <= 5 ? "3-5" : "6+"));
+  }},
 ];
 
 async function carregarConsumidores(){
   const tb = $("t-consumidores");
-  tb.innerHTML = '<tr><td colspan="10" class="carregando">Carregando…</td></tr>';
+  tb.innerHTML = '<tr><td colspan="11" class="carregando">Carregando…</td></tr>';
   try{
     const r = await fetch(API + "/admin/consumidores");
     consumidoresLista = await r.json();
     montarFiltrosSoc();
     renderConsumidores();
   }catch(e){
-    tb.innerHTML = '<tr><td colspan="10" class="carregando">Erro ao carregar. O servidor pode estar acordando — tente de novo.</td></tr>';
+    tb.innerHTML = '<tr><td colspan="11" class="carregando">Erro ao carregar. O servidor pode estar acordando — tente de novo.</td></tr>';
   }
 }
 
@@ -591,7 +596,7 @@ function renderConsumidores(){
   const tb = $("t-consumidores");
   const lista = socFiltrados();
   if(!lista.length){
-    tb.innerHTML = '<tr><td colspan="10" class="carregando">Nenhum sócio encontrado.</td></tr>';
+    tb.innerHTML = '<tr><td colspan="11" class="carregando">Nenhum sócio encontrado.</td></tr>';
     $("resumo").textContent = "";
     return;
   }
@@ -600,16 +605,18 @@ function renderConsumidores(){
     const premio = c.recompensas_disponiveis > 0
       ? '<span class="pill atencao">Pendente</span>'
       : '<span class="pill neutro">—</span>';
+    const adesao = c.cadastro_em ? new Date(c.cadastro_em).toLocaleDateString("pt-BR") : "—";
     return `<tr>
       <td><strong>${c.nome || "—"}</strong></td>
       <td>${c.telefone}</td>
       <td>${c.indicador || "—"}</td>
-      <td>${c.temporada || "—"}</td>
       <td class="num">${c.punches ?? 0}</td>
       <td class="num">${c.meta ?? "—"}</td>
       <td class="num">${c.total_indicados ?? 0}</td>
       <td>${c.padrinho || "—"}</td>
       <td>${premio}</td>
+      <td class="num">${c.dias_visitados ?? 0}</td>
+      <td>${adesao}</td>
       <td><button class="btn-x" onclick="apagarConsumidor('${c.telefone}', '${(c.nome || "").replace(/'/g, "")}')">apagar</button></td>
     </tr>`;
   }).join("");
@@ -1220,6 +1227,10 @@ const PM_CAMPOS = [
       const n = (c.recompensas||[]).filter(r => r.resgatada).length;
       return n === 0 ? "0" : (n <= 2 ? "1-2" : "3+");
   }},
+  {id:"visitas", rotulo:"Visitas", extrai: c => {
+      const v = c.dias_visitados || 0;
+      return v === 0 ? "0" : (v <= 2 ? "1-2" : (v <= 5 ? "3-5" : "6+"));
+  }},
   {id:"cep",  rotulo:"CEP",          extrai: c =>
       (c.cep || "").length >= 5 ? (c.cep.slice(0,5) + "-xxx") : "—"},
 ];
@@ -1294,7 +1305,7 @@ function pmRender(){
   const lista = pmFiltrados();
   const corpo = $("pm-corpo");
   if(!lista.length){
-    corpo.innerHTML = '<tr><td colspan="10" class="carregando">Nenhum sócio passa nos filtros.</td></tr>';
+    corpo.innerHTML = '<tr><td colspan="11" class="carregando">Nenhum sócio passa nos filtros.</td></tr>';
   } else {
     corpo.innerHTML = lista.map(c => {
       const marcado = !pmDesmarcados.has(c.telefone);
@@ -1309,6 +1320,7 @@ function pmRender(){
         <td>${c.time || "—"}</td>
         <td style="color:${pend === "sim" ? "var(--ambar)" : "var(--cinza)"}">${pend}</td>
         <td class="num">${(c.recompensas||[]).filter(r => r.resgatada).length}</td>
+        <td class="num">${c.dias_visitados ?? 0}</td>
         <td>${c.cep ? c.cep.slice(0,5) + "-" + c.cep.slice(5) : "—"}</td>
       </tr>`;
     }).join("");
@@ -1366,7 +1378,7 @@ async function pmCarregar(){
     pmBase = await r.json();
     pmMontarFiltros(); pmRender();
   }catch(e){
-    $("pm-corpo").innerHTML = '<tr><td colspan="10" class="carregando">Erro ao carregar.</td></tr>';
+    $("pm-corpo").innerHTML = '<tr><td colspan="11" class="carregando">Erro ao carregar.</td></tr>';
   }
 }
 
