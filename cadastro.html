@@ -97,10 +97,29 @@ const palavra = q.get("palavra") || "";
 const alvo = document.getElementById("conteudo");
 const ehIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
 
+/*
+ * Trava simples (nao e a prova de bala, e proposital): este navegador/
+ * aparelho ja concluiu um cadastro antes? Se sim, nem mostra o formulario
+ * de novo — evita o caso mais comum de alguem tentar "farmar" o chopp de
+ * boas-vindas varias vezes no mesmo celular digitando telefones diferentes.
+ * Nao pega aba anonima, limpar dados do site, outro navegador ou outro
+ * aparelho — mas ja tapa a maior parte do risco, sem custo e sem SMS.
+ */
+if(localStorage.getItem("bb_ja_cadastrou")){
+  jaBaixou();
+}
 /* ══ MODO 1: dados completos na URL (fluxo do bot) → cadastra direto ══ */
 /* ══ MODO 2: sem dados → formulário ══ */
-if(telQ && nomeQ){ cadastrar(bar, telQ, nomeQ, diaQ, mesQ, timeQ); }
+else if(telQ && nomeQ){ cadastrar(bar, telQ, nomeQ, diaQ, mesQ, timeQ); }
 else { formulario(); }
+
+function jaBaixou(){
+  alvo.innerHTML = `
+    <h1>Você já baixou seu cartão</h1>
+    <p>Este aparelho já tem um cadastro no Clube Backbone. Procure a Wallet do seu celular — o cartão já deve estar lá.</p>
+    <div class="aviso">Se você acha que isso é um engano, chame o atendente do bar.</div>
+  `;
+}
 
 function formulario(){
   const dias = Array.from({length:31}, (_,i) => `<option value="${i+1}">${i+1}</option>`).join("");
@@ -220,6 +239,9 @@ async function cadastrar(barU, tel, nome, dia, mes, time, cep){
 }
 
 function boasVindas(c){
+  // marca este aparelho/navegador como ja tendo baixado um cartao
+  try{ localStorage.setItem("bb_ja_cadastrou", "1"); }catch(e){}
+
   const botaoWallet = ehIOS
     ? '<a class="btn btn-verde" href="' + SERVER + '/cartao/' + c.telefone + '">Guardar na Wallet do seu telefone</a>'
     : '<a class="btn btn-verde" href="' + SERVER + '/gwallet/' + c.telefone + '">Guardar na Wallet do seu telefone</a>';
@@ -245,4 +267,3 @@ function boasVindas(c){
 </script>
 </body>
 </html>
-
