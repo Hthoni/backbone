@@ -167,6 +167,7 @@
   <button data-aba="garcons">Garçons</button>
   <button data-aba="gestores">Gestores</button>
   <button data-aba="admins">Admins</button>
+  <button data-aba="aliados">Aliados</button>
 </nav>
 
 <main>
@@ -474,6 +475,46 @@
   </div>
 </section>
 
+<!-- ══ ALIADOS ══ -->
+<section class="aba" id="aba-aliados">
+  <h2>Aliados</h2>
+  <p class="sub">Parceiros externos (estabelecimentos ao redor dos bares) que cadastram clientes pelo QR próprio. O cadastro só "completa" quando o cliente é escaneado de verdade no bar.</p>
+  <div class="cartao" style="padding:0; overflow-x:auto">
+    <table>
+      <thead><tr><th>ID (login)</th><th>NOME</th><th>TELEFONE</th><th>BAR</th><th>STATUS</th><th></th><th></th></tr></thead>
+      <tbody id="t-aliados"><tr><td colspan="7" class="carregando">Carregando…</td></tr></tbody>
+    </table>
+  </div>
+  <div class="cartao">
+    <h2 style="font-size:16px" id="aliado-form-titulo">Novo aliado</h2>
+    <div class="linha">
+      <div>
+        <label>ID DE LOGIN</label>
+        <input id="al-id" type="text" placeholder="cafedaesquina">
+      </div>
+      <div>
+        <label>NOME</label>
+        <input id="al-nome" type="text" placeholder="Café da Esquina">
+      </div>
+      <div>
+        <label>SENHA</label>
+        <input id="al-senha" type="text" placeholder="senha do aliado">
+      </div>
+      <div>
+        <label>TELEFONE</label>
+        <input id="al-tel" type="tel" placeholder="5521999998888">
+      </div>
+      <div>
+        <label>BAR (recebe os cadastros)</label>
+        <select id="al-bar"></select>
+      </div>
+    </div>
+    <button class="btn" id="b-criar-aliado">Criar aliado</button>
+    <button class="btn sec" id="b-cancelar-aliado" style="display:none; width:auto; margin-left:8px; padding:13px 22px">Cancelar edição</button>
+    <div class="msg" id="m-aliado"></div>
+  </div>
+</section>
+
 </main>
 
 <script>
@@ -690,6 +731,7 @@ async function carregarBares(){
     // popular selects (garcom, filtro de bares)
     const ops = baresLista.map(b => `<option value="${b.id}">${b.nome || b.id}</option>`).join("");
     $("g-bar").innerHTML = ops;
+    $("al-bar").innerHTML = ops;
     const filtroAtual = $("b-filtro").value;
     $("b-filtro").innerHTML = '<option value="">Todos os bares</option>' + ops;
     $("b-filtro").value = filtroAtual;
@@ -1162,6 +1204,122 @@ function apagarAdmin(id, nome){
   );
 }
 
+/* ── aliados ── */
+let aliadosLista = [];
+async function carregarAliados(){
+  try{
+    const r = await fetch(API + "/admin/aliados");
+    aliadosLista = await r.json();
+    const nomeBar = id => (baresLista.find(b => b.id === id) || {}).nome || id || "—";
+    $("t-aliados").innerHTML = aliadosLista.length
+      ? aliadosLista.map(a => `<tr>
+          <td><strong>${a.id}</strong></td><td>${a.nome || "—"}</td><td>${a.telefone || "—"}</td>
+          <td>${nomeBar(a.bar_id)}</td>
+          <td>${a.ativo === false ? '<span class="pill neutro">inativo</span>' : '<span class="pill ok">ativo</span>'}</td>
+          <td>
+            <button class="btn-x" style="color:#D6D4CC;border-color:#4A4A4A" onclick="abrirQrAliado('${a.id}')">QR / Link</button>
+            <button class="btn-x" style="color:var(--ambar);border-color:#5A4A1A" onclick="baixarDisplayAliado('${a.id}', this)">Display</button>
+          </td>
+          <td><button class="btn-x" style="color:var(--ambar);border-color:#5A4A1A" onclick='editarAliado("${a.id}")'>editar</button> <button class="btn-x" onclick="apagarAliado('${a.id}', '${(a.nome || "").replace(/'/g, "")}')">apagar</button></td>
+        </tr>`).join("")
+      : '<tr><td colspan="7" class="carregando">Nenhum aliado cadastrado.</td></tr>';
+  }catch(e){
+    $("t-aliados").innerHTML = '<tr><td colspan="7" class="carregando">Erro ao carregar.</td></tr>';
+  }
+}
+
+let editandoAliadoId = null;
+function editarAliado(id){
+  const a = aliadosLista.find(x => x.id === id);
+  if(!a) return;
+  editandoAliadoId = id;
+  $("al-id").value = a.id; $("al-id").disabled = true;
+  $("al-nome").value = a.nome || "";
+  $("al-senha").value = "";
+  $("al-senha").placeholder = "deixe em branco para manter a atual";
+  $("al-tel").value = a.telefone || "";
+  $("al-bar").value = a.bar_id || "";
+  $("aliado-form-titulo").textContent = "Editar aliado — " + a.id;
+  $("b-criar-aliado").textContent = "Salvar alterações";
+  $("b-cancelar-aliado").style.display = "inline-block";
+  $("aba-aliados").scrollIntoView({behavior:"smooth", block:"start"});
+}
+function cancelarEdicaoAliado(){
+  editandoAliadoId = null;
+  $("al-id").value = ""; $("al-id").disabled = false;
+  $("al-nome").value = ""; $("al-senha").value = ""; $("al-senha").placeholder = "senha do aliado"; $("al-tel").value = "";
+  $("aliado-form-titulo").textContent = "Novo aliado";
+  $("b-criar-aliado").textContent = "Criar aliado";
+  $("b-cancelar-aliado").style.display = "none";
+  $("m-aliado").textContent = "";
+}
+$("b-cancelar-aliado").onclick = cancelarEdicaoAliado;
+
+$("b-criar-aliado").onclick = async () => {
+  const m = $("m-aliado");
+  const id = ($("al-id").value || "").trim();
+  const nome = ($("al-nome").value || "").trim();
+  const senha = $("al-senha").value;
+  const bar_id = $("al-bar").value;
+  const telefone = ($("al-tel").value || "").replace(/\D/g, "");
+  if(!id || !nome || !bar_id || (!editandoAliadoId && !senha)){
+    m.className = "msg erro"; m.textContent = "Preencha ID, nome, bar e senha.";
+    return;
+  }
+  m.className = "msg"; m.textContent = editandoAliadoId ? "Salvando…" : "Criando…";
+  try{
+    const barNome = $("al-bar").selectedOptions[0]?.textContent || bar_id;
+    const corpo = {id, nome, bar_id, bar_nome: barNome, telefone, ativo: true};
+    if(senha) corpo.senha = senha;
+    const r = await fetch(API + "/admin/aliados", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify(corpo)
+    });
+    if(r.status === 409){
+      const d = await r.json();
+      m.className = "msg erro"; m.textContent = d.detalhe || "Telefone pertence a um associado.";
+      return;
+    }
+    if(!r.ok) throw 0;
+    m.className = "msg ok"; m.textContent = editandoAliadoId ? "Aliado atualizado." : "Aliado criado. Login: " + id;
+    cancelarEdicaoAliado();
+    carregarAliados();
+  }catch(e){ m.className = "msg erro"; m.textContent = "Não foi possível salvar."; }
+};
+function apagarAliado(id, nome){
+  confirmarExclusao(
+    "Apagar aliado?",
+    (nome || id) + " perde o acesso ao painel e o QR dele para de funcionar.",
+    "/admin/aliados/" + id,
+    carregarAliados
+  );
+}
+
+function abrirQrAliado(id){
+  const link = API + "/a/" + encodeURIComponent(id);
+  document.getElementById("mq-titulo").textContent = "Cadastro — aliado " + id;
+  document.getElementById("mq-img").src =
+    "https://api.qrserver.com/v1/create-qr-code/?size=480x480&data=" + encodeURIComponent(link);
+  document.getElementById("mq-link").textContent = link;
+  document.getElementById("mq-arte-msg").textContent = "";
+  const b = document.getElementById("mq-copiar");
+  b.textContent = "Copiar link";
+  b.onclick = async () => {
+    try{
+      await navigator.clipboard.writeText(link);
+      b.textContent = "Copiado!";
+      setTimeout(() => b.textContent = "Copiar link", 1500);
+    }catch(e){ alert(link); }
+  };
+  document.getElementById("mq-baixar-arte").onclick = () =>
+    baixarArteQr(link, "aliado-" + id, document.getElementById("mq-baixar-arte"), document.getElementById("mq-arte-msg"));
+  document.getElementById("modal-qr").classList.add("on");
+}
+function baixarDisplayAliado(id, btnEl){
+  const link = API + "/a/" + encodeURIComponent(id);
+  baixarArteQr(link, "aliado-" + id, btnEl, null);
+}
+
 
 /* ── exclusao com confirmacao ── */
 function fecharModal(){ document.getElementById("modal").classList.remove("on"); }
@@ -1495,7 +1653,7 @@ async function desbloquear(tel, bar){
 }
 
 /* ── início ── */
-carregarBares().then(() => { carregarConsumidores(); carregarGestores(); });
+carregarBares().then(() => { carregarConsumidores(); carregarGestores(); carregarAliados(); });
 carregarAdmins();
 carregarConfig();
 carregarBloqueados();
