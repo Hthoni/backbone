@@ -117,15 +117,15 @@ $("b-entrar").onclick = async () => {
       return;
     }
 
-    // nao era admin (ou senha errada) — tenta como aliado
-    const rl = await fetch(API + "/login-aliado", {
+    // nao era admin (ou senha errada) — tenta como colab
+    const rl = await fetch(API + "/login-colab", {
       method:"POST", headers:{"Content-Type":"application/json"},
       body: JSON.stringify({id, senha})
     });
     if(rl.ok){
       const d = await rl.json();
-      localStorage.setItem("bb_aliado", JSON.stringify(d));
-      location.href = "aliado.html";
+      localStorage.setItem("bb_colab", JSON.stringify(d));
+      location.href = "colab.html";
       return;
     }
     if(rl.status !== 401 && rl.status !== 403){
