@@ -93,6 +93,7 @@ const mesQ  = q.get("mes")  || "";
 const timeQ = q.get("time") || "";
 const ind   = (q.get("padrinho") || q.get("ind") || "").replace(/\D/g, "");
 const palavra = q.get("palavra") || "";
+const aliado = q.get("aliado") || "";
 
 const alvo = document.getElementById("conteudo");
 const ehIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
@@ -219,6 +220,7 @@ async function cadastrar(barU, tel, nome, dia, mes, time, cep){
   if(ind && ind !== tel) extras.push("padrinho=" + ind);
   if(palavra) extras.push("palavra=" + encodeURIComponent(palavra));
   if(cep) extras.push("cep=" + cep);
+  if(aliado) extras.push("aliado=" + encodeURIComponent(aliado));
   if(extras.length) url += "?" + extras.join("&");
 
   try{
