@@ -232,7 +232,6 @@
   <div class="conteudo aba-conteudo" id="aba-atual" style="display:none">
     <div id="atual-aviso"></div>
     <div id="atual-corpo"><div class="carregando">Carregando…</div></div>
-    <button class="btn" id="b-adicionar-garcom" style="display:none; background:var(--verde); color:#fff; margin-top:6px">+ Adicionar Garçom</button>
   </div>
 
   <!-- Atividade -->
@@ -359,6 +358,7 @@ function mesHoje(){
   return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0");
 }
 function nomeMes(m){
+  if(m === "todos") return "todo o período";
   const [ano, mes] = m.split("-");
   const nomes = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
   return nomes[parseInt(mes, 10) - 1] + " de " + ano;
@@ -489,7 +489,6 @@ function escolherBar(bar){
   $("b-trocar").style.display = (gestor.bares.length > 1) ? "flex" : "none";
   $("b-painel").style.display = localStorage.getItem("bb_admin") ? "flex" : "none";
   $("ab-scanner").style.display = (bar.id === "*") ? "none" : "";
-  $("b-adicionar-garcom").style.display = (bar.id === "*") ? "none" : "block";
   mostrar("dash");
   mudarAba("historico");
 }
@@ -498,9 +497,17 @@ $("b-painel").onclick = () => { location.href = "escolha.html"; };
 
 function gridMetricas(t){
   return `<div class="grid-metricas">
-    <div class="metrica"><span class="n">${t.cadastros}</span><span class="r">Boas-vindas</span></div>
-    <div class="metrica"><span class="n">${t.pontuacao}</span><span class="r">Pontuação</span></div>
-    <div class="metrica"><span class="n">${t.resgates}</span><span class="r">Resgates</span></div>
+    <div class="metrica"><span class="n">${t.cadastros}</span><span class="r">Sócio</span></div>
+    <div class="metrica"><span class="n">${t.pontuacao}</span><span class="r">Pontos</span></div>
+    <div class="metrica"><span class="n">${t.resgates}</span><span class="r">Resgate</span></div>
+  </div>`;
+}
+function gridMetricasComFicha(t){
+  return `<div class="grid-metricas" style="grid-template-columns:repeat(4,1fr)">
+    <div class="metrica"><span class="n">${t.fichas ?? 0}</span><span class="r">Ficha</span></div>
+    <div class="metrica"><span class="n">${t.cadastros}</span><span class="r">Sócio</span></div>
+    <div class="metrica"><span class="n">${t.pontuacao}</span><span class="r">Pontos</span></div>
+    <div class="metrica"><span class="n">${t.resgates}</span><span class="r">Resgate</span></div>
   </div>`;
 }
 
@@ -532,16 +539,16 @@ async function carregarHistorico(){
     const d = await r.json();
 
     let html = `<div class="titulo-secao">Totais</div>
-      <div class="card somatorio">
+      <div class="card somatorio" onclick='abrirMes("todos")'>
         <div class="titulo">Desde o início</div>
-        ${gridMetricas(d.totais)}
+        ${gridMetricasComFicha(d.totais)}
       </div>
       <div class="titulo-secao">Por mês</div>`;
 
     html += d.meses.length ? d.meses.map(m => `<div class="card card-mes" onclick='abrirMes("${m.mes}")'>
         <div>
           <div class="titulo">${nomeMes(m.mes)}</div>
-          ${gridMetricas(m)}
+          ${gridMetricasComFicha(m)}
         </div>
       </div>`).join("") : '<div class="carregando">Nenhum evento registrado ainda.</div>';
 
@@ -568,12 +575,12 @@ async function carregarAtual(){
     const r = await fetch(API + "/bar/" + encodeURIComponent(barAtivo.id) + "/resumo?mes=" + mesSelecionado);
     const d = await r.json();
     garconsAtuais = d.garcons || [];
-    const aliadosAtuais = d.aliados || [];
+    const colabsAtuais = d.colabs || [];
 
     let html = `<div class="titulo-secao">${nomeMes(mesSelecionado)}</div>
       <div class="card somatorio">
         <div class="titulo">${barAtivo.nome}</div>
-        ${gridMetricas(d.totais)}
+        ${gridMetricasComFicha(d.totais)}
       </div>
       <div class="titulo-secao">Por garçom</div>`;
 
@@ -582,27 +589,32 @@ async function carregarAtual(){
         ${gridMetricas(g)}
       </div>`).join("") : '<div class="carregando">Nenhum garçom com movimento neste mês.</div>';
 
-    if(aliadosAtuais.length){
-      html += `<div class="titulo-secao">Por aliado</div>`;
-      html += aliadosAtuais.map(a => `<div class="card">
+    if(barAtivo.id !== "*"){
+      html += `<button class="btn" id="b-adicionar-garcom" style="background:var(--verde); color:#fff; margin:6px 0 0">+ Adicionar Garçom</button>`;
+    }
+
+    if(colabsAtuais.length){
+      html += `<div class="titulo-secao">Por colab</div>`;
+      html += colabsAtuais.map(a => `<div class="card">
         <div class="titulo">${a.nome}</div>
-        ${gridMetricas(a)}
+        ${gridMetricasComFicha(a)}
       </div>`).join("");
     }
 
     $("atual-corpo").innerHTML = html;
+    const btnAddGarcom = document.getElementById("b-adicionar-garcom");
+    if(btnAddGarcom) btnAddGarcom.onclick = () => {
+      $("ng-bar-nome").textContent = barAtivo.nome;
+      $("ng-id").value = ""; $("ng-nome").value = ""; $("ng-senha").value = ""; $("ng-tel").value = "";
+      $("ng-erro").textContent = "";
+      mostrar("novo-garcom");
+    };
   }catch(e){
     $("atual-corpo").innerHTML = '<div class="carregando">Não foi possível carregar.</div>';
   }
 }
 
 /* ── Adicionar garçom (rodapé da aba Atual, só em bar real) ── */
-$("b-adicionar-garcom").onclick = () => {
-  $("ng-bar-nome").textContent = barAtivo.nome;
-  $("ng-id").value = ""; $("ng-nome").value = ""; $("ng-senha").value = ""; $("ng-tel").value = "";
-  $("ng-erro").textContent = "";
-  mostrar("novo-garcom");
-};
 $("b-fechar-novo-garcom").onclick = () => mostrar("dash");
 
 $("b-salvar-novo-garcom").onclick = async () => {
