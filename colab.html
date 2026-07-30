@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#000000">
-<title>Clube Backbone — Painel do aliado</title>
+<title>Clube Backbone — Painel do colab</title>
 <style>
   :root{
     --preto:#000; --preto2:#141414; --linha:#2B2B2B;
@@ -87,7 +87,7 @@
 <section id="t-login" class="tela on">
   <div class="cab">
     <img src="clube_logo.png" alt="Clube Backbone">
-    <div class="id">PAINEL DO ALIADO</div>
+    <div class="id">PAINEL DO COLAB</div>
   </div>
   <div class="login">
     <h1>Veja os resultados dos clientes que você indicou.</h1>
@@ -128,7 +128,7 @@
 const API = "https://backbone-650557630362.us-central1.run.app";
 const $ = id => document.getElementById(id);
 
-let aliado = null;
+let colab = null;
 let mesAtual = "";
 let mesSelecionado = "";
 
@@ -141,15 +141,17 @@ function mesHoje(){
   return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0");
 }
 function nomeMes(m){
+  if(m === "todos") return "todo o período";
   const [ano, mes] = m.split("-");
   const nomes = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
   return nomes[parseInt(mes, 10) - 1] + " de " + ano;
 }
 function gridMetricas(t){
-  return `<div class="grid-metricas">
-    <div class="metrica"><span class="n">${t.cadastros}</span><span class="r">Boas-vindas</span></div>
-    <div class="metrica"><span class="n">${t.pontuacao}</span><span class="r">Pontuação</span></div>
-    <div class="metrica"><span class="n">${t.resgates}</span><span class="r">Resgates</span></div>
+  return `<div class="grid-metricas" style="grid-template-columns:repeat(4,1fr)">
+    <div class="metrica"><span class="n">${t.fichas ?? 0}</span><span class="r">Ficha</span></div>
+    <div class="metrica"><span class="n">${t.cadastros}</span><span class="r">Sócio</span></div>
+    <div class="metrica"><span class="n">${t.pontuacao}</span><span class="r">Pontos</span></div>
+    <div class="metrica"><span class="n">${t.resgates}</span><span class="r">Resgate</span></div>
   </div>`;
 }
 
@@ -161,19 +163,19 @@ $("b-entrar").onclick = async () => {
   $("b-entrar").disabled = true;
   $("b-entrar").textContent = "ENTRANDO…";
   try{
-    const r = await fetch(API + "/login-aliado", {
+    const r = await fetch(API + "/login-colab", {
       method:"POST", headers:{"Content-Type":"application/json"},
       body: JSON.stringify({id, senha})
     });
     const d = await r.json();
     if(!r.ok){
-      $("erro-login").textContent = d.erro === "aliado_inativo"
+      $("erro-login").textContent = d.erro === "colab_inativo"
         ? "Seu acesso está desativado. Fale com a Backbone."
         : "Código ou senha incorretos.";
       return;
     }
-    aliado = d;
-    localStorage.setItem("bb_aliado", JSON.stringify(d));
+    colab = d;
+    localStorage.setItem("bb_colab", JSON.stringify(d));
     mesAtual = mesHoje();
     entrar();
   }catch(e){
@@ -184,13 +186,13 @@ $("b-entrar").onclick = async () => {
   }
 };
 $("b-sair").onclick = () => {
-  localStorage.removeItem("bb_aliado");
-  aliado = null;
+  localStorage.removeItem("bb_colab");
+  colab = null;
   mostrar("login");
 };
 
 function entrar(){
-  $("dash-nome").innerHTML = aliado.nome + "<small>" + (aliado.bar_nome || aliado.bar_id || "") + "</small>";
+  $("dash-nome").innerHTML = colab.nome + "<small>" + (colab.bar_nome || colab.bar_id || "") + "</small>";
   mostrar("dash");
   mudarAba("historico");
 }
@@ -209,11 +211,11 @@ document.querySelectorAll(".abas button").forEach(b => b.onclick = () => mudarAb
 async function carregarHistorico(){
   $("hist-corpo").innerHTML = '<div class="carregando">Carregando…</div>';
   try{
-    const r = await fetch(API + "/aliado/" + encodeURIComponent(aliado.aliado_id) + "/historico");
+    const r = await fetch(API + "/colab/" + encodeURIComponent(colab.colab_id) + "/historico");
     const d = await r.json();
 
     let html = `<div class="titulo-secao">Totais</div>
-      <div class="card somatorio">
+      <div class="card somatorio" style="cursor:pointer" onclick='abrirMes("todos")'>
         <div class="titulo">Desde o início</div>
         ${gridMetricas(d.totais)}
       </div>
@@ -242,11 +244,11 @@ async function carregarAtual(){
     : "";
   $("atual-corpo").innerHTML = '<div class="carregando">Carregando…</div>';
   try{
-    const r = await fetch(API + "/aliado/" + encodeURIComponent(aliado.aliado_id) + "/resumo?mes=" + mesSelecionado);
+    const r = await fetch(API + "/colab/" + encodeURIComponent(colab.colab_id) + "/resumo?mes=" + mesSelecionado);
     const d = await r.json();
     $("atual-corpo").innerHTML = `<div class="titulo-secao">${nomeMes(mesSelecionado)}</div>
       <div class="card somatorio">
-        <div class="titulo">${aliado.nome}</div>
+        <div class="titulo">${colab.nome}</div>
         ${gridMetricas(d.totais)}
         <div class="sub" style="margin-top:10px">${d.total_clientes} cliente(s) indicado(s) no total</div>
       </div>`;
@@ -258,9 +260,9 @@ async function carregarAtual(){
 /* ══ INÍCIO ══ */
 (function(){
   mesAtual = mesHoje();
-  const salvo = localStorage.getItem("bb_aliado");
+  const salvo = localStorage.getItem("bb_colab");
   if(salvo){
-    try{ aliado = JSON.parse(salvo); entrar(); return; }catch(e){}
+    try{ colab = JSON.parse(salvo); entrar(); return; }catch(e){}
   }
   mostrar("login");
 })();
