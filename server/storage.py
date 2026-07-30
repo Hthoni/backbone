@@ -339,6 +339,39 @@ def apagar_admin(admin_id: str):
         blob.delete()
 
 
+# ── Aliados (parceiros externos que cadastram clientes por QR) ──
+
+def salvar_aliado(dados: dict):
+    blob = _bucket().blob(f"aliados/{dados['id']}.json")
+    blob.upload_from_string(json.dumps(dados, ensure_ascii=False), content_type="application/json")
+
+
+def carregar_aliado(aliado_id: str):
+    blob = _bucket().blob(f"aliados/{aliado_id}.json")
+    if not blob.exists():
+        return None
+    return json.loads(blob.download_as_text())
+
+
+def listar_aliados():
+    client = storage.Client()
+    blobs = client.list_blobs(BUCKET_NAME, prefix="aliados/")
+    aliados = []
+    for blob in blobs:
+        if blob.name.endswith(".json"):
+            try:
+                aliados.append(json.loads(blob.download_as_text()))
+            except Exception:
+                pass
+    return aliados
+
+
+def apagar_aliado(aliado_id: str):
+    blob = _bucket().blob(f"aliados/{aliado_id}.json")
+    if blob.exists():
+        blob.delete()
+
+
 def carregar_bloqueados():
     """
     Lista de bloqueios de associacao (antifraude), POR BAR.
