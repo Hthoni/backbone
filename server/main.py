@@ -82,6 +82,13 @@ def cadastro(bar, telefone, nome, dia, mes, time):
     if indicador_tel == telefone:
         indicador_tel = ""  # auto-indicacao bloqueada
 
+    # aliado que originou este cadastro (QR do parceiro externo) —
+    # so grava se o id realmente existe, pra nao guardar lixo
+    aliado_id = (request.args.get("aliado", "") or "").strip()
+    aliado = storage.carregar_aliado(aliado_id) if aliado_id else None
+    if aliado_id and not aliado:
+        aliado_id = ""
+
     # TRAVA ANTIFRAUDE: lista fria POR BAR (numeros vetados pelo dono)
     for b in storage.carregar_bloqueados():
         if b["telefone"] == telefone and (b["bar"] == "*" or b["bar"] == bar):
@@ -106,6 +113,7 @@ def cadastro(bar, telefone, nome, dia, mes, time):
         "telefone": telefone,
         "nome": nome,
         "indicador": bar,
+        "aliado": aliado_id or None,
         "palavra_chave": palavra_chave,
         "cep": cep,
         "nascimento_dia": dia,
@@ -144,6 +152,7 @@ def cadastro(bar, telefone, nome, dia, mes, time):
     storage.salvar_evento({
         "id": str(uuid.uuid4()), "tipo": "cadastro", "telefone": telefone,
         "bar": bar, "garcom_id": None, "padrinho": consumidor["padrinho"],
+        "aliado": aliado_id or None,
         "data": agora(),
     })
 
@@ -734,6 +743,126 @@ def admin_apagar_admin(admin_id):
     return jsonify({"status": "apagado", "id": admin_id})
 
 
+# ══════════════════════════════════════════════════════════════
+#  ALIADOS — parceiros externos (estabelecimentos ao redor dos bares)
+#  que originam cadastros por QR proprio. Nao escaneiam consumo —
+#  so cadastram. O painel deles mostra cadastros/boas-vindas/resgates
+#  dos clientes que eles trouxeram, no mesmo formato do gestor.
+# ══════════════════════════════════════════════════════════════
+
+@app.route("/login-aliado", methods=["POST"])
+def login_aliado():
+    dados = request.get_json() or {}
+    aliado = storage.carregar_aliado(dados.get("id"))
+    if not aliado or aliado.get("senha") != dados.get("senha"):
+        return jsonify({"erro": "credenciais_invalidas"}), 401
+    if not aliado.get("ativo", True):
+        return jsonify({"erro": "aliado_inativo"}), 403
+    return jsonify({
+        "status": "ok", "aliado_id": aliado["id"], "nome": aliado["nome"],
+        "bar_id": aliado.get("bar_id", ""), "bar_nome": aliado.get("bar_nome", ""),
+    })
+
+
+@app.route("/admin/aliados")
+def admin_aliados():
+    aliados = storage.listar_aliados()
+    for a in aliados:
+        a.pop("senha", None)
+    return jsonify(aliados)
+
+
+@app.route("/admin/aliados", methods=["POST"])
+def admin_criar_aliado():
+    dados = request.get_json()
+    tel_a = so_digitos(dados.get("telefone", ""))
+    if tel_a and storage.carregar_consumidor(tel_a):
+        return jsonify({"erro": "telefone_de_associado",
+                        "detalhe": "Este telefone pertence a um associado. "
+                                   "Aliado não pode ser associado — apague o cadastro dele antes."}), 409
+    dados["telefone"] = tel_a
+
+    existente = storage.carregar_aliado(dados.get("id")) if dados.get("id") else None
+    if existente and not dados.get("senha"):
+        dados["senha"] = existente.get("senha")  # edicao sem trocar senha: mantem a atual
+
+    dados.setdefault("id", str(uuid.uuid4())[:8])
+    dados.setdefault("ativo", True)
+    storage.salvar_aliado(dados)
+    resposta = dict(dados)
+    resposta.pop("senha", None)
+    return jsonify({"status": "ok", "aliado": resposta})
+
+
+@app.route("/admin/aliados/<aliado_id>", methods=["DELETE"])
+def admin_apagar_aliado(aliado_id):
+    a = storage.carregar_aliado(aliado_id)
+    if not a:
+        return jsonify({"erro": "nao_encontrado"}), 404
+    storage.apagar_aliado(aliado_id)
+    return jsonify({"status": "apagado", "id": aliado_id})
+
+
+def _telefones_do_aliado(aliado_id):
+    return {c["telefone"] for c in storage.listar_consumidores() if c.get("aliado") == aliado_id}
+
+
+@app.route("/aliado/<aliado_id>/resumo")
+def aliado_resumo(aliado_id):
+    """
+    Mesma logica do /bar/<id>/resumo, so que filtrando pelos CLIENTES
+    que este aliado trouxe (nao por bar/garcom de quem escaneou).
+    ?mes=2026-07 (default: mes corrente)
+    """
+    mes = request.args.get("mes") or datetime.now(timezone.utc).strftime("%Y-%m")
+    telefones = _telefones_do_aliado(aliado_id)
+
+    totais = {"cadastros": 0, "pontuacao": 0, "resgates": 0}
+    for ev in storage.listar_eventos():
+        if ev.get("telefone") not in telefones:
+            continue
+        if not (ev.get("data") or "").startswith(mes):
+            continue
+        tipo = ev.get("tipo")
+        if tipo == "punch":
+            totais["pontuacao"] += 1
+        elif tipo == "resgate":
+            cat = "cadastros" if ev.get("tipo_recompensa") == "boas_vindas" else "resgates"
+            totais[cat] += 1
+
+    return jsonify({"aliado_id": aliado_id, "mes": mes, "totais": totais,
+                     "total_clientes": len(telefones)})
+
+
+@app.route("/aliado/<aliado_id>/historico")
+def aliado_historico(aliado_id):
+    """Mesma logica do /bar/<id>/historico, filtrado pelos clientes do aliado."""
+    telefones = _telefones_do_aliado(aliado_id)
+
+    totais_geral = {"cadastros": 0, "pontuacao": 0, "resgates": 0}
+    por_mes = {}
+    for ev in storage.listar_eventos():
+        if ev.get("telefone") not in telefones:
+            continue
+        data = ev.get("data") or ""
+        if len(data) < 7:
+            continue
+        mes = data[:7]
+        tipo = ev.get("tipo")
+        if tipo == "punch":
+            cat = "pontuacao"
+        elif tipo == "resgate":
+            cat = "cadastros" if ev.get("tipo_recompensa") == "boas_vindas" else "resgates"
+        else:
+            continue
+        totais_geral[cat] += 1
+        m = por_mes.setdefault(mes, {"mes": mes, "cadastros": 0, "pontuacao": 0, "resgates": 0})
+        m[cat] += 1
+
+    meses = sorted(por_mes.values(), key=lambda m: m["mes"], reverse=True)
+    return jsonify({"aliado_id": aliado_id, "totais": totais_geral, "meses": meses})
+
+
 @app.route("/gwallet/<telefone>")
 def gwallet_link(telefone):
     """Redireciona para o link 'Salvar no Google Wallet' do consumidor."""
@@ -857,6 +986,24 @@ def qr_universal(telefone):
     indicador = c.get("indicador", "") or ""
     destino = (f"https://hthoni.github.io/backbone/cadastro.html"
                f"?indicador={quote(indicador)}&padrinho={tel}")
+    return Response(status=302, headers={"Location": destino})
+
+
+@app.route("/a/<aliado_id>")
+def qr_aliado(aliado_id):
+    """
+    Destino do QR que o Aliado (parceiro externo) expoe no
+    estabelecimento dele. Redireciona pro cadastro ja com o bar do
+    aliado preenchido, e marcando a origem — o cadastro so "completa"
+    de verdade quando o cliente for escaneado de fato no bar (mesmo
+    fluxo de sempre: boas-vindas fica pendente ate o garcom escanear).
+    """
+    from urllib.parse import quote
+    aliado = storage.carregar_aliado(aliado_id)
+    if not aliado:
+        return Response("Link invalido.", status=404, mimetype="text/plain")
+    destino = (f"https://hthoni.github.io/backbone/cadastro.html"
+               f"?indicador={quote(aliado.get('bar_id',''))}&aliado={quote(aliado_id)}")
     return Response(status=302, headers={"Location": destino})
 
 
@@ -1006,9 +1153,11 @@ def bar_resumo(bar_id):
     garcons_map = {g["id"]: g.get("nome", g["id"]) for g in storage.listar_garcons()}
     garcons_map.update({g["id"]: g.get("nome", g["id"]) for g in storage.listar_gestores()})
     garcons_map.update({a["id"]: a.get("nome", a["id"]) for a in storage.listar_admins()})
+    aliados_map = {a["id"]: a.get("nome", a["id"]) for a in storage.listar_aliados()}
 
     totais = {"cadastros": 0, "pontuacao": 0, "resgates": 0}
     por_garcom = {}
+    por_aliado = {}
 
     # todo garcom do bar aparece desde ja, mesmo com zero atividade —
     # senao um garcom recem-criado some da lista ate escanear o 1o chopp
@@ -1019,6 +1168,21 @@ def bar_resumo(bar_id):
                     "garcom_id": g["id"], "nome": g.get("nome", g["id"]),
                     "cadastros": 0, "pontuacao": 0, "resgates": 0,
                 }
+        for a in storage.listar_aliados():
+            if a.get("bar_id") == bar_id:
+                por_aliado[a["id"]] = {
+                    "aliado_id": a["id"], "nome": a.get("nome", a["id"]),
+                    "cadastros": 0, "pontuacao": 0, "resgates": 0,
+                }
+
+    # telefone -> aliado que o trouxe (so dos aliados deste bar)
+    aliado_do_telefone = {}
+    if bar_id == "*" or por_aliado:
+        ids_aliados_do_bar = set(por_aliado.keys()) if bar_id != "*" else None
+        for c in storage.listar_consumidores():
+            al = c.get("aliado")
+            if al and (ids_aliados_do_bar is None or al in ids_aliados_do_bar):
+                aliado_do_telefone[c["telefone"]] = al
 
     for ev in storage.listar_eventos():
         if bar_id != "*" and ev.get("bar") != bar_id:
@@ -1044,11 +1208,19 @@ def bar_resumo(bar_id):
             })
             g[cat] += 1
 
+        aid = aliado_do_telefone.get(ev.get("telefone"))
+        if aid:
+            a = por_aliado.setdefault(aid, {
+                "aliado_id": aid, "nome": aliados_map.get(aid, aid), "cadastros": 0, "pontuacao": 0, "resgates": 0,
+            })
+            a[cat] += 1
+
     return jsonify({
         "bar_id": bar_id,
         "mes": mes,
         "totais": totais,
         "garcons": sorted(por_garcom.values(), key=lambda g: g["nome"]),
+        "aliados": sorted(por_aliado.values(), key=lambda a: a["nome"]),
     })
 
 
