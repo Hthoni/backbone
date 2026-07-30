@@ -339,35 +339,35 @@ def apagar_admin(admin_id: str):
         blob.delete()
 
 
-# ── Aliados (parceiros externos que cadastram clientes por QR) ──
+# ── Colabs (parceiros externos que cadastram clientes por QR) ──
 
-def salvar_aliado(dados: dict):
-    blob = _bucket().blob(f"aliados/{dados['id']}.json")
+def salvar_colab(dados: dict):
+    blob = _bucket().blob(f"colabs/{dados['id']}.json")
     blob.upload_from_string(json.dumps(dados, ensure_ascii=False), content_type="application/json")
 
 
-def carregar_aliado(aliado_id: str):
-    blob = _bucket().blob(f"aliados/{aliado_id}.json")
+def carregar_colab(colab_id: str):
+    blob = _bucket().blob(f"colabs/{colab_id}.json")
     if not blob.exists():
         return None
     return json.loads(blob.download_as_text())
 
 
-def listar_aliados():
+def listar_colabs():
     client = storage.Client()
-    blobs = client.list_blobs(BUCKET_NAME, prefix="aliados/")
-    aliados = []
+    blobs = client.list_blobs(BUCKET_NAME, prefix="colabs/")
+    colabs = []
     for blob in blobs:
         if blob.name.endswith(".json"):
             try:
-                aliados.append(json.loads(blob.download_as_text()))
+                colabs.append(json.loads(blob.download_as_text()))
             except Exception:
                 pass
-    return aliados
+    return colabs
 
 
-def apagar_aliado(aliado_id: str):
-    blob = _bucket().blob(f"aliados/{aliado_id}.json")
+def apagar_colab(colab_id: str):
+    blob = _bucket().blob(f"colabs/{colab_id}.json")
     if blob.exists():
         blob.delete()
 
