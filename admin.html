@@ -167,7 +167,7 @@
   <button data-aba="garcons">Garçons</button>
   <button data-aba="gestores">Gestores</button>
   <button data-aba="admins">Admins</button>
-  <button data-aba="aliados">Aliados</button>
+  <button data-aba="colabs">Colabs</button>
 </nav>
 
 <main>
@@ -475,18 +475,18 @@
   </div>
 </section>
 
-<!-- ══ ALIADOS ══ -->
-<section class="aba" id="aba-aliados">
-  <h2>Aliados</h2>
+<!-- ══ COLABS ══ -->
+<section class="aba" id="aba-colabs">
+  <h2>Colabs</h2>
   <p class="sub">Parceiros externos (estabelecimentos ao redor dos bares) que cadastram clientes pelo QR próprio. O cadastro só "completa" quando o cliente é escaneado de verdade no bar.</p>
   <div class="cartao" style="padding:0; overflow-x:auto">
     <table>
       <thead><tr><th>ID (login)</th><th>NOME</th><th>TELEFONE</th><th>BAR</th><th>STATUS</th><th></th><th></th></tr></thead>
-      <tbody id="t-aliados"><tr><td colspan="7" class="carregando">Carregando…</td></tr></tbody>
+      <tbody id="t-colabs"><tr><td colspan="7" class="carregando">Carregando…</td></tr></tbody>
     </table>
   </div>
   <div class="cartao">
-    <h2 style="font-size:16px" id="aliado-form-titulo">Novo aliado</h2>
+    <h2 style="font-size:16px" id="colab-form-titulo">Novo colab</h2>
     <div class="linha">
       <div>
         <label>ID DE LOGIN</label>
@@ -498,7 +498,7 @@
       </div>
       <div>
         <label>SENHA</label>
-        <input id="al-senha" type="text" placeholder="senha do aliado">
+        <input id="al-senha" type="text" placeholder="senha do colab">
       </div>
       <div>
         <label>TELEFONE</label>
@@ -509,9 +509,9 @@
         <select id="al-bar"></select>
       </div>
     </div>
-    <button class="btn" id="b-criar-aliado">Criar aliado</button>
-    <button class="btn sec" id="b-cancelar-aliado" style="display:none; width:auto; margin-left:8px; padding:13px 22px">Cancelar edição</button>
-    <div class="msg" id="m-aliado"></div>
+    <button class="btn" id="b-criar-colab">Criar colab</button>
+    <button class="btn sec" id="b-cancelar-colab" style="display:none; width:auto; margin-left:8px; padding:13px 22px">Cancelar edição</button>
+    <div class="msg" id="m-colab"></div>
   </div>
 </section>
 
@@ -1204,74 +1204,74 @@ function apagarAdmin(id, nome){
   );
 }
 
-/* ── aliados ── */
-let aliadosLista = [];
-async function carregarAliados(){
+/* ── colabs ── */
+let colabsLista = [];
+async function carregarColabs(){
   try{
-    const r = await fetch(API + "/admin/aliados");
-    aliadosLista = await r.json();
+    const r = await fetch(API + "/admin/colabs");
+    colabsLista = await r.json();
     const nomeBar = id => (baresLista.find(b => b.id === id) || {}).nome || id || "—";
-    $("t-aliados").innerHTML = aliadosLista.length
-      ? aliadosLista.map(a => `<tr>
+    $("t-colabs").innerHTML = colabsLista.length
+      ? colabsLista.map(a => `<tr>
           <td><strong>${a.id}</strong></td><td>${a.nome || "—"}</td><td>${a.telefone || "—"}</td>
           <td>${nomeBar(a.bar_id)}</td>
           <td>${a.ativo === false ? '<span class="pill neutro">inativo</span>' : '<span class="pill ok">ativo</span>'}</td>
           <td>
-            <button class="btn-x" style="color:#D6D4CC;border-color:#4A4A4A" onclick="abrirQrAliado('${a.id}')">QR / Link</button>
-            <button class="btn-x" style="color:var(--ambar);border-color:#5A4A1A" onclick="baixarDisplayAliado('${a.id}', this)">Display</button>
+            <button class="btn-x" style="color:#D6D4CC;border-color:#4A4A4A" onclick="abrirQrColab('${a.id}')">QR / Link</button>
+            <button class="btn-x" style="color:var(--ambar);border-color:#5A4A1A" onclick="baixarDisplayColab('${a.id}', this)">Display</button>
           </td>
-          <td><button class="btn-x" style="color:var(--ambar);border-color:#5A4A1A" onclick='editarAliado("${a.id}")'>editar</button> <button class="btn-x" onclick="apagarAliado('${a.id}', '${(a.nome || "").replace(/'/g, "")}')">apagar</button></td>
+          <td><button class="btn-x" style="color:var(--ambar);border-color:#5A4A1A" onclick='editarColab("${a.id}")'>editar</button> <button class="btn-x" onclick="apagarColab('${a.id}', '${(a.nome || "").replace(/'/g, "")}')">apagar</button></td>
         </tr>`).join("")
-      : '<tr><td colspan="7" class="carregando">Nenhum aliado cadastrado.</td></tr>';
+      : '<tr><td colspan="7" class="carregando">Nenhum colab cadastrado.</td></tr>';
   }catch(e){
-    $("t-aliados").innerHTML = '<tr><td colspan="7" class="carregando">Erro ao carregar.</td></tr>';
+    $("t-colabs").innerHTML = '<tr><td colspan="7" class="carregando">Erro ao carregar.</td></tr>';
   }
 }
 
-let editandoAliadoId = null;
-function editarAliado(id){
-  const a = aliadosLista.find(x => x.id === id);
+let editandoColabId = null;
+function editarColab(id){
+  const a = colabsLista.find(x => x.id === id);
   if(!a) return;
-  editandoAliadoId = id;
+  editandoColabId = id;
   $("al-id").value = a.id; $("al-id").disabled = true;
   $("al-nome").value = a.nome || "";
   $("al-senha").value = "";
   $("al-senha").placeholder = "deixe em branco para manter a atual";
   $("al-tel").value = a.telefone || "";
   $("al-bar").value = a.bar_id || "";
-  $("aliado-form-titulo").textContent = "Editar aliado — " + a.id;
-  $("b-criar-aliado").textContent = "Salvar alterações";
-  $("b-cancelar-aliado").style.display = "inline-block";
-  $("aba-aliados").scrollIntoView({behavior:"smooth", block:"start"});
+  $("colab-form-titulo").textContent = "Editar colab — " + a.id;
+  $("b-criar-colab").textContent = "Salvar alterações";
+  $("b-cancelar-colab").style.display = "inline-block";
+  $("aba-colabs").scrollIntoView({behavior:"smooth", block:"start"});
 }
-function cancelarEdicaoAliado(){
-  editandoAliadoId = null;
+function cancelarEdicaoColab(){
+  editandoColabId = null;
   $("al-id").value = ""; $("al-id").disabled = false;
-  $("al-nome").value = ""; $("al-senha").value = ""; $("al-senha").placeholder = "senha do aliado"; $("al-tel").value = "";
-  $("aliado-form-titulo").textContent = "Novo aliado";
-  $("b-criar-aliado").textContent = "Criar aliado";
-  $("b-cancelar-aliado").style.display = "none";
-  $("m-aliado").textContent = "";
+  $("al-nome").value = ""; $("al-senha").value = ""; $("al-senha").placeholder = "senha do colab"; $("al-tel").value = "";
+  $("colab-form-titulo").textContent = "Novo colab";
+  $("b-criar-colab").textContent = "Criar colab";
+  $("b-cancelar-colab").style.display = "none";
+  $("m-colab").textContent = "";
 }
-$("b-cancelar-aliado").onclick = cancelarEdicaoAliado;
+$("b-cancelar-colab").onclick = cancelarEdicaoColab;
 
-$("b-criar-aliado").onclick = async () => {
-  const m = $("m-aliado");
+$("b-criar-colab").onclick = async () => {
+  const m = $("m-colab");
   const id = ($("al-id").value || "").trim();
   const nome = ($("al-nome").value || "").trim();
   const senha = $("al-senha").value;
   const bar_id = $("al-bar").value;
   const telefone = ($("al-tel").value || "").replace(/\D/g, "");
-  if(!id || !nome || !bar_id || (!editandoAliadoId && !senha)){
+  if(!id || !nome || !bar_id || (!editandoColabId && !senha)){
     m.className = "msg erro"; m.textContent = "Preencha ID, nome, bar e senha.";
     return;
   }
-  m.className = "msg"; m.textContent = editandoAliadoId ? "Salvando…" : "Criando…";
+  m.className = "msg"; m.textContent = editandoColabId ? "Salvando…" : "Criando…";
   try{
     const barNome = $("al-bar").selectedOptions[0]?.textContent || bar_id;
     const corpo = {id, nome, bar_id, bar_nome: barNome, telefone, ativo: true};
     if(senha) corpo.senha = senha;
-    const r = await fetch(API + "/admin/aliados", {
+    const r = await fetch(API + "/admin/colabs", {
       method:"POST", headers:{"Content-Type":"application/json"},
       body: JSON.stringify(corpo)
     });
@@ -1281,23 +1281,23 @@ $("b-criar-aliado").onclick = async () => {
       return;
     }
     if(!r.ok) throw 0;
-    m.className = "msg ok"; m.textContent = editandoAliadoId ? "Aliado atualizado." : "Aliado criado. Login: " + id;
-    cancelarEdicaoAliado();
-    carregarAliados();
+    m.className = "msg ok"; m.textContent = editandoColabId ? "Colab atualizado." : "Colab criado. Login: " + id;
+    cancelarEdicaoColab();
+    carregarColabs();
   }catch(e){ m.className = "msg erro"; m.textContent = "Não foi possível salvar."; }
 };
-function apagarAliado(id, nome){
+function apagarColab(id, nome){
   confirmarExclusao(
-    "Apagar aliado?",
+    "Apagar colab?",
     (nome || id) + " perde o acesso ao painel e o QR dele para de funcionar.",
-    "/admin/aliados/" + id,
-    carregarAliados
+    "/admin/colabs/" + id,
+    carregarColabs
   );
 }
 
-function abrirQrAliado(id){
-  const link = API + "/a/" + encodeURIComponent(id);
-  document.getElementById("mq-titulo").textContent = "Cadastro — aliado " + id;
+function abrirQrColab(id){
+  const link = API + "/c/" + encodeURIComponent(id);
+  document.getElementById("mq-titulo").textContent = "Cadastro — colab " + id;
   document.getElementById("mq-img").src =
     "https://api.qrserver.com/v1/create-qr-code/?size=480x480&data=" + encodeURIComponent(link);
   document.getElementById("mq-link").textContent = link;
@@ -1312,12 +1312,12 @@ function abrirQrAliado(id){
     }catch(e){ alert(link); }
   };
   document.getElementById("mq-baixar-arte").onclick = () =>
-    baixarArteQr(link, "aliado-" + id, document.getElementById("mq-baixar-arte"), document.getElementById("mq-arte-msg"));
+    baixarArteQr(link, "colab-" + id, document.getElementById("mq-baixar-arte"), document.getElementById("mq-arte-msg"));
   document.getElementById("modal-qr").classList.add("on");
 }
-function baixarDisplayAliado(id, btnEl){
-  const link = API + "/a/" + encodeURIComponent(id);
-  baixarArteQr(link, "aliado-" + id, btnEl, null);
+function baixarDisplayColab(id, btnEl){
+  const link = API + "/c/" + encodeURIComponent(id);
+  baixarArteQr(link, "colab-" + id, btnEl, null);
 }
 
 
@@ -1653,7 +1653,7 @@ async function desbloquear(tel, bar){
 }
 
 /* ── início ── */
-carregarBares().then(() => { carregarConsumidores(); carregarGestores(); carregarAliados(); });
+carregarBares().then(() => { carregarConsumidores(); carregarGestores(); carregarColabs(); });
 carregarAdmins();
 carregarConfig();
 carregarBloqueados();
