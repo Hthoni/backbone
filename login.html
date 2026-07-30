@@ -117,6 +117,22 @@ $("b-entrar").onclick = async () => {
       return;
     }
 
+    // nao era admin (ou senha errada) — tenta como aliado
+    const rl = await fetch(API + "/login-aliado", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({id, senha})
+    });
+    if(rl.ok){
+      const d = await rl.json();
+      localStorage.setItem("bb_aliado", JSON.stringify(d));
+      location.href = "aliado.html";
+      return;
+    }
+    if(rl.status !== 401 && rl.status !== 403){
+      erro.textContent = "O servidor demorou para responder (pode estar acordando). Tente de novo em alguns segundos.";
+      return;
+    }
+
     erro.textContent = "Código ou senha incorretos.";
   }catch(e){
     erro.textContent = "Sem conexão. Tente de novo.";
