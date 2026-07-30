@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#000000">
+<title>Clube Backbone — Painel do aliado</title>
+<style>
+  :root{
+    --preto:#000; --preto2:#141414; --linha:#2B2B2B;
+    --branco:#FFF; --cinza-txt:#A8A8A2;
+    --ambar:#E8A317; --rubro:#D8232A; --verde:#1F7A47;
+    --sb: env(safe-area-inset-bottom, 0px);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{
+    background:var(--preto); color:var(--branco);
+    font:400 17px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased; overscroll-behavior:none;
+  }
+  .tela{display:none; min-height:100dvh; flex-direction:column}
+  .tela.on{display:flex}
+
+  .cab{
+    display:flex; align-items:center; justify-content:space-between; gap:14px;
+    background:var(--preto); padding:calc(env(safe-area-inset-top,0px) + 12px) 18px 12px;
+    border-bottom:1px solid var(--linha); flex-shrink:0;
+  }
+  .cab img{height:36px; width:auto; display:block}
+  .cab .id{font-size:15px; font-weight:700; text-align:right; line-height:1.25; max-width:44vw; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .cab .id small{display:block; font-size:12px; font-weight:400; color:var(--cinza-txt); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .sair{
+    background:none; border:2px solid #444; color:var(--branco);
+    font-size:13px; font-weight:700; padding:8px 13px; border-radius:999px; flex-shrink:0;
+  }
+
+  .login{flex:1; display:flex; flex-direction:column; justify-content:center; padding:30px 22px calc(30px + var(--sb))}
+  .login h1{font-size:26px; font-weight:800; line-height:1.15; margin-bottom:30px}
+  label{display:block; font-size:15px; font-weight:700; letter-spacing:.05em; color:var(--branco); margin:0 0 8px 2px}
+  input{
+    width:100%; background:#E4E2DA; border:2px solid #E4E2DA; color:#111;
+    font-size:22px; font-weight:600; padding:16px; border-radius:14px; margin-bottom:20px;
+  }
+  input::placeholder{color:#8A8880; font-weight:400}
+  input:focus{outline:none; border-color:var(--ambar)}
+  .btn{
+    width:100%; border:none; border-radius:14px; padding:18px;
+    font-size:18px; font-weight:800;
+  }
+  .btn-1{background:var(--branco); color:#000}
+  .btn:active{transform:scale(.98)}
+  .btn[disabled]{opacity:.45}
+  .erro-msg{color:#FF6B6B; font-size:15px; font-weight:700; margin-bottom:14px; min-height:20px}
+
+  .conteudo{flex:1; overflow-y:auto; padding:16px 18px calc(20px + var(--sb))}
+  .titulo-secao{font-size:13px; font-weight:700; letter-spacing:.08em; color:var(--cinza-txt); margin:18px 0 8px 2px; text-transform:uppercase}
+  .titulo-secao:first-child{margin-top:0}
+
+  .card{
+    background:var(--preto2); border:1px solid var(--linha); border-radius:14px;
+    padding:14px 16px; margin-bottom:10px; cursor:pointer;
+  }
+  .card.somatorio{border-color:var(--ambar); cursor:default}
+  .card .titulo{font-size:16px; font-weight:800}
+  .card .sub{font-size:13px; color:var(--cinza-txt); margin-top:2px}
+
+  .grid-metricas{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:10px}
+  .metrica{background:#1B1B1B; border-radius:10px; padding:10px 8px; text-align:center}
+  .metrica .n{font-size:20px; font-weight:800; display:block}
+  .metrica .r{font-size:10.5px; color:var(--cinza-txt); text-transform:uppercase; letter-spacing:.04em; display:block; margin-top:2px}
+
+  .abas{display:flex; gap:2px; padding:8px 10px 0; border-bottom:1px solid var(--linha); overflow-x:auto}
+  .abas button{
+    background:none; border:none; color:var(--cinza-txt); font-size:14px; font-weight:800;
+    padding:8px 12px 12px; cursor:pointer; border-bottom:3px solid transparent; font-family:inherit; white-space:nowrap;
+  }
+  .abas button.on{color:#FFF; border-bottom-color:var(--rubro)}
+
+  .carregando{text-align:center; color:var(--cinza-txt); padding:40px 20px; font-size:15px; font-weight:600}
+</style>
+</head>
+<body>
+
+<!-- ══ LOGIN ══ -->
+<section id="t-login" class="tela on">
+  <div class="cab">
+    <img src="clube_logo.png" alt="Clube Backbone">
+    <div class="id">PAINEL DO ALIADO</div>
+  </div>
+  <div class="login">
+    <h1>Veja os resultados dos clientes que você indicou.</h1>
+    <label for="i-id">SEU CÓDIGO</label>
+    <input id="i-id" type="text" autocapitalize="none" autocomplete="username" placeholder="ex.: cafedaesquina">
+    <label for="i-senha">SENHA</label>
+    <input id="i-senha" type="password" autocomplete="current-password" placeholder="••••••">
+    <div class="erro-msg" id="erro-login"></div>
+    <button class="btn btn-1" id="b-entrar">ENTRAR</button>
+  </div>
+</section>
+
+<!-- ══ DASHBOARD ══ -->
+<section id="t-dash" class="tela">
+  <div class="cab">
+    <img src="clube_logo.png" alt="Clube Backbone">
+    <div style="display:flex; align-items:center; gap:10px">
+      <div class="id" id="dash-nome"></div>
+      <button class="sair" id="b-sair">SAIR</button>
+    </div>
+  </div>
+  <div class="abas">
+    <button data-aba="historico" id="ab-historico">Histórico</button>
+    <button data-aba="atual" id="ab-atual">Atual</button>
+  </div>
+
+  <div class="conteudo aba-conteudo" id="aba-historico">
+    <div id="hist-corpo"><div class="carregando">Carregando…</div></div>
+  </div>
+
+  <div class="conteudo aba-conteudo" id="aba-atual" style="display:none">
+    <div id="atual-aviso"></div>
+    <div id="atual-corpo"><div class="carregando">Carregando…</div></div>
+  </div>
+</section>
+
+<script>
+const API = "https://backbone-650557630362.us-central1.run.app";
+const $ = id => document.getElementById(id);
+
+let aliado = null;
+let mesAtual = "";
+let mesSelecionado = "";
+
+function mostrar(qual){
+  document.querySelectorAll(".tela").forEach(t => t.classList.remove("on"));
+  $("t-" + qual).classList.add("on");
+}
+function mesHoje(){
+  const d = new Date();
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0");
+}
+function nomeMes(m){
+  const [ano, mes] = m.split("-");
+  const nomes = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
+  return nomes[parseInt(mes, 10) - 1] + " de " + ano;
+}
+function gridMetricas(t){
+  return `<div class="grid-metricas">
+    <div class="metrica"><span class="n">${t.cadastros}</span><span class="r">Boas-vindas</span></div>
+    <div class="metrica"><span class="n">${t.pontuacao}</span><span class="r">Pontuação</span></div>
+    <div class="metrica"><span class="n">${t.resgates}</span><span class="r">Resgates</span></div>
+  </div>`;
+}
+
+/* ══ LOGIN ══ */
+$("b-entrar").onclick = async () => {
+  const id = $("i-id").value.trim();
+  const senha = $("i-senha").value;
+  if(!id || !senha){ $("erro-login").textContent = "Preencha o código e a senha."; return; }
+  $("b-entrar").disabled = true;
+  $("b-entrar").textContent = "ENTRANDO…";
+  try{
+    const r = await fetch(API + "/login-aliado", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({id, senha})
+    });
+    const d = await r.json();
+    if(!r.ok){
+      $("erro-login").textContent = d.erro === "aliado_inativo"
+        ? "Seu acesso está desativado. Fale com a Backbone."
+        : "Código ou senha incorretos.";
+      return;
+    }
+    aliado = d;
+    localStorage.setItem("bb_aliado", JSON.stringify(d));
+    mesAtual = mesHoje();
+    entrar();
+  }catch(e){
+    $("erro-login").textContent = "Sem conexão. Tente de novo.";
+  }finally{
+    $("b-entrar").disabled = false;
+    $("b-entrar").textContent = "ENTRAR";
+  }
+};
+$("b-sair").onclick = () => {
+  localStorage.removeItem("bb_aliado");
+  aliado = null;
+  mostrar("login");
+};
+
+function entrar(){
+  $("dash-nome").innerHTML = aliado.nome + "<small>" + (aliado.bar_nome || aliado.bar_id || "") + "</small>";
+  mostrar("dash");
+  mudarAba("historico");
+}
+
+/* ══ ABAS ══ */
+function mudarAba(aba){
+  document.querySelectorAll(".abas button").forEach(b => b.classList.toggle("on", b.dataset.aba === aba));
+  document.querySelectorAll(".aba-conteudo").forEach(c => c.style.display = "none");
+  $("aba-" + aba).style.display = "block";
+  if(aba === "historico") carregarHistorico();
+  if(aba === "atual"){ mesSelecionado = mesAtual; carregarAtual(); }
+}
+document.querySelectorAll(".abas button").forEach(b => b.onclick = () => mudarAba(b.dataset.aba));
+
+/* ── Histórico ── */
+async function carregarHistorico(){
+  $("hist-corpo").innerHTML = '<div class="carregando">Carregando…</div>';
+  try{
+    const r = await fetch(API + "/aliado/" + encodeURIComponent(aliado.aliado_id) + "/historico");
+    const d = await r.json();
+
+    let html = `<div class="titulo-secao">Totais</div>
+      <div class="card somatorio">
+        <div class="titulo">Desde o início</div>
+        ${gridMetricas(d.totais)}
+      </div>
+      <div class="titulo-secao">Por mês</div>`;
+
+    html += d.meses.length ? d.meses.map(m => `<div class="card" onclick='abrirMes("${m.mes}")'>
+        <div class="titulo">${nomeMes(m.mes)}</div>
+        ${gridMetricas(m)}
+      </div>`).join("") : '<div class="carregando">Nenhum cadastro registrado ainda.</div>';
+
+    $("hist-corpo").innerHTML = html;
+  }catch(e){
+    $("hist-corpo").innerHTML = '<div class="carregando">Não foi possível carregar.</div>';
+  }
+}
+function abrirMes(mes){
+  mesSelecionado = mes;
+  mudarAba("atual");
+}
+
+/* ── Atual ── */
+async function carregarAtual(){
+  const foraDoMesAtual = mesSelecionado !== mesAtual;
+  $("atual-aviso").innerHTML = foraDoMesAtual
+    ? `<div style="background:#1B1600; border:1px solid var(--ambar); color:var(--ambar); font-size:13px; font-weight:700; padding:10px 14px; border-radius:12px; margin-bottom:14px">Mostrando ${nomeMes(mesSelecionado)}. <button onclick="mudarAba('atual')" style="background:none;border:none;color:var(--ambar);font-weight:800;text-decoration:underline;font-size:13px">Voltar ao mês atual</button></div>`
+    : "";
+  $("atual-corpo").innerHTML = '<div class="carregando">Carregando…</div>';
+  try{
+    const r = await fetch(API + "/aliado/" + encodeURIComponent(aliado.aliado_id) + "/resumo?mes=" + mesSelecionado);
+    const d = await r.json();
+    $("atual-corpo").innerHTML = `<div class="titulo-secao">${nomeMes(mesSelecionado)}</div>
+      <div class="card somatorio">
+        <div class="titulo">${aliado.nome}</div>
+        ${gridMetricas(d.totais)}
+        <div class="sub" style="margin-top:10px">${d.total_clientes} cliente(s) indicado(s) no total</div>
+      </div>`;
+  }catch(e){
+    $("atual-corpo").innerHTML = '<div class="carregando">Não foi possível carregar.</div>';
+  }
+}
+
+/* ══ INÍCIO ══ */
+(function(){
+  mesAtual = mesHoje();
+  const salvo = localStorage.getItem("bb_aliado");
+  if(salvo){
+    try{ aliado = JSON.parse(salvo); entrar(); return; }catch(e){}
+  }
+  mostrar("login");
+})();
+</script>
+</body>
+</html>
