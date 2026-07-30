@@ -568,6 +568,7 @@ async function carregarAtual(){
     const r = await fetch(API + "/bar/" + encodeURIComponent(barAtivo.id) + "/resumo?mes=" + mesSelecionado);
     const d = await r.json();
     garconsAtuais = d.garcons || [];
+    const aliadosAtuais = d.aliados || [];
 
     let html = `<div class="titulo-secao">${nomeMes(mesSelecionado)}</div>
       <div class="card somatorio">
@@ -580,6 +581,14 @@ async function carregarAtual(){
         <div class="titulo">${g.nome}</div>
         ${gridMetricas(g)}
       </div>`).join("") : '<div class="carregando">Nenhum garçom com movimento neste mês.</div>';
+
+    if(aliadosAtuais.length){
+      html += `<div class="titulo-secao">Por aliado</div>`;
+      html += aliadosAtuais.map(a => `<div class="card">
+        <div class="titulo">${a.nome}</div>
+        ${gridMetricas(a)}
+      </div>`).join("");
+    }
 
     $("atual-corpo").innerHTML = html;
   }catch(e){
