@@ -503,7 +503,7 @@ function gridMetricasComFicha(t){
 /* ══ ABAS DO DASHBOARD ══ */
 let atividadeTimer = null;
 
-function mudarAba(aba){
+function mudarAba(aba, manterMes){
   document.querySelectorAll(".abas button").forEach(b => b.classList.toggle("on", b.dataset.aba === aba));
   document.querySelectorAll(".aba-conteudo").forEach(c => c.style.display = "none");
   $("aba-" + aba).style.display = (aba === "scanner") ? "flex" : "block";
@@ -511,7 +511,10 @@ function mudarAba(aba){
   if(aba !== "scanner") scnPararCamera();
 
   if(aba === "historico") carregarHistorico();
-  if(aba === "atual"){ mesSelecionado = mesAtual; carregarAtual(); }
+  if(aba === "atual"){
+    if(!manterMes) mesSelecionado = mesAtual;
+    carregarAtual();
+  }
   if(aba === "atividade"){
     carregarFeedGenerico("atividade", { container: "aba-atividade" }, true);
     atividadeTimer = setInterval(() => carregarFeedGenerico("atividade", { container: "aba-atividade" }, true), 30000);
@@ -548,7 +551,7 @@ async function carregarHistorico(){
 }
 function abrirMes(mes){
   mesSelecionado = mes;
-  mudarAba("atual");
+  mudarAba("atual", true);
 }
 
 /* ── Atual (mês corrente ou mês escolhido no Histórico) ── */
