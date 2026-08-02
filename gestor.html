@@ -236,7 +236,8 @@
 
   <!-- Atividade -->
   <div class="feed aba-conteudo" id="aba-atividade" style="display:none">
-    <div class="carregando">Carregando…</div>
+    <div id="atividade-aviso"></div>
+    <div id="atividade-feed-corpo"><div class="carregando">Carregando…</div></div>
   </div>
 
   <!-- Scanner (embutido — mesmo header e abas continuam visíveis) -->
@@ -516,8 +517,16 @@ function mudarAba(aba, manterMes){
     carregarAtual();
   }
   if(aba === "atividade"){
-    carregarFeedGenerico("atividade", { container: "aba-atividade" }, true);
-    atividadeTimer = setInterval(() => carregarFeedGenerico("atividade", { container: "aba-atividade" }, true), 30000);
+    const foraDoMesAtual = mesSelecionado !== mesAtual;
+    $("atividade-aviso").innerHTML = foraDoMesAtual
+      ? `<div class="aviso-mes">Mostrando ${nomeMes(mesSelecionado)}. <button onclick="voltarMesAtual('atividade')">Voltar ao mês atual</button></div>`
+      : "";
+    carregarFeedGenerico("atividade", { container: "atividade-feed-corpo", mes: mesSelecionado }, true);
+    // so fica reatualizando sozinho quando esta mostrando o mes atual de verdade —
+    // reatualizar um mes passado a cada 30s nao muda nada, so gasta chamada a toa
+    if(!foraDoMesAtual){
+      atividadeTimer = setInterval(() => carregarFeedGenerico("atividade", { container: "atividade-feed-corpo", mes: mesSelecionado }, true), 30000);
+    }
   }
   if(aba === "scanner"){ scnMostrar("camera"); scnIniciarCamera(); }
 }
@@ -553,6 +562,10 @@ function abrirMes(mes){
   mesSelecionado = mes;
   mudarAba("atual", true);
 }
+function voltarMesAtual(aba){
+  mesSelecionado = mesAtual;
+  mudarAba(aba, true);
+}
 
 /* ── Atual (mês corrente ou mês escolhido no Histórico) ── */
 let garconsAtuais = [];
@@ -560,7 +573,7 @@ let garconsAtuais = [];
 async function carregarAtual(){
   const foraDoMesAtual = mesSelecionado !== mesAtual;
   $("atual-aviso").innerHTML = foraDoMesAtual
-    ? `<div class="aviso-mes">Mostrando ${nomeMes(mesSelecionado)}. <button onclick="mudarAba('atual')">Voltar ao mês atual</button></div>`
+    ? `<div class="aviso-mes">Mostrando ${nomeMes(mesSelecionado)}. <button onclick="voltarMesAtual('atual')">Voltar ao mês atual</button></div>`
     : "";
   $("atual-corpo").innerHTML = '<div class="carregando">Carregando…</div>';
   try{
@@ -707,7 +720,7 @@ async function carregarFeedGenerico(chave, opts, reset){
 }
 $("aba-atividade").onscroll = function(){
   if(this.scrollTop + this.clientHeight >= this.scrollHeight - 120){
-    carregarFeedGenerico("atividade", { container: "aba-atividade" }, false);
+    carregarFeedGenerico("atividade", { container: "atividade-feed-corpo", mes: mesSelecionado }, false);
   }
 };
 
