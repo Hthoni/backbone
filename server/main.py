@@ -1106,7 +1106,7 @@ def atividade_bar(bar_id):
     eventos = [e for e in storage.listar_eventos()
                if (bar_id == "*" or e.get("bar") == bar_id) and e.get("tipo") in ("punch", "resgate")]
 
-    if mes:
+    if mes and mes != "todos":
         eventos = [e for e in eventos if (e.get("data") or "").startswith(mes)]
     if garcom_filtro:
         eventos = [e for e in eventos if e.get("garcom_id") == garcom_filtro]
