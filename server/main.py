@@ -1140,6 +1140,40 @@ def atividade_bar(bar_id):
     })
 
 
+@app.route("/bar/<bar_id>/totais")
+def bar_totais(bar_id):
+    """
+    Versao ENXUTA do /bar/<id>/resumo — so os 4 numeros agregados,
+    sem quebra por garcom nem por colab. Usada na tela de "trocar de
+    bar" do gestor, que so mostra esses numeros nos cards e nao
+    precisa (nem usava) a quebra detalhada. Como nao precisa de
+    listar_consumidores/garcons/gestores/admins/colabs — so o log de
+    eventos — fica rapida mesmo com muitos socios cadastrados.
+
+    ?mes=2026-07 (default: mes corrente)
+    ?mes=todos   (agrega TODOS os eventos, sem filtro de data)
+    """
+    mes = request.args.get("mes") or datetime.now(timezone.utc).strftime("%Y-%m")
+    todos_os_tempos = (mes == "todos")
+
+    totais = {"fichas": 0, "cadastros": 0, "pontuacao": 0, "resgates": 0}
+    for ev in storage.listar_eventos():
+        if bar_id != "*" and ev.get("bar") != bar_id:
+            continue
+        if not todos_os_tempos and not (ev.get("data") or "").startswith(mes):
+            continue
+        tipo = ev.get("tipo")
+        if tipo == "cadastro":
+            totais["fichas"] += 1
+        elif tipo == "punch":
+            totais["pontuacao"] += 1
+        elif tipo == "resgate":
+            cat = "cadastros" if ev.get("tipo_recompensa") == "boas_vindas" else "resgates"
+            totais[cat] += 1
+
+    return jsonify({"bar_id": bar_id, "mes": mes, "totais": totais})
+
+
 @app.route("/bar/<bar_id>/resumo")
 def bar_resumo(bar_id):
     """
