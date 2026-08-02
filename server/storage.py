@@ -4,6 +4,7 @@
 import json
 import os
 import uuid
+import concurrent.futures
 from google.cloud import storage
 
 BUCKET_NAME = "backbone-consumidor"
@@ -12,6 +13,40 @@ BUCKET_NAME = "backbone-consumidor"
 def _bucket():
     client = storage.Client()
     return client.bucket(BUCKET_NAME)
+
+
+def _listar_prefixo(prefixo):
+    """
+    Lista e baixa em PARALELO todos os .json sob um prefixo do bucket.
+
+    Ate aqui, cada listar_X() baixava um arquivo de cada vez, em fila —
+    com centenas de sócios (o caso mais comum), isso deixava qualquer
+    tela do gestor/admin visivelmente lenta, porque cada consulta
+    esperava dezenas/centenas de idas e vindas sequenciais ao bucket.
+    E o MESMO problema que ja resolvemos nos eventos (log.jsonl) —
+    so que aqui nao da pra juntar tudo num arquivo so, porque cada
+    consumidor/garcom/etc precisa continuar sendo lido e escrito
+    individualmente o tempo todo (carregar_consumidor, scan, etc.).
+    A correcao aqui e diferente: baixar todos ao mesmo tempo (varias
+    conexoes simultaneas) em vez de um de cada vez — como e tudo
+    espera de rede e nao processamento, isso da um ganho grande sem
+    mudar onde nem como os dados sao guardados.
+    """
+    client = storage.Client()
+    blobs = [b for b in client.list_blobs(BUCKET_NAME, prefix=prefixo) if b.name.endswith(".json")]
+
+    def _baixar(blob):
+        try:
+            return json.loads(blob.download_as_text())
+        except Exception:
+            return None
+
+    resultados = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
+        for r in executor.map(_baixar, blobs):
+            if r is not None:
+                resultados.append(r)
+    return resultados
 
 
 # ── Consumidores ──────────────────────────────────────────────
@@ -30,16 +65,7 @@ def carregar_consumidor(telefone: str):
 
 
 def listar_consumidores():
-    client = storage.Client()
-    blobs = client.list_blobs(BUCKET_NAME, prefix="consumidores/")
-    consumidores = []
-    for blob in blobs:
-        if blob.name.endswith(".json"):
-            try:
-                consumidores.append(json.loads(blob.download_as_text()))
-            except Exception:
-                pass
-    return consumidores
+    return _listar_prefixo("consumidores/")
 
 
 # ── Registros de dispositivo (Apple Wallet push) ──────────────
@@ -194,16 +220,7 @@ def carregar_garcom(garcom_id: str):
 
 
 def listar_garcons():
-    client = storage.Client()
-    blobs = client.list_blobs(BUCKET_NAME, prefix="garcons/")
-    garcons = []
-    for blob in blobs:
-        if blob.name.endswith(".json"):
-            try:
-                garcons.append(json.loads(blob.download_as_text()))
-            except Exception:
-                pass
-    return garcons
+    return _listar_prefixo("garcons/")
 
 
 # ── Bares ─────────────────────────────────────────────────────
@@ -221,16 +238,7 @@ def carregar_bar(bar_id: str):
 
 
 def listar_bares():
-    client = storage.Client()
-    blobs = client.list_blobs(BUCKET_NAME, prefix="bares/")
-    bares = []
-    for blob in blobs:
-        if blob.name.endswith(".json"):
-            try:
-                bares.append(json.loads(blob.download_as_text()))
-            except Exception:
-                pass
-    return bares
+    return _listar_prefixo("bares/")
 
 
 # ── Config geral ──────────────────────────────────────────────
@@ -288,16 +296,7 @@ def carregar_gestor(gestor_id: str):
 
 
 def listar_gestores():
-    client = storage.Client()
-    blobs = client.list_blobs(BUCKET_NAME, prefix="gestores/")
-    gestores = []
-    for blob in blobs:
-        if blob.name.endswith(".json"):
-            try:
-                gestores.append(json.loads(blob.download_as_text()))
-            except Exception:
-                pass
-    return gestores
+    return _listar_prefixo("gestores/")
 
 
 def apagar_gestor(gestor_id: str):
@@ -321,16 +320,7 @@ def carregar_admin(admin_id: str):
 
 
 def listar_admins():
-    client = storage.Client()
-    blobs = client.list_blobs(BUCKET_NAME, prefix="admins/")
-    admins = []
-    for blob in blobs:
-        if blob.name.endswith(".json"):
-            try:
-                admins.append(json.loads(blob.download_as_text()))
-            except Exception:
-                pass
-    return admins
+    return _listar_prefixo("admins/")
 
 
 def apagar_admin(admin_id: str):
@@ -354,16 +344,7 @@ def carregar_colab(colab_id: str):
 
 
 def listar_colabs():
-    client = storage.Client()
-    blobs = client.list_blobs(BUCKET_NAME, prefix="colabs/")
-    colabs = []
-    for blob in blobs:
-        if blob.name.endswith(".json"):
-            try:
-                colabs.append(json.loads(blob.download_as_text()))
-            except Exception:
-                pass
-    return colabs
+    return _listar_prefixo("colabs/")
 
 
 def apagar_colab(colab_id: str):
