@@ -447,35 +447,24 @@ async function mostrarSelecaoBar(){
   const reais = gestor.bares.filter(b => b.id !== "*");
 
   try{
-    const resumos = await Promise.all(
-      reais.map(b => fetch(API + "/bar/" + encodeURIComponent(b.id) + "/resumo").then(r => r.json()))
+    // endpoint leve (so totais, sem quebra por garcom/colab) — e tudo
+    // em paralelo, inclusive o card master, que antes esperava os
+    // outros terminarem primeiro
+    const todosOsCards = master ? [master, ...reais] : reais;
+    const totais = await Promise.all(
+      todosOsCards.map(b => fetch(API + "/bar/" + encodeURIComponent(b.id) + "/totais").then(r => r.json()))
     );
 
-    let topo;
-    if(master){
-      const rm = await fetch(API + "/bar/*/resumo").then(r => r.json());
-      topo = `<div class="card somatorio" onclick='escolherBarPorId("*")'>
-        <div class="titulo">Todos os bares</div>
+    const html = todosOsCards.map((b, i) => {
+      const ehMaster = b.id === "*";
+      return `<div class="card${ehMaster ? " somatorio" : ""}" onclick='escolherBarPorId("${b.id}")'>
+        <div class="titulo">${ehMaster ? "Todos os bares" : b.nome}</div>
         <div class="sub">${nomeMes(mesAtual)}</div>
-        ${gridMetricas(rm.totais)}
+        ${gridMetricasComFicha(totais[i].totais)}
       </div>`;
-    } else {
-      const soma = {cadastros:0, pontuacao:0, resgates:0};
-      resumos.forEach(r => { soma.cadastros += r.totais.cadastros; soma.pontuacao += r.totais.pontuacao; soma.resgates += r.totais.resgates; });
-      topo = `<div class="card somatorio">
-        <div class="titulo">Todos os bares</div>
-        <div class="sub">${nomeMes(mesAtual)}</div>
-        ${gridMetricas(soma)}
-      </div>`;
-    }
+    }).join("");
 
-    const linhas = reais.map((b, i) => `<div class="card" onclick='escolherBarPorId("${b.id}")'>
-      <div class="titulo">${b.nome}</div>
-      <div class="sub">${nomeMes(mesAtual)}</div>
-      ${gridMetricas(resumos[i].totais)}
-    </div>`).join("");
-
-    lista.innerHTML = topo + linhas;
+    lista.innerHTML = html;
   }catch(e){
     lista.innerHTML = '<div class="carregando">Não foi possível carregar. Verifique a conexão.</div>';
   }
