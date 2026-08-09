@@ -209,7 +209,13 @@ def atualizar_objeto(consumidor):
 def link_salvar(consumidor):
     """
     Gera o link https://pay.google.com/gp/v/save/{jwt}.
-    O objeto vai DENTRO do JWT: e criado quando a pessoa salva.
+
+    So manda o OBJETO no JWT — a classe (nome do programa, logo, cor)
+    ja existe no Google, criada/atualizada uma vez via garantir_classe(),
+    e o objeto ja aponta pra ela via "classId". Reenviar a classe
+    inteira em CADA link (como estava antes) so deixa o JWT maior à
+    toa, e link maior = mais chance de dar problema no meio do caminho
+    (cache de navegador, encurtador de URL, esse tipo de coisa).
     """
     chave = _chave()
     claims = {
@@ -218,7 +224,6 @@ def link_salvar(consumidor):
         "typ": "savetowallet",
         "iat": int(time.time()),
         "payload": {
-            "loyaltyClasses": [_payload_classe()],
             "loyaltyObjects": [_payload_objeto(consumidor)],
         },
         "origins": ["https://hthoni.github.io"],
