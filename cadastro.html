@@ -99,27 +99,77 @@ const alvo = document.getElementById("conteudo");
 const ehIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
 
 /*
- * Trava simples (nao e a prova de bala, e proposital): este navegador/
- * aparelho ja concluiu um cadastro antes? Se sim, nem mostra o formulario
- * de novo — evita o caso mais comum de alguem tentar "farmar" o chopp de
- * boas-vindas varias vezes no mesmo celular digitando telefones diferentes.
- * Nao pega aba anonima, limpar dados do site, outro navegador ou outro
- * aparelho — mas ja tapa a maior parte do risco, sem custo e sem SMS.
+ * Este navegador/aparelho ja concluiu um cadastro antes? Se sim, pede
+ * confirmacao de telefone em vez do formulario completo de novo:
+ *   - telefone JA existe no banco -> reimprime o cartao no estagio
+ *     atual dele (recuperacao legitima, sem gerar boas-vindas nova)
+ *   - telefone NAO existe -> por enquanto (ate a verificacao via
+ *     WhatsApp estar pronta) deixa seguir pro cadastro novo normal
  */
 if(localStorage.getItem("bb_ja_cadastrou")){
-  jaBaixou();
+  telaRecuperar();
 }
 /* ══ MODO 1: dados completos na URL (fluxo do bot) → cadastra direto ══ */
 /* ══ MODO 2: sem dados → formulário ══ */
 else if(telQ && nomeQ){ cadastrar(bar, telQ, nomeQ, diaQ, mesQ, timeQ); }
 else { formulario(); }
 
-function jaBaixou(){
+function mascararTelefone(input){
+  input.addEventListener("input", () => {
+    let d = input.value.replace(/\D/g, "").slice(0, 11);
+    let f = d;
+    if(d.length > 2) f = "(" + d.slice(0,2) + ") " + d.slice(2);
+    if(d.length > 7) f = "(" + d.slice(0,2) + ") " + d.slice(2,7) + "-" + d.slice(7);
+    input.value = f;
+  });
+}
+
+function telaRecuperar(){
   alvo.innerHTML = `
-    <h1>Você já baixou seu cartão</h1>
-    <p>Este aparelho já tem um cadastro no Clube Backbone. Procure a Wallet do seu celular — o cartão já deve estar lá.</p>
-    <div class="aviso">Se você acha que isso é um engano, chame o atendente do bar.</div>
+    <h1>Já usamos este aparelho antes</h1>
+    <p>Se você já é sócio do Clube Backbone, confirme seu telefone pra gente localizar seu cartão:</p>
+
+    <div class="grupo">
+      <div class="destaque">Seu telefone</div>
+      <input id="r-tel" type="tel" inputmode="numeric" autocomplete="tel"
+             placeholder="(21) 99999-9999">
+    </div>
+
+    <button class="btn btn-verde" id="r-enviar">Confirmar</button>
+    <div class="erro-msg" id="r-erro"></div>
   `;
+
+  const telInput = document.getElementById("r-tel");
+  mascararTelefone(telInput);
+
+  document.getElementById("r-enviar").onclick = async () => {
+    const tel = telInput.value.replace(/\D/g, "");
+    const erro = document.getElementById("r-erro");
+    if(tel.length < 10 || tel.length > 11){
+      erro.textContent = "Telefone incompleto — confira o DDD e o número."; return;
+    }
+    erro.textContent = "";
+    const b = document.getElementById("r-enviar");
+    b.disabled = true; b.textContent = "Verificando…";
+
+    try{
+      const r = await fetch(SERVER + "/consumidor/55" + tel);
+      if(r.status === 404){
+        // ainda nao existe -> deixa seguir pro cadastro normal
+        // (a trava de fraude por numero novo fica pra quando a
+        // verificacao via WhatsApp estiver pronta)
+        formulario();
+        return;
+      }
+      if(!r.ok) throw 0;
+      const c = await r.json();
+      boasVindas(c);
+    }catch(e){
+      erro.textContent = "Sem conexão. Tente de novo.";
+    }finally{
+      b.disabled = false; b.textContent = "Confirmar";
+    }
+  };
 }
 
 function formulario(){
@@ -181,13 +231,7 @@ function formulario(){
   });
 
   const telInput = document.getElementById("f-tel");
-  telInput.addEventListener("input", () => {
-    let d = telInput.value.replace(/\D/g, "").slice(0, 11);
-    let f = d;
-    if(d.length > 2) f = "(" + d.slice(0,2) + ") " + d.slice(2);
-    if(d.length > 7) f = "(" + d.slice(0,2) + ") " + d.slice(2,7) + "-" + d.slice(7);
-    telInput.value = f;
-  });
+  mascararTelefone(telInput);
 
   document.getElementById("f-enviar").onclick = () => {
     const nome = document.getElementById("f-nome").value.trim();
