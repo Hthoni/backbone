@@ -168,6 +168,7 @@
   <button data-aba="gestores">Gestores</button>
   <button data-aba="admins">Admins</button>
   <button data-aba="colabs">Colabs</button>
+  <button data-aba="arvores">Árvores</button>
 </nav>
 
 <main>
@@ -513,6 +514,26 @@
     <button class="btn sec" id="b-cancelar-colab" style="display:none; width:auto; margin-left:8px; padding:13px 22px">Cancelar edição</button>
     <div class="msg" id="m-colab"></div>
   </div>
+</section>
+
+<!-- ══ ÁRVORES ══ -->
+<section class="aba" id="aba-arvores">
+  <h2>Árvores</h2>
+  <p class="sub">Sócios que cruzaram um múltiplo de 100 chopps (vitalício) e ainda esperam a muda ser plantada na Serra da Mantiqueira. Marcar aqui não envia push — o aviso de "foi plantada" é feito por você, manualmente.</p>
+  <div class="linha">
+    <div style="flex:0">
+      <button class="btn sec" id="b-arvores-recarregar">Recarregar</button>
+    </div>
+  </div>
+  <div class="cartao" style="padding:0; overflow-x:auto">
+    <table>
+      <thead><tr>
+        <th>SÓCIO</th><th>TELEFONE</th><th class="num">MARCO</th><th>DETECTADO EM</th><th></th>
+      </tr></thead>
+      <tbody id="t-arvores"><tr><td colspan="5" class="carregando">Carregando…</td></tr></tbody>
+    </table>
+  </div>
+  <div class="mini" id="arvores-resumo"></div>
 </section>
 
 </main>
@@ -1320,6 +1341,69 @@ function baixarDisplayColab(id, btnEl){
   baixarArteQr(link, "colab-" + id, btnEl, null);
 }
 
+/* ── árvores ── */
+let arvoresLista = [];
+
+function arvoreTelefone(a){ return a.telefone ?? a.tel ?? ""; }
+function arvoreNome(a){ return a.nome ?? "—"; }
+function arvoreMarco(a){ return a.marco ?? "—"; }
+function arvoreDetectadaEm(a){ return a.detectada_em ?? a.detectado_em ?? null; }
+
+async function carregarArvores(){
+  const tb = $("t-arvores");
+  tb.innerHTML = '<tr><td colspan="5" class="carregando">Carregando…</td></tr>';
+  try{
+    const r = await fetch(API + "/admin/arvores");
+    const d = await r.json();
+    arvoresLista = Array.isArray(d) ? d : (d.arvores || d.pendentes || []);
+    renderArvores();
+  }catch(e){
+    tb.innerHTML = '<tr><td colspan="5" class="carregando">Erro ao carregar. O servidor pode estar acordando — tente de novo.</td></tr>';
+  }
+}
+
+function renderArvores(){
+  const tb = $("t-arvores");
+  if(!arvoresLista.length){
+    tb.innerHTML = '<tr><td colspan="5" class="carregando">Nenhuma árvore pendente no momento.</td></tr>';
+    $("arvores-resumo").textContent = "";
+    return;
+  }
+  const lista = [...arvoresLista].sort((a,b) =>
+    (arvoreDetectadaEm(a) || "").localeCompare(arvoreDetectadaEm(b) || ""));
+  tb.innerHTML = lista.map(a => {
+    const tel = arvoreTelefone(a);
+    const marco = arvoreMarco(a);
+    const det = arvoreDetectadaEm(a);
+    const dataFmt = det ? new Date(det).toLocaleDateString("pt-BR") : "—";
+    return `<tr>
+      <td><strong>${arvoreNome(a)}</strong></td>
+      <td>${tel || "—"}</td>
+      <td class="num">${marco}</td>
+      <td>${dataFmt}</td>
+      <td><button class="btn-x" style="color:var(--verde);border-color:#1F4A2F" onclick="marcarArvorePlantada('${tel}', ${JSON.stringify(marco)}, this)">marcar como plantada</button></td>
+    </tr>`;
+  }).join("");
+  $("arvores-resumo").textContent = lista.length + " árvore(s) pendente(s) de plantio.";
+}
+
+async function marcarArvorePlantada(telefone, marco, btnEl){
+  const textoOriginal = btnEl.textContent;
+  btnEl.disabled = true; btnEl.textContent = "Marcando…";
+  try{
+    const r = await fetch(API + "/admin/arvores/marcar", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({telefone, marco})
+    });
+    if(!r.ok) throw 0;
+    carregarArvores();
+  }catch(e){
+    btnEl.disabled = false; btnEl.textContent = textoOriginal;
+    alert("Não foi possível marcar como plantada. Tente de novo.");
+  }
+}
+$("b-arvores-recarregar").onclick = carregarArvores;
+
 
 /* ── exclusao com confirmacao ── */
 function fecharModal(){ document.getElementById("modal").classList.remove("on"); }
@@ -1659,6 +1743,7 @@ carregarConfig();
 carregarBloqueados();
 carregarGarcons();
 pmCarregar();
+carregarArvores();
 </script>
 
 <div id="modal">
