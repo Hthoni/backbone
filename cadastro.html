@@ -75,6 +75,35 @@
   }
   .erro-msg{color:#FF6B6B; font-size:14px; font-weight:600; min-height:18px; margin-top:8px}
   .carregando{color:var(--cinza); font-size:17px; text-align:center; padding:36px 0}
+
+  /* ── benefícios (chopp grátis / árvore plantada) ── */
+  .beneficios{
+    background:var(--preto2); border:1px solid var(--linha); border-radius:14px;
+    padding:16px; margin-top:14px;
+  }
+  .beneficios-titulo{
+    font-size:13px; font-weight:800; letter-spacing:.1em; color:var(--cinza);
+    text-transform:uppercase; margin-bottom:12px;
+  }
+  .beneficio-item{
+    display:flex; align-items:center; gap:12px; margin-bottom:12px;
+  }
+  .beneficio-badge{
+    flex-shrink:0; width:46px; height:46px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-size:14px; font-weight:800; color:#fff;
+  }
+  .beneficio-badge.chopp{background:var(--ambar); color:#151000}
+  .beneficio-badge.arvore{background:var(--verde)}
+  .beneficio-texto{font-size:15px; line-height:1.35; color:#EDEBE3}
+  .beneficio-texto strong{color:#fff}
+  .beneficios-img{
+    width:100%; height:170px; object-fit:cover; border-radius:10px;
+    margin-top:4px; display:block;
+  }
+  .beneficios-legenda{
+    font-size:12px; color:var(--cinza); text-align:center; margin-top:8px;
+  }
 </style>
 </head>
 <body>
@@ -300,11 +329,28 @@ function boasVindas(c){
     </div>
 
     <div class="aviso">
-      Guarde o cartão no Wallet do seu celular clicando abaixo. Você poderá utilizá-lo para duas finalidades:
+      O Wallet do seu telefone está habilitado? Guarde o cartão no Wallet do seu celular clicando abaixo. Ele tem duas finalidades:
       <ul style="margin:10px 0 0 18px; display:flex; flex-direction:column; gap:8px">
-        <li>O(a) atendente deve escanear o QR code a cada chopp consumido para você acumular pontos e resgatar prêmios.</li>
-        <li>Apresente este cartão para seus amigos: se eles fizerem cadastros pelo seu QR Code, você ganhará pontos conforme o consumo de seus amigos.</li>
+        <li>Apresente o QR code do cartão para seu amigo — após o cadastro dele, os pontos de consumo geram pontos para você também.</li>
+        <li>A cada chopp consumido, o(a) atendente escaneia o seu QR code, gerando um ponto para você acumular e resgatar prêmios.</li>
       </ul>
+    </div>
+
+    <div class="beneficios">
+      <div class="beneficios-titulo">Seus benefícios no clube</div>
+
+      <div class="beneficio-item">
+        <div class="beneficio-badge chopp">10</div>
+        <div class="beneficio-texto">A cada <strong>10 pontos</strong>, você ganha um <strong>Pilsen 300ml grátis</strong>!</div>
+      </div>
+
+      <div class="beneficio-item" style="margin-bottom:14px">
+        <div class="beneficio-badge arvore">100</div>
+        <div class="beneficio-texto">A cada <strong>100 pontos</strong>, plantamos uma <strong>muda nativa da Mata Atlântica</strong> em seu nome, na Serra da Mantiqueira.</div>
+      </div>
+
+      <img class="beneficios-img" src="muda_arvore.jpg" alt="Muda nativa da Mata Atlântica plantada em nome de um sócio do Clube Backbone">
+      <div class="beneficios-legenda">Muda plantada em nome de um sócio, na Serra da Mantiqueira</div>
     </div>
 
     ${botaoWallet}
