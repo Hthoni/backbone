@@ -329,12 +329,12 @@ function boasVindas(c){
     <h1 style="font-size:28px">Seja bem-vindo, ${c.nome}!</h1>
 
     <div class="aviso">
-      <div class="aviso-titulo">Seu chopp de boas-vindas é por nossa conta!</div>
+      <div class="aviso-titulo" id="titulo-boas-vindas">O chopp de boas-vindas é por nossa conta!</div>
       Guarde o cartão no Wallet do seu celular clicando abaixo. E peça para o garçom escanear o seu QR code.
       <br><br>Este cartão tem duas funções:
       <ul style="margin:10px 0 0 18px; display:flex; flex-direction:column; gap:8px">
-        <li>Apresente o QR code do cartão para seu amigo — após o cadastro dele, os pontos de consumo dele geram pontos para você também.</li>
         <li>A cada chopp consumido, o garçom escaneia o seu QR code, gerando um novo ponto para você acumular e resgatar prêmios.</li>
+        <li>Apresente o QR code do cartão para seus amigos. Com o cadastro dele, os seus pontos de consumo geram pontos para você também.</li>
       </ul>
     </div>
 
@@ -358,6 +358,28 @@ function boasVindas(c){
 
     ${botaoWallet}
   `;
+
+  ajustarTituloUmaLinha(document.getElementById("titulo-boas-vindas"));
+}
+
+/*
+ * Encolhe a fonte do titulo ate ele caber numa unica linha, testando
+ * o tamanho real do texto contra a largura disponivel do bloco —
+ * funciona em qualquer largura de tela sem precisar de um valor fixo
+ * que quebra em celulares menores. Para no minimo de 12px; se nem
+ * assim couber, libera a quebra de linha normal (nunca corta texto).
+ */
+function ajustarTituloUmaLinha(el, minPx = 12){
+  if(!el) return;
+  el.style.whiteSpace = "nowrap";
+  let fonte = parseFloat(getComputedStyle(el).fontSize);
+  while(el.scrollWidth > el.clientWidth && fonte > minPx){
+    fonte -= 0.5;
+    el.style.fontSize = fonte + "px";
+  }
+  if(el.scrollWidth > el.clientWidth){
+    el.style.whiteSpace = "normal";
+  }
 }
 </script>
 </body>
