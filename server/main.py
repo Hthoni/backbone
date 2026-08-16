@@ -1385,6 +1385,57 @@ def admin_marcar_arvore():
     return jsonify({"status": "ok"})
 
 
+# ══════════════════════════════════════════════════════════════
+#  MENSAGENS — canal livre do socio pra pedir resgate ou tirar duvida,
+#  direto na pagina de perfil. Aparecem na aba Mensagens do admin,
+#  que pode marcar como "lida" quando ja tomou providencia.
+# ══════════════════════════════════════════════════════════════
+
+@app.route("/mensagens", methods=["POST"])
+def criar_mensagem():
+    """Body: {"telefone": "...", "nome": "...", "texto": "..."}"""
+    dados = request.get_json(silent=True) or {}
+    telefone = so_digitos(dados.get("telefone", ""))
+    texto = (dados.get("texto") or "").strip()
+    if not telefone or not texto:
+        return jsonify({"erro": "telefone_e_texto_obrigatorios"}), 400
+
+    nome = (dados.get("nome") or "").strip()
+    if not nome:
+        c = storage.carregar_consumidor(telefone)
+        nome = c.get("nome", "") if c else ""
+
+    mensagem = {
+        "telefone": telefone,
+        "nome": nome,
+        "texto": texto,
+        "data": agora(),
+        "lida": False,
+    }
+    storage.salvar_mensagem(mensagem)
+    return jsonify({"status": "ok", "mensagem": mensagem})
+
+
+@app.route("/admin/mensagens")
+def admin_mensagens():
+    mensagens = storage.listar_mensagens()
+    mensagens.sort(key=lambda m: m.get("data", ""), reverse=True)
+    return jsonify(mensagens)
+
+
+@app.route("/admin/mensagens/marcar", methods=["POST"])
+def admin_marcar_mensagem():
+    """Body: {"id": "..."}"""
+    dados = request.get_json(silent=True) or {}
+    mid = dados.get("id")
+    if not mid:
+        return jsonify({"erro": "id_obrigatorio"}), 400
+    ok = storage.marcar_mensagem_lida(mid)
+    if not ok:
+        return jsonify({"erro": "nao_encontrada"}), 404
+    return jsonify({"status": "ok"})
+
+
 @app.route("/")
 def health():
     return jsonify({"status": "ok", "sistema": "Clube Backbone", "versao": 3})
