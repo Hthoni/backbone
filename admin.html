@@ -146,6 +146,11 @@
   }
   #modal-qr .acoes{display:flex; gap:10px}
   #modal-qr .acoes .btn{flex:1}
+  .pill-msg{
+    display:inline-block; padding:3px 10px; border-radius:999px; font-size:11px; font-weight:800;
+    background:var(--ambar); color:#151000; cursor:pointer; border:none; font-family:inherit;
+  }
+  .pill-msg:hover{filter:brightness(1.1)}
 </style>
 </head>
 <body>
@@ -169,6 +174,7 @@
   <button data-aba="admins">Admins</button>
   <button data-aba="colabs">Colabs</button>
   <button data-aba="arvores">Árvores</button>
+  <button data-aba="mensagens">Mensagens</button>
 </nav>
 
 <main>
@@ -188,9 +194,9 @@
   <div class="cartao" style="padding:0; overflow-x:auto">
     <table>
       <thead><tr>
-        <th>NOME</th><th>TELEFONE</th>
+        <th>NOME</th><th>TELEFONE</th><th></th>
         <th><span class="f-col-soc" data-campo="bar"></span></th>
-        <th class="num">PONTOS</th><th class="num">META</th>
+        <th class="num">PONTOS</th><th class="num">PONTOS TOTAIS</th><th class="num">META</th>
         <th class="num">INDICADOS</th>
         <th><span class="f-col-soc" data-campo="padrinho"></span></th>
         <th><span class="f-col-soc" data-campo="premio"></span></th>
@@ -198,7 +204,7 @@
         <th>ADESÃO</th>
         <th></th>
       </tr></thead>
-      <tbody id="t-consumidores"><tr><td colspan="11" class="carregando">Carregando…</td></tr></tbody>
+      <tbody id="t-consumidores"><tr><td colspan="13" class="carregando">Carregando…</td></tr></tbody>
     </table>
   </div>
   <div class="mini" id="resumo"></div>
@@ -536,6 +542,33 @@
   <div class="mini" id="arvores-resumo"></div>
 </section>
 
+<!-- ══ MENSAGENS ══ -->
+<section class="aba" id="aba-mensagens">
+  <h2>Mensagens</h2>
+  <p class="sub">Pedidos de resgate e dúvidas enviados pelos sócios na página de perfil deles. Marque como lida quando já tiver tomado providência.</p>
+  <div class="linha">
+    <div style="max-width:280px">
+      <label>FILTRAR POR TELEFONE</label>
+      <input id="msg-filtro-tel" type="text" placeholder="deixe em branco pra ver todas">
+    </div>
+    <div style="flex:0">
+      <button class="btn sec" id="b-msg-limpar-filtro">Limpar filtro</button>
+    </div>
+    <div style="flex:0">
+      <button class="btn sec" id="b-msg-recarregar">Recarregar</button>
+    </div>
+  </div>
+  <div class="cartao" style="padding:0; overflow-x:auto">
+    <table>
+      <thead><tr>
+        <th>SÓCIO</th><th>TELEFONE</th><th>MENSAGEM</th><th>DATA</th><th>STATUS</th><th></th>
+      </tr></thead>
+      <tbody id="t-mensagens"><tr><td colspan="6" class="carregando">Carregando…</td></tr></tbody>
+    </table>
+  </div>
+  <div class="mini" id="mensagens-resumo"></div>
+</section>
+
 </main>
 
 <script>
@@ -565,6 +598,14 @@ document.querySelectorAll("nav button").forEach(b => {
   };
 });
 
+function irParaAba(nomeAba){
+  document.querySelectorAll("nav button").forEach(x => x.classList.remove("on"));
+  document.querySelectorAll(".aba").forEach(x => x.classList.remove("on"));
+  const botao = document.querySelector('nav button[data-aba="' + nomeAba + '"]');
+  if(botao) botao.classList.add("on");
+  $("aba-" + nomeAba).classList.add("on");
+}
+
 /* ── sócios ── */
 let consumidoresLista = [];
 let socFiltros = {}; // campo -> Set de valores aceitos (ausente = todos)
@@ -581,14 +622,14 @@ const SOC_CAMPOS = [
 
 async function carregarConsumidores(){
   const tb = $("t-consumidores");
-  tb.innerHTML = '<tr><td colspan="11" class="carregando">Carregando…</td></tr>';
+  tb.innerHTML = '<tr><td colspan="13" class="carregando">Carregando…</td></tr>';
   try{
     const r = await fetch(API + "/admin/consumidores");
     consumidoresLista = await r.json();
     montarFiltrosSoc();
     renderConsumidores();
   }catch(e){
-    tb.innerHTML = '<tr><td colspan="11" class="carregando">Erro ao carregar. O servidor pode estar acordando — tente de novo.</td></tr>';
+    tb.innerHTML = '<tr><td colspan="13" class="carregando">Erro ao carregar. O servidor pode estar acordando — tente de novo.</td></tr>';
   }
 }
 
@@ -654,11 +695,17 @@ function montarFiltrosSoc(){
   });
 }
 
+function celAlertaMensagem(telefone){
+  return telefonesComMensagemNaoLida.has(telefone)
+    ? `<button class="pill-msg" onclick="abrirMensagensDoSocio('${telefone}')">msg</button>`
+    : "";
+}
+
 function renderConsumidores(){
   const tb = $("t-consumidores");
   const lista = socFiltrados();
   if(!lista.length){
-    tb.innerHTML = '<tr><td colspan="11" class="carregando">Nenhum sócio encontrado.</td></tr>';
+    tb.innerHTML = '<tr><td colspan="13" class="carregando">Nenhum sócio encontrado.</td></tr>';
     $("resumo").textContent = "";
     return;
   }
@@ -671,8 +718,10 @@ function renderConsumidores(){
     return `<tr>
       <td><strong>${c.nome || "—"}</strong></td>
       <td>${c.telefone}</td>
+      <td>${celAlertaMensagem(c.telefone)}</td>
       <td>${c.indicador || "—"}</td>
       <td class="num">${c.punches ?? 0}</td>
+      <td class="num">${c.chopps_totais ?? 0}</td>
       <td class="num">${c.meta ?? "—"}</td>
       <td class="num">${c.total_indicados ?? 0}</td>
       <td>${c.padrinho || "—"}</td>
@@ -1404,6 +1453,95 @@ async function marcarArvorePlantada(telefone, marco, btnEl){
 }
 $("b-arvores-recarregar").onclick = carregarArvores;
 
+/* ── mensagens ── */
+let mensagensLista = [];
+let telefonesComMensagemNaoLida = new Set();
+let mensagensFiltroTel = "";
+
+async function carregarMensagens(){
+  const tb = $("t-mensagens");
+  if(tb) tb.innerHTML = '<tr><td colspan="6" class="carregando">Carregando…</td></tr>';
+  try{
+    const r = await fetch(API + "/admin/mensagens");
+    mensagensLista = await r.json();
+  }catch(e){
+    mensagensLista = [];
+    if(tb) tb.innerHTML = '<tr><td colspan="6" class="carregando">Erro ao carregar.</td></tr>';
+  }
+  telefonesComMensagemNaoLida = new Set(
+    mensagensLista.filter(m => !m.lida).map(m => m.telefone)
+  );
+  renderMensagens();
+  // se a tabela de socios ja carregou, atualiza os alertas nela tambem
+  if(consumidoresLista.length) renderConsumidores();
+}
+
+function renderMensagens(){
+  const tb = $("t-mensagens");
+  if(!tb) return;
+  const lista = mensagensFiltroTel
+    ? mensagensLista.filter(m => m.telefone === mensagensFiltroTel)
+    : mensagensLista;
+
+  if(!lista.length){
+    tb.innerHTML = '<tr><td colspan="6" class="carregando">' +
+      (mensagensFiltroTel ? "Nenhuma mensagem deste sócio." : "Nenhuma mensagem recebida ainda.") +
+      '</td></tr>';
+  } else {
+    tb.innerHTML = lista.map(m => {
+      const data = m.data ? new Date(m.data).toLocaleString("pt-BR") : "—";
+      const status = m.lida
+        ? '<span class="pill neutro">lida</span>'
+        : '<span class="pill atencao">não lida</span>';
+      const acao = m.lida
+        ? ""
+        : `<button class="btn-x" style="color:var(--verde);border-color:#1F4A2F" onclick="marcarMensagemLida('${m.id}', this)">marcar como lida</button>`;
+      return `<tr>
+        <td><strong>${m.nome || "—"}</strong></td>
+        <td>${m.telefone}</td>
+        <td style="white-space:normal; max-width:360px">${m.texto}</td>
+        <td style="white-space:nowrap">${data}</td>
+        <td>${status}</td>
+        <td>${acao}</td>
+      </tr>`;
+    }).join("");
+  }
+  $("mensagens-resumo").textContent = telefonesComMensagemNaoLida.size + " sócio(s) com mensagem pendente.";
+  $("msg-filtro-tel").value = mensagensFiltroTel;
+}
+
+async function marcarMensagemLida(id, btnEl){
+  const textoOriginal = btnEl.textContent;
+  btnEl.disabled = true; btnEl.textContent = "Marcando…";
+  try{
+    const r = await fetch(API + "/admin/mensagens/marcar", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({id})
+    });
+    if(!r.ok) throw 0;
+    carregarMensagens();
+  }catch(e){
+    btnEl.disabled = false; btnEl.textContent = textoOriginal;
+    alert("Não foi possível marcar como lida. Tente de novo.");
+  }
+}
+
+function abrirMensagensDoSocio(telefone){
+  mensagensFiltroTel = telefone;
+  irParaAba("mensagens");
+  renderMensagens();
+}
+
+$("msg-filtro-tel").oninput = () => {
+  mensagensFiltroTel = $("msg-filtro-tel").value.trim();
+  renderMensagens();
+};
+$("b-msg-limpar-filtro").onclick = () => {
+  mensagensFiltroTel = "";
+  renderMensagens();
+};
+$("b-msg-recarregar").onclick = carregarMensagens;
+
 
 /* ── exclusao com confirmacao ── */
 function fecharModal(){ document.getElementById("modal").classList.remove("on"); }
@@ -1744,6 +1882,7 @@ carregarBloqueados();
 carregarGarcons();
 pmCarregar();
 carregarArvores();
+carregarMensagens();
 </script>
 
 <div id="modal">
