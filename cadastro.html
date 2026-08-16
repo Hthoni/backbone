@@ -76,6 +76,7 @@
   .aviso-titulo{
     font-size:17px; font-weight:800; color:var(--ambar); line-height:1.3;
     text-align:center; text-transform:uppercase; margin-bottom:10px;
+    overflow-wrap:break-word; word-break:break-word;
   }
   .erro-msg{color:#FF6B6B; font-size:14px; font-weight:600; min-height:18px; margin-top:8px}
   .carregando{color:var(--cinza); font-size:17px; text-align:center; padding:36px 0}
@@ -366,7 +367,7 @@ function boasVindas(c){
       <img src="muda_carlos.jpg" alt="Muda plantada em nome de um sócio, na Serra da Mantiqueira">
       <img src="muda_luiz.jpg" alt="Muda plantada em nome de um sócio, na Serra da Mantiqueira">
     </div>
-    <div class="beneficios-legenda">Mudas plantadas em nome de sócios, na Serra da Mantiqueira</div>
+    <div class="beneficios-legenda">Mudas plantadas em nome de sócios, na Serra da Mantiqueira (simulação)</div>
 
     <div class="beneficios" style="margin-top:14px">
       <div class="beneficios-titulo">Outros benefícios</div>
@@ -397,23 +398,41 @@ function boasVindas(c){
 }
 
 /*
- * Encolhe a fonte do titulo ate ele caber numa unica linha, testando
- * o tamanho real do texto contra a largura disponivel do bloco —
- * funciona em qualquer largura de tela sem precisar de um valor fixo
- * que quebra em celulares menores. Para no minimo de 12px; se nem
- * assim couber, libera a quebra de linha normal (nunca corta texto).
+ * Encolhe a fonte do titulo ate ele caber numa unica linha. Mede o
+ * texto com canvas.measureText() em vez de comparar scrollWidth
+ * contra clientWidth do proprio elemento — a tecnica anterior podia
+ * falhar se o navegador ainda nao tivesse processado o layout no
+ * instante exato da leitura (foi o caso relatado num teste real no
+ * simulador mobile do Chrome, com o texto vazando pra fora do box).
+ * Medir via canvas independe do estado do layout: pega a largura
+ * disponivel do bloco ANTES de mexer em qualquer coisa, e testa o
+ * texto contra ela usando a mesma fonte/peso do elemento.
+ * Para no minimo de 11px; se nem assim couber, libera quebra de
+ * linha (nunca deixa o texto vazar pra fora do box).
  */
-function ajustarTituloUmaLinha(el, minPx = 12){
+function ajustarTituloUmaLinha(el, minPx = 11){
   if(!el) return;
-  el.style.whiteSpace = "nowrap";
-  let fonte = parseFloat(getComputedStyle(el).fontSize);
-  while(el.scrollWidth > el.clientWidth && fonte > minPx){
+  const disponivel = el.clientWidth;
+  if(!disponivel) return;
+
+  const estilo = getComputedStyle(el);
+  const peso = estilo.fontWeight;
+  const familia = estilo.fontFamily;
+  const texto = el.textContent.toUpperCase(); // o CSS ja mostra em caixa alta — mede igual
+
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+
+  let fonte = parseFloat(estilo.fontSize);
+  while(fonte > minPx){
+    ctx.font = peso + " " + fonte + "px " + familia;
+    if(ctx.measureText(texto).width <= disponivel) break;
     fonte -= 0.5;
-    el.style.fontSize = fonte + "px";
   }
-  if(el.scrollWidth > el.clientWidth){
-    el.style.whiteSpace = "normal";
-  }
+
+  el.style.fontSize = fonte + "px";
+  ctx.font = peso + " " + fonte + "px " + familia;
+  el.style.whiteSpace = (ctx.measureText(texto).width <= disponivel) ? "nowrap" : "normal";
 }
 </script>
 </body>
