@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<title>Meus dados — Clube Backbone</title>
+<style>
+  :root{
+    --preto:#000; --preto2:#141414; --linha:#2E2E2E;
+    --branco:#FFF; --cinza:#A8A8A2;
+    --rubro:#D8232A; --ambar:#E8A317; --verde:#1F7A47;
+    --campo:#E9E7DF;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    background:var(--preto); color:var(--branco);
+    min-height:100dvh; display:flex; flex-direction:column;
+    -webkit-font-smoothing:antialiased;
+  }
+  .cab{
+    display:flex; justify-content:center;
+    padding:calc(env(safe-area-inset-top,0px) + 10px) 20px 10px;
+    border-bottom:1px solid var(--linha); flex-shrink:0;
+  }
+  .cab img{height:48px; width:auto; display:block}
+
+  main{
+    flex:1; display:flex; flex-direction:column; justify-content:flex-start;
+    padding:14px 22px calc(16px + env(safe-area-inset-bottom,0px));
+    max-width:480px; margin:0 auto; width:100%;
+  }
+  h1{font-size:22px; font-weight:800; line-height:1.2; margin-bottom:14px}
+  label{display:block; font-size:13px; font-weight:800; letter-spacing:.1em; color:var(--cinza); margin:0 0 5px 2px}
+  input{
+    width:100%; background:var(--campo); border:2px solid var(--campo); color:#111;
+    font-size:16px; font-weight:600; padding:11px 12px; border-radius:10px;
+    font-family:inherit; appearance:none; -webkit-appearance:none;
+  }
+  input:focus{outline:none; border-color:var(--ambar)}
+  textarea{
+    width:100%; background:var(--campo); border:2px solid var(--campo); color:#111;
+    font-size:15px; font-weight:500; padding:11px 12px; border-radius:10px;
+    font-family:inherit; resize:vertical; min-height:90px;
+  }
+  textarea:focus{outline:none; border-color:var(--ambar)}
+  .grupo{margin-bottom:13px}
+
+  .btn{
+    display:block; width:100%; padding:16px; border:none; border-radius:14px;
+    font-size:18px; font-weight:800; text-align:center; text-decoration:none;
+    margin-top:6px; cursor:pointer; font-family:inherit;
+  }
+  .btn-verde{background:var(--verde); color:#FFF}
+  .btn-branco{background:#FFF; color:#000}
+  .btn:active{transform:scale(.985)}
+  .btn:disabled{opacity:.5}
+
+  .cartao{
+    background:var(--preto2); border:1px solid var(--linha); border-radius:12px;
+    padding:14px; margin-bottom:14px;
+  }
+  .cartao-titulo{
+    font-size:11px; font-weight:800; letter-spacing:.1em; color:var(--cinza);
+    text-transform:uppercase; margin-bottom:10px;
+  }
+  table.dados{width:100%; font-size:14px; border-collapse:collapse}
+  table.dados td{padding:8px 0; border-bottom:1px solid #222}
+  table.dados tr:last-child td{border-bottom:none}
+  table.dados td:first-child{color:var(--cinza)}
+  table.dados td:last-child{text-align:right; color:#fff; font-weight:600}
+  .pill{
+    display:inline-block; padding:3px 10px; border-radius:999px; font-size:11px; font-weight:800;
+  }
+  .pill.ok{background:var(--verde); color:#fff}
+  .pill.pendente{background:var(--ambar); color:#151000}
+
+  .beneficio-mini{display:flex; align-items:center; gap:10px; margin-bottom:10px}
+  .beneficio-mini:last-child{margin-bottom:0}
+  .beneficio-mini-badge{
+    flex-shrink:0; width:34px; height:34px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-weight:800; font-size:11px;
+  }
+  .beneficio-mini-badge.amarelo{background:var(--ambar); color:#151000}
+  .beneficio-mini-badge.cinza{background:#D9D7CF; color:#151515}
+  .beneficio-mini-texto{font-size:12.5px; color:#D6D4CC; line-height:1.35}
+
+  .erro-msg{color:#FF6B6B; font-size:14px; font-weight:600; min-height:18px; margin-top:8px}
+  .msg-ok{color:#5FD08A; font-size:14px; font-weight:600; min-height:18px; margin-top:8px}
+  .carregando{color:var(--cinza); font-size:17px; text-align:center; padding:36px 0}
+</style>
+</head>
+<body>
+  <div class="cab"><img src="clube_logo.png" alt="Clube Backbone"></div>
+  <main id="conteudo"><p class="carregando">Carregando…</p></main>
+
+<script>
+const SERVER = "https://backbone-650557630362.us-central1.run.app";
+const q = new URLSearchParams(location.search);
+const telQ = (q.get("tel") || "").replace(/\D/g, "");
+const alvo = document.getElementById("conteudo");
+const ehIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+
+if(telQ){
+  carregarPerfil(telQ);
+} else {
+  telaBusca();
+}
+
+function mascararTelefone(input){
+  input.addEventListener("input", () => {
+    let d = input.value.replace(/\D/g, "").slice(0, 11);
+    let f = d;
+    if(d.length > 2) f = "(" + d.slice(0,2) + ") " + d.slice(2);
+    if(d.length > 7) f = "(" + d.slice(0,2) + ") " + d.slice(2,7) + "-" + d.slice(7);
+    input.value = f;
+  });
+}
+
+function telaBusca(){
+  alvo.innerHTML = `
+    <h1>Meus dados no clube</h1>
+    <p style="color:#D6D4CC; font-size:15px; margin-bottom:14px">Digite o telefone cadastrado pra ver seus pontos e benefícios:</p>
+    <div class="grupo">
+      <label>SEU TELEFONE</label>
+      <input id="b-tel" type="tel" inputmode="numeric" autocomplete="tel" placeholder="(21) 99999-9999">
+    </div>
+    <button class="btn btn-verde" id="b-buscar">Ver meus dados</button>
+    <div class="erro-msg" id="b-erro"></div>
+  `;
+  const telInput = document.getElementById("b-tel");
+  mascararTelefone(telInput);
+  document.getElementById("b-buscar").onclick = () => {
+    const tel = telInput.value.replace(/\D/g, "");
+    const erro = document.getElementById("b-erro");
+    if(tel.length < 10 || tel.length > 11){
+      erro.textContent = "Telefone incompleto — confira o DDD e o número."; return;
+    }
+    erro.textContent = "";
+    carregarPerfil("55" + tel);
+  };
+}
+
+async function carregarPerfil(tel){
+  alvo.innerHTML = '<p class="carregando">Carregando…</p>';
+  try{
+    const r = await fetch(SERVER + "/consumidor/" + tel);
+    if(r.status === 404){
+      alvo.innerHTML = "<p class='erro-msg' style='font-size:17px'>Não encontramos esse telefone no clube. Confira o número ou fale com o garçom.</p>";
+      return;
+    }
+    if(!r.ok) throw 0;
+    const c = await r.json();
+    renderPerfil(c);
+  }catch(e){
+    alvo.innerHTML = "<p class='erro-msg' style='font-size:17px'>Sem conexão. Verifique a internet e recarregue.</p>";
+  }
+}
+
+function renderPerfil(c){
+  const boasVindasResgate = (c.recompensas || []).find(r => r.tipo === "boas_vindas");
+  const boasVindasPill = boasVindasResgate && boasVindasResgate.resgatada
+    ? '<span class="pill ok">resgatado</span>'
+    : '<span class="pill pendente">pendente</span>';
+
+  const pontosTotais = c.chopps_totais ?? 0;
+  const pontosCiclo = c.punches ?? 0;
+  const resgatados = (c.recompensas || []).filter(r => r.resgatada).length;
+  const adesao = c.cadastro_em ? new Date(c.cadastro_em).toLocaleDateString("pt-BR") : "—";
+
+  const botaoWallet = ehIOS
+    ? '<a class="btn btn-verde" href="' + SERVER + '/cartao/' + c.telefone + '">Guardar na Wallet do seu telefone</a>'
+    : '<a class="btn btn-verde" href="' + SERVER + '/gwallet/' + c.telefone + '">Guardar na Wallet do seu telefone</a>';
+
+  alvo.innerHTML = `
+    <h1>Meus dados</h1>
+
+    <div class="cartao">
+      <table class="dados">
+        <tr><td>Nome</td><td>${c.nome || "—"}</td></tr>
+        <tr><td>Telefone</td><td>${c.telefone}</td></tr>
+        <tr><td>Associado desde</td><td>${adesao}</td></tr>
+        <tr><td>Chopp de boas-vindas</td><td>${boasVindasPill}</td></tr>
+        <tr><td>Pontos totais</td><td>${pontosTotais}</td></tr>
+        <tr><td>Pontos após último resgate</td><td>${pontosCiclo}</td></tr>
+        <tr><td>Chopps já resgatados</td><td>${resgatados}</td></tr>
+      </table>
+    </div>
+
+    ${botaoWallet}
+
+    <div class="cartao" style="margin-top:18px">
+      <div class="cartao-titulo">Seus benefícios</div>
+      <div class="beneficio-mini">
+        <div class="beneficio-mini-badge amarelo">10</div>
+        <div class="beneficio-mini-texto">A cada 10 pontos, um Chopp Pilsen 300ml grátis</div>
+      </div>
+      <div class="beneficio-mini">
+        <div class="beneficio-mini-badge amarelo">50</div>
+        <div class="beneficio-mini-texto">Com 50 pontos, ingresso grátis na visita guiada à fábrica</div>
+      </div>
+      <div class="beneficio-mini">
+        <div class="beneficio-mini-badge amarelo">100</div>
+        <div class="beneficio-mini-texto">Com 100 pontos, uma muda plantada em seu nome</div>
+      </div>
+      <div class="beneficio-mini">
+        <div class="beneficio-mini-badge cinza">20%</div>
+        <div class="beneficio-mini-texto">Desconto em vestuário e acessórios Backbone</div>
+      </div>
+      <div class="beneficio-mini">
+        <div class="beneficio-mini-badge cinza">$75</div>
+        <div class="beneficio-mini-texto">Desconto no Chopp Delivery</div>
+      </div>
+      <div class="beneficio-mini">
+        <div class="beneficio-mini-badge cinza">15%</div>
+        <div class="beneficio-mini-texto">Desconto nas pousadas parceiras de Mauá</div>
+      </div>
+    </div>
+
+    <div class="cartao">
+      <div class="cartao-titulo">Falar com o clube</div>
+      <p style="font-size:13px; color:#A8A8A2; margin-bottom:10px">Quer resgatar um prêmio ou tem alguma dúvida? Escreva aqui:</p>
+      <div class="grupo">
+        <textarea id="m-texto" placeholder="Ex.: quero resgatar meu desconto na pousada..."></textarea>
+      </div>
+      <button class="btn btn-branco" id="m-enviar">Enviar mensagem</button>
+      <div class="erro-msg" id="m-erro"></div>
+      <div class="msg-ok" id="m-ok"></div>
+    </div>
+  `;
+
+  document.getElementById("m-enviar").onclick = async () => {
+    const texto = document.getElementById("m-texto").value.trim();
+    const erro = document.getElementById("m-erro");
+    const ok = document.getElementById("m-ok");
+    ok.textContent = "";
+    if(!texto){ erro.textContent = "Escreva sua mensagem antes de enviar."; return; }
+    erro.textContent = "";
+    const b = document.getElementById("m-enviar");
+    b.disabled = true; b.textContent = "Enviando…";
+    try{
+      const r = await fetch(SERVER + "/mensagens", {
+        method: "POST", headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({telefone: c.telefone, nome: c.nome, texto})
+      });
+      if(!r.ok) throw 0;
+      document.getElementById("m-texto").value = "";
+      ok.textContent = "Mensagem enviada! A gente responde por WhatsApp ou no bar.";
+    }catch(e){
+      erro.textContent = "Não foi possível enviar. Tente de novo.";
+    }finally{
+      b.disabled = false; b.textContent = "Enviar mensagem";
+    }
+  };
+}
+</script>
+</body>
+</html>
