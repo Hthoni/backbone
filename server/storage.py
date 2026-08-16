@@ -386,3 +386,62 @@ def salvar_bloqueados(lista):
     limpa.sort(key=lambda x: (x["bar"], x["telefone"]))
     _bucket().blob("bloqueados.json").upload_from_string(
         json.dumps(limpa), content_type="application/json")
+
+
+# ── Mensagens (canal livre do socio — pedido de resgate, duvida, etc.) ──
+#
+# Mesmo padrao NDJSON dos eventos: 1 arquivo-log, 1 download pra listar.
+# Diferente dos eventos, aqui PRECISA editar uma linha especifica depois
+# (marcar como lida), entao marcar_mensagem_lida faz read-modify-write
+# do arquivo inteiro — aceitavel pelo volume baixo esperado (mensagens
+# avulsas de socio, nao um evento por scan).
+
+_LOG_MENSAGENS = "mensagens/log.jsonl"
+
+
+def salvar_mensagem(mensagem: dict):
+    mensagem.setdefault("id", str(uuid.uuid4()))
+    mensagem.setdefault("lida", False)
+    linha = json.dumps(mensagem, ensure_ascii=False)
+
+    blob = _bucket().blob(_LOG_MENSAGENS)
+    atual = blob.download_as_text() if blob.exists() else ""
+    if atual and not atual.endswith("\n"):
+        atual += "\n"
+    blob.upload_from_string(atual + linha + "\n", content_type="application/x-ndjson")
+    return mensagem
+
+
+def listar_mensagens():
+    blob = _bucket().blob(_LOG_MENSAGENS)
+    if not blob.exists():
+        return []
+    mensagens = []
+    for linha in blob.download_as_text().splitlines():
+        linha = linha.strip()
+        if not linha:
+            continue
+        try:
+            mensagens.append(json.loads(linha))
+        except Exception:
+            continue
+    return mensagens
+
+
+def marcar_mensagem_lida(mensagem_id: str):
+    """Le o log inteiro, marca a mensagem certa como lida, e regrava tudo."""
+    mensagens = listar_mensagens()
+    achou = False
+    for m in mensagens:
+        if m.get("id") == mensagem_id:
+            m["lida"] = True
+            achou = True
+            break
+    if not achou:
+        return False
+
+    linhas = "\n".join(json.dumps(m, ensure_ascii=False) for m in mensagens)
+    if linhas:
+        linhas += "\n"
+    _bucket().blob(_LOG_MENSAGENS).upload_from_string(linhas, content_type="application/x-ndjson")
+    return True
