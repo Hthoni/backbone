@@ -93,21 +93,21 @@
     display:flex; align-items:center; gap:12px; margin-bottom:12px;
   }
   .beneficio-badge{
-    flex-shrink:0; width:46px; height:46px; border-radius:50%;
+    flex-shrink:0; width:48px; height:48px; border-radius:50%;
     display:flex; align-items:center; justify-content:center;
-    font-size:14px; font-weight:800; color:#fff;
+    font-weight:800;
   }
-  .beneficio-badge.chopp{background:#F8B838; color:#151000}       /* German Pilsner */
-  .beneficio-badge.arvore{background:#00B048; color:#FFF}          /* West Coast IPA */
-  .beneficio-badge.vestuario{background:#F03038; color:#FFF; font-size:12px}       /* American Hop Lager */
-  .beneficio-badge.delivery{background:#00B0E0; color:#FFF; font-size:11px}        /* Belgian Witbier */
-  .beneficio-badge.pousadas{background:#882030; color:#FFF; font-size:12px}        /* Irish Red Ale */
-  .beneficio-badge.fabrica{background:#103868; color:#FFF; font-size:12px}         /* New England IPA */
-  .beneficio-texto{font-size:15px; line-height:1.35; color:#EDEBE3}
+  .beneficio-badge.amarelo{background:#E8A317; color:#151000}
+  .beneficio-badge.cinza{background:#D9D7CF; color:#151515}
+  .beneficio-badge.tam2{font-size:19px}
+  .beneficio-badge.tam3{font-size:16px}
+  .beneficio-texto{font-size:14px; line-height:1.35; color:#EDEBE3}
   .beneficio-texto strong{color:#fff}
-  .beneficios-img{
-    width:100%; height:auto; border-radius:10px;
-    margin-top:4px; display:block;
+  .beneficios-fotos{
+    display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-top:4px;
+  }
+  .beneficios-fotos img{
+    width:100%; aspect-ratio:2/3; object-fit:cover; border-radius:8px; display:block;
   }
   .beneficios-legenda{
     font-size:12px; color:var(--cinza); text-align:center; margin-top:8px;
@@ -336,50 +336,61 @@ function boasVindas(c){
       <div class="aviso-titulo" id="titulo-boas-vindas">O chopp de boas-vindas é por nossa conta!</div>
       Guarde o cartão no Wallet do seu celular clicando abaixo. E peça para o garçom escanear o seu QR code.
       <br><br>Este cartão tem duas funções:
-      <ul style="margin:10px 0 0 18px; display:flex; flex-direction:column; gap:8px">
-        <li>A cada chopp consumido, o garçom escaneia o seu QR code, gerando um novo ponto para você acumular e resgatar prêmios.</li>
+      <ul style="margin:10px 0 0 18px; padding:0">
+        <li style="margin-bottom:8px">A cada chopp consumido, o garçom escaneia o seu QR code, gerando um novo ponto para você acumular e resgatar prêmios.</li>
         <li>Apresente o QR code do cartão para seus amigos. Com o cadastro dele, os seus pontos de consumo geram pontos para você também.</li>
       </ul>
     </div>
 
     <div class="beneficios">
-      <div class="beneficios-titulo">Seus benefícios no clube</div>
+      <div class="beneficios-titulo">Seus pontos no clube</div>
 
       <div class="beneficio-item">
-        <div class="beneficio-badge chopp">10</div>
-        <div class="beneficio-texto">A cada <strong>10 pontos</strong>, você ganha um <strong>Pilsen 300ml grátis</strong>!</div>
-      </div>
-
-      <div class="beneficio-item">
-        <div class="beneficio-badge arvore">100</div>
-        <div class="beneficio-texto">A cada <strong>100 pontos</strong>, plantamos uma <strong>muda nativa da Mata Atlântica</strong> em seu nome, na Serra da Mantiqueira.</div>
+        <div class="beneficio-badge amarelo tam2">10</div>
+        <div class="beneficio-texto">A cada <strong>10 pontos</strong>, resgate um Chopp Pilsen 300ml em qualquer bar afiliado Clube Backbone.</div>
       </div>
 
       <div class="beneficio-item">
-        <div class="beneficio-badge vestuario">20%</div>
-        <div class="beneficio-texto"><strong>20% de desconto</strong> em todos os itens de vestuário e acessórios nas lojas Backbone.</div>
+        <div class="beneficio-badge amarelo tam2">50</div>
+        <div class="beneficio-texto">Com <strong>50 pontos</strong>, você ganha ingresso grátis para a visita guiada à Fábrica da Backbone em Visconde de Mauá.</div>
+      </div>
+
+      <div class="beneficio-item" style="margin-bottom:0">
+        <div class="beneficio-badge amarelo tam3">100</div>
+        <div class="beneficio-texto">Com <strong>100 pontos</strong>, uma muda de espécie da Mata Atlântica será plantada em seu nome, na Serra da Mantiqueira.</div>
+      </div>
+    </div>
+
+    <div class="beneficios-fotos">
+      <img src="muda_arvore.jpg" alt="Muda plantada em nome de um sócio, na Serra da Mantiqueira">
+      <img src="muda_carlos.jpg" alt="Muda plantada em nome de um sócio, na Serra da Mantiqueira">
+      <img src="muda_luiz.jpg" alt="Muda plantada em nome de um sócio, na Serra da Mantiqueira">
+    </div>
+    <div class="beneficios-legenda">Mudas plantadas em nome de sócios, na Serra da Mantiqueira</div>
+
+    <div class="beneficios" style="margin-top:14px">
+      <div class="beneficios-titulo">Outros benefícios</div>
+
+      <div class="beneficio-item">
+        <div class="beneficio-badge cinza tam3">20%</div>
+        <div class="beneficio-texto">Desconto de <strong>20%</strong> em itens de vestuário e acessórios da marca Backbone.</div>
       </div>
 
       <div class="beneficio-item">
-        <div class="beneficio-badge delivery">R$75</div>
-        <div class="beneficio-texto"><strong>R$75,00 de desconto</strong> no serviço de Chopp Delivery.</div>
+        <div class="beneficio-badge cinza tam3">$75</div>
+        <div class="beneficio-texto">Desconto de <strong>R$75,00</strong> nos serviços de Chopp Delivery para a sua festa.</div>
       </div>
 
-      <div class="beneficio-item">
-        <div class="beneficio-badge pousadas">15%</div>
-        <div class="beneficio-texto"><strong>15% de desconto</strong> nas pousadas parceiras de Visconde de Mauá.</div>
+      <div class="beneficio-item" style="margin-bottom:0">
+        <div class="beneficio-badge cinza tam3">15%</div>
+        <div class="beneficio-texto">Desconto de <strong>15%</strong> nas pousadas parceiras de Visconde de Mauá.</div>
       </div>
-
-      <div class="beneficio-item" style="margin-bottom:14px">
-        <div class="beneficio-badge fabrica">50%</div>
-        <div class="beneficio-texto"><strong>50% de desconto</strong> no ingresso da visita guiada à Fábrica da Backbone.</div>
-      </div>
-
-      <img class="beneficios-img" src="muda_arvore.jpg" alt="Muda nativa da Mata Atlântica plantada em nome de um sócio do Clube Backbone">
-      <div class="beneficios-legenda">Muda plantada em nome de um sócio, na Serra da Mantiqueira</div>
     </div>
 
     ${botaoWallet}
+
+    <a class="btn" style="background:transparent; border:2px solid #4A4A4A; color:#fff; margin-top:10px"
+       href="perfil.html?tel=${c.telefone}">Ver meus dados no clube</a>
   `;
 
   ajustarTituloUmaLinha(document.getElementById("titulo-boas-vindas"));
