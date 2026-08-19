@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#000000">
-<title>Meus dados — Clube Backbone</title>
+<title>Meu Clube Backbone</title>
 <style>
   :root{
     --preto:#000; --preto2:#141414; --linha:#2E2E2E;
@@ -32,21 +32,17 @@
     padding:14px 22px calc(16px + env(safe-area-inset-bottom,0px));
     max-width:480px; margin:0 auto; width:100%;
   }
-  h1{font-size:22px; font-weight:800; line-height:1.2; margin-bottom:14px}
-  label{display:block; font-size:13px; font-weight:800; letter-spacing:.1em; color:var(--cinza); margin:0 0 5px 2px}
+  h1{font-size:22px; font-weight:800; line-height:1.2; margin-bottom:6px}
+  p{font-size:15px; line-height:1.45; color:#D6D4CC; margin-bottom:10px}
+
+  label{display:block; font-size:13px; font-weight:800; letter-spacing:.1em; color:var(--cinza); margin:0 0 8px 2px}
   input{
     width:100%; background:var(--campo); border:2px solid var(--campo); color:#111;
-    font-size:16px; font-weight:600; padding:11px 12px; border-radius:10px;
-    font-family:inherit; appearance:none; -webkit-appearance:none;
+    font-size:16px; font-weight:600; padding:14px 12px; border-radius:10px;
+    font-family:inherit;
   }
   input:focus{outline:none; border-color:var(--ambar)}
-  textarea{
-    width:100%; background:var(--campo); border:2px solid var(--campo); color:#111;
-    font-size:15px; font-weight:500; padding:11px 12px; border-radius:10px;
-    font-family:inherit; resize:vertical; min-height:90px;
-  }
-  textarea:focus{outline:none; border-color:var(--ambar)}
-  .grupo{margin-bottom:13px}
+  .grupo{margin-bottom:16px}
 
   .btn{
     display:block; width:100%; padding:16px; border:none; border-radius:14px;
@@ -54,43 +50,35 @@
     margin-top:6px; cursor:pointer; font-family:inherit;
   }
   .btn-verde{background:var(--verde); color:#FFF}
-  .btn-branco{background:#FFF; color:#000}
   .btn:active{transform:scale(.985)}
   .btn:disabled{opacity:.5}
 
-  .cartao{
+  .card-pontos{
+    background:#FFF; color:#000; border-radius:16px;
+    padding:24px; margin:6px 0 18px; text-align:center;
+  }
+  .card-pontos .n{font-size:44px; font-weight:800; line-height:1}
+  .card-pontos .r{font-size:12px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:#6E6E68; margin-top:4px}
+
+  .grid{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:18px}
+  .metrica{
     background:var(--preto2); border:1px solid var(--linha); border-radius:12px;
-    padding:14px; margin-bottom:14px;
+    padding:14px; text-align:center;
   }
-  .cartao-titulo{
-    font-size:11px; font-weight:800; letter-spacing:.1em; color:var(--cinza);
-    text-transform:uppercase; margin-bottom:10px;
-  }
-  table.dados{width:100%; font-size:14px; border-collapse:collapse}
-  table.dados td{padding:8px 0; border-bottom:1px solid #222}
-  table.dados tr:last-child td{border-bottom:none}
-  table.dados td:first-child{color:var(--cinza)}
-  table.dados td:last-child{text-align:right; color:#fff; font-weight:600}
-  .pill{
-    display:inline-block; padding:3px 10px; border-radius:999px; font-size:11px; font-weight:800;
-  }
-  .pill.ok{background:var(--verde); color:#fff}
-  .pill.pendente{background:var(--ambar); color:#151000}
+  .metrica .n{font-size:22px; font-weight:800}
+  .metrica .r{font-size:11px; color:var(--cinza); text-transform:uppercase; letter-spacing:.05em; margin-top:2px}
 
-  .beneficio-mini{display:flex; align-items:center; gap:10px; margin-bottom:10px}
-  .beneficio-mini:last-child{margin-bottom:0}
-  .beneficio-mini-badge{
-    flex-shrink:0; width:34px; height:34px; border-radius:50%;
-    display:flex; align-items:center; justify-content:center;
-    font-weight:800; font-size:11px;
+  .aviso{
+    background:var(--preto2); border:1px solid var(--linha); border-radius:12px;
+    padding:14px; font-size:14px; color:#D6D4CC; line-height:1.45; margin-bottom:14px;
   }
-  .beneficio-mini-badge.amarelo{background:var(--ambar); color:#151000}
-  .beneficio-mini-badge.cinza{background:#D9D7CF; color:#151515}
-  .beneficio-mini-texto{font-size:12.5px; color:#D6D4CC; line-height:1.35}
-
   .erro-msg{color:#FF6B6B; font-size:14px; font-weight:600; min-height:18px; margin-top:8px}
-  .msg-ok{color:#5FD08A; font-size:14px; font-weight:600; min-height:18px; margin-top:8px}
   .carregando{color:var(--cinza); font-size:17px; text-align:center; padding:36px 0}
+  .link-trocar{
+    display:block; text-align:center; margin-top:18px; font-size:13px;
+    color:var(--cinza); text-decoration:underline; cursor:pointer; background:none; border:none;
+    font-family:inherit;
+  }
 </style>
 </head>
 <body>
@@ -99,16 +87,9 @@
 
 <script>
 const SERVER = "https://backbone-650557630362.us-central1.run.app";
-const q = new URLSearchParams(location.search);
-const telQ = (q.get("tel") || "").replace(/\D/g, "");
 const alvo = document.getElementById("conteudo");
 const ehIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
-
-if(telQ){
-  carregarPerfil(telQ);
-} else {
-  telaBusca();
-}
+const CHAVE_TEL = "bb_meu_telefone";
 
 function mascararTelefone(input){
   input.addEventListener("input", () => {
@@ -120,142 +101,115 @@ function mascararTelefone(input){
   });
 }
 
-function telaBusca(){
+function telaEntrar(erroInicial){
   alvo.innerHTML = `
-    <h1>Meus dados no clube</h1>
-    <p style="color:#D6D4CC; font-size:15px; margin-bottom:14px">Digite o telefone cadastrado pra ver seus pontos e benefícios:</p>
+    <h1>Meu Clube Backbone</h1>
+    <p>Digite seu telefone pra ver sua cartela e seus pontos.</p>
+
     <div class="grupo">
       <label>SEU TELEFONE</label>
-      <input id="b-tel" type="tel" inputmode="numeric" autocomplete="tel" placeholder="(21) 99999-9999">
+      <input id="e-tel" type="tel" inputmode="numeric" autocomplete="tel"
+             placeholder="(21) 99999-9999">
     </div>
-    <button class="btn btn-verde" id="b-buscar">Ver meus dados</button>
-    <div class="erro-msg" id="b-erro"></div>
+
+    <button class="btn btn-verde" id="e-entrar">Ver meus pontos</button>
+    <div class="erro-msg" id="e-erro">${erroInicial || ""}</div>
   `;
-  const telInput = document.getElementById("b-tel");
+
+  const telInput = document.getElementById("e-tel");
   mascararTelefone(telInput);
-  document.getElementById("b-buscar").onclick = () => {
+  telInput.focus();
+
+  document.getElementById("e-entrar").onclick = async () => {
     const tel = telInput.value.replace(/\D/g, "");
-    const erro = document.getElementById("b-erro");
+    const erro = document.getElementById("e-erro");
     if(tel.length < 10 || tel.length > 11){
       erro.textContent = "Telefone incompleto — confira o DDD e o número."; return;
     }
     erro.textContent = "";
-    carregarPerfil("55" + tel);
+    const b = document.getElementById("e-entrar");
+    b.disabled = true; b.textContent = "Buscando…";
+    await buscarEMostrar("55" + tel, erro, b);
   };
 }
 
-async function carregarPerfil(tel){
-  alvo.innerHTML = '<p class="carregando">Carregando…</p>';
+async function buscarEMostrar(telCompleto, erroEl, btnEl){
   try{
-    const r = await fetch(SERVER + "/consumidor/" + tel);
+    const r = await fetch(SERVER + "/consumidor/" + telCompleto);
     if(r.status === 404){
-      alvo.innerHTML = "<p class='erro-msg' style='font-size:17px'>Não encontramos esse telefone no clube. Confira o número ou fale com o garçom.</p>";
+      localStorage.removeItem(CHAVE_TEL);
+      if(erroEl){
+        erroEl.textContent = "Telefone não encontrado. Confira o número, ou faça seu cadastro primeiro.";
+        if(btnEl){ btnEl.disabled = false; btnEl.textContent = "Ver meus pontos"; }
+      } else {
+        telaEntrar("Não achamos seu cadastro. Digite seu telefone de novo.");
+      }
       return;
     }
     if(!r.ok) throw 0;
     const c = await r.json();
-    renderPerfil(c);
+    try{ localStorage.setItem(CHAVE_TEL, telCompleto); }catch(e){}
+    mostrarPerfil(c);
   }catch(e){
-    alvo.innerHTML = "<p class='erro-msg' style='font-size:17px'>Sem conexão. Verifique a internet e recarregue.</p>";
+    if(erroEl){
+      erroEl.textContent = "Sem conexão. Tente de novo.";
+      if(btnEl){ btnEl.disabled = false; btnEl.textContent = "Ver meus pontos"; }
+    } else {
+      telaEntrar("Sem conexão. Digite seu telefone pra tentar de novo.");
+    }
   }
 }
 
-function renderPerfil(c){
-  const boasVindasResgate = (c.recompensas || []).find(r => r.tipo === "boas_vindas");
-  const boasVindasPill = boasVindasResgate && boasVindasResgate.resgatada
-    ? '<span class="pill ok">resgatado</span>'
-    : '<span class="pill pendente">pendente</span>';
-
-  const pontosTotais = c.chopps_totais ?? 0;
-  const pontosCiclo = c.punches ?? 0;
-  const resgatados = (c.recompensas || []).filter(r => r.resgatada).length;
-  const adesao = c.cadastro_em ? new Date(c.cadastro_em).toLocaleDateString("pt-BR") : "—";
-
+function mostrarPerfil(c){
   const botaoWallet = ehIOS
-    ? '<a class="btn btn-verde" href="' + SERVER + '/cartao/' + c.telefone + '">Guardar na Wallet do seu telefone</a>'
-    : '<a class="btn btn-verde" href="' + SERVER + '/gwallet/' + c.telefone + '">Guardar na Wallet do seu telefone</a>';
+    ? '<a class="btn btn-verde" href="' + SERVER + '/cartao/' + c.telefone + '">Abrir na Wallet do seu telefone</a>'
+    : '<a class="btn btn-verde" href="' + SERVER + '/gwallet/' + c.telefone + '">Abrir na Wallet do seu telefone</a>';
+
+  const chopps_totais = c.chopps_totais ?? 0;
+  const proximoMarco = Math.ceil((chopps_totais + 1) / 100) * 100;
+  const faltamArvore = proximoMarco - chopps_totais;
 
   alvo.innerHTML = `
-    <h1>Meus dados</h1>
+    <h1>Olá, ${c.nome || "sócio"}!</h1>
+    <p>Aqui está sua cartela e o total de chopps que você já tomou com a gente.</p>
 
-    <div class="cartao">
-      <table class="dados">
-        <tr><td>Nome</td><td>${c.nome || "—"}</td></tr>
-        <tr><td>Telefone</td><td>${c.telefone}</td></tr>
-        <tr><td>Associado desde</td><td>${adesao}</td></tr>
-        <tr><td>Chopp de boas-vindas</td><td>${boasVindasPill}</td></tr>
-        <tr><td>Pontos totais</td><td>${pontosTotais}</td></tr>
-        <tr><td>Pontos após último resgate</td><td>${pontosCiclo}</td></tr>
-        <tr><td>Chopps já resgatados</td><td>${resgatados}</td></tr>
-      </table>
+    <div class="card-pontos">
+      <div class="n">${c.punches ?? 0}<span style="font-size:22px;color:#6E6E68">/${c.meta ?? 10}</span></div>
+      <div class="r">chopps na cartela atual</div>
     </div>
+
+    <div class="grid">
+      <div class="metrica">
+        <div class="n">${chopps_totais}</div>
+        <div class="r">Chopps no total</div>
+      </div>
+      <div class="metrica">
+        <div class="n">${c.total_indicados ?? 0}</div>
+        <div class="r">Amigos indicados</div>
+      </div>
+    </div>
+
+    ${chopps_totais > 0 ? `<div class="aviso">🌳 Faltam <strong>${faltamArvore}</strong> chopps para completar ${proximoMarco} — a cada marco de 100, plantamos uma árvore da Mata Atlântica em seu nome, na Serra da Mantiqueira.</div>` : ""}
 
     ${botaoWallet}
-
-    <div class="cartao" style="margin-top:18px">
-      <div class="cartao-titulo">Seus benefícios</div>
-      <div class="beneficio-mini">
-        <div class="beneficio-mini-badge amarelo">10</div>
-        <div class="beneficio-mini-texto">A cada 10 pontos, um Chopp Pilsen 300ml grátis</div>
-      </div>
-      <div class="beneficio-mini">
-        <div class="beneficio-mini-badge amarelo">50</div>
-        <div class="beneficio-mini-texto">Com 50 pontos, ingresso grátis na visita guiada à fábrica</div>
-      </div>
-      <div class="beneficio-mini">
-        <div class="beneficio-mini-badge amarelo">100</div>
-        <div class="beneficio-mini-texto">Com 100 pontos, uma muda plantada em seu nome</div>
-      </div>
-      <div class="beneficio-mini">
-        <div class="beneficio-mini-badge cinza">20%</div>
-        <div class="beneficio-mini-texto">Desconto em vestuário e acessórios Backbone</div>
-      </div>
-      <div class="beneficio-mini">
-        <div class="beneficio-mini-badge cinza">$75</div>
-        <div class="beneficio-mini-texto">Desconto no Chopp Delivery</div>
-      </div>
-      <div class="beneficio-mini">
-        <div class="beneficio-mini-badge cinza">15%</div>
-        <div class="beneficio-mini-texto">Desconto nas pousadas parceiras de Mauá</div>
-      </div>
-    </div>
-
-    <div class="cartao">
-      <div class="cartao-titulo">Falar com o clube</div>
-      <p style="font-size:13px; color:#A8A8A2; margin-bottom:10px">Todo Chopp grátis é resgatado diretamente no bar afiliado do Clube Backbone, para os demais resgates de prêmios ou para outras dúvidas? Escreva aqui:</p>
-      <div class="grupo">
-        <textarea id="m-texto" placeholder="Ex.: quero resgatar meu desconto na pousada..."></textarea>
-      </div>
-      <button class="btn btn-branco" id="m-enviar">Enviar mensagem</button>
-      <div class="erro-msg" id="m-erro"></div>
-      <div class="msg-ok" id="m-ok"></div>
-    </div>
+    <button class="link-trocar" id="b-trocar-tel">Ver dados de outro telefone</button>
   `;
 
-  document.getElementById("m-enviar").onclick = async () => {
-    const texto = document.getElementById("m-texto").value.trim();
-    const erro = document.getElementById("m-erro");
-    const ok = document.getElementById("m-ok");
-    ok.textContent = "";
-    if(!texto){ erro.textContent = "Escreva sua mensagem antes de enviar."; return; }
-    erro.textContent = "";
-    const b = document.getElementById("m-enviar");
-    b.disabled = true; b.textContent = "Enviando…";
-    try{
-      const r = await fetch(SERVER + "/mensagens", {
-        method: "POST", headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({telefone: c.telefone, nome: c.nome, texto})
-      });
-      if(!r.ok) throw 0;
-      document.getElementById("m-texto").value = "";
-      ok.textContent = "Mensagem enviada! A gente responde por WhatsApp ou no bar.";
-    }catch(e){
-      erro.textContent = "Não foi possível enviar. Tente de novo.";
-    }finally{
-      b.disabled = false; b.textContent = "Enviar mensagem";
-    }
+  document.getElementById("b-trocar-tel").onclick = () => {
+    localStorage.removeItem(CHAVE_TEL);
+    telaEntrar();
   };
 }
+
+/* ══ INÍCIO ══ */
+(function(){
+  const salvo = localStorage.getItem(CHAVE_TEL);
+  if(salvo){
+    buscarEMostrar(salvo, null, null);
+  } else {
+    telaEntrar();
+  }
+})();
 </script>
 </body>
 </html>
