@@ -1036,8 +1036,9 @@ def qr_colab(colab_id):
 @app.route("/admin/bares/stats")
 def bares_stats():
     """
-    Estatisticas por bar: associados (cadastros) e resgates,
-    separando chopp de boas-vindas de chopp de meta atingida.
+    Estatisticas por bar: associados (cadastros), consumos (chopps
+    pagos, punch) e resgates, separando chopp de boas-vindas de
+    chopp de meta atingida.
     ?dias=30 define a janela recente (default 30).
     """
     from datetime import timedelta
@@ -1048,14 +1049,19 @@ def bares_stats():
     def _s(bar):
         return stats.setdefault(bar or "—", {
             "associados_total": 0, "associados_janela": 0,
+            "consumos_total": 0, "consumos_janela": 0,
             "boasvindas_total": 0, "boasvindas_janela": 0,
             "metas_total": 0, "metas_janela": 0,
         })
 
     for ev in storage.listar_eventos():
-        if ev.get("tipo") != "resgate":
+        tipo = ev.get("tipo")
+        if tipo == "punch":
+            cat = "consumos"
+        elif tipo == "resgate":
+            cat = "boasvindas" if ev.get("tipo_recompensa") == "boas_vindas" else "metas"
+        else:
             continue
-        cat = "boasvindas" if ev.get("tipo_recompensa") == "boas_vindas" else "metas"
         e = _s(ev.get("bar"))
         e[cat + "_total"] += 1
         if (ev.get("data") or "") >= corte:
