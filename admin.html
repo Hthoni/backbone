@@ -318,10 +318,10 @@
       <button class="btn sec" id="b-atualizar">Atualizar</button>
     </div>
   </div>
-  <p class="mini" style="margin:-6px 0 14px">Cada célula mostra <strong>últimos X dias / total</strong>. Sócios = cadastros do bar · Boas-vindas = chopps de cadastro entregues · Resgates = chopps de cartela cheia entregues.</p>
+  <p class="mini" style="margin:-6px 0 14px">Cada célula mostra <strong>últimos X dias / total</strong>. Sócios = cadastros do bar · Consumos = chopps pagos marcados · Boas-vindas = chopps de cadastro entregues · Resgates = chopps de cartela cheia entregues.</p>
   <div class="cartao" style="padding:0; overflow-x:auto">
     <table>
-      <thead><tr><th>ID (código)</th><th>NOME</th><th>CIDADE</th><th class="num">SÓCIOS</th><th class="num">BOAS-VINDAS</th><th class="num">RESGATES</th><th></th><th></th></tr></thead>
+      <thead><tr><th>ID (código)</th><th>NOME</th><th>CIDADE</th><th class="num">SÓCIOS</th><th class="num">CONSUMOS</th><th class="num">BOAS-VINDAS</th><th class="num">RESGATES</th><th></th><th></th></tr></thead>
       <tbody id="t-bares"><tr><td colspan="3" class="carregando">Carregando…</td></tr></tbody>
     </table>
   </div>
@@ -828,21 +828,22 @@ function renderBares(){
   const cel = (s, cat) => s ? `<td class="num">${s[cat+"_janela"]} / ${s[cat+"_total"]}</td>` : '<td class="num">0 / 0</td>';
 
   if(!lista.length){
-    $("t-bares").innerHTML = '<tr><td colspan="8" class="carregando">Nenhum bar cadastrado.</td></tr>';
+    $("t-bares").innerHTML = '<tr><td colspan="9" class="carregando">Nenhum bar cadastrado.</td></tr>';
     return;
   }
 
-  const tot = {aj:0, at:0, bj:0, bt:0, mj:0, mt:0};
+  const tot = {aj:0, at:0, cj:0, ct:0, bj:0, bt:0, mj:0, mt:0};
   const linhas = lista.map(b => {
     const s = baresStats[b.id];
     if(s){
       tot.aj += s.associados_janela; tot.at += s.associados_total;
+      tot.cj += s.consumos_janela;   tot.ct += s.consumos_total;
       tot.bj += s.boasvindas_janela; tot.bt += s.boasvindas_total;
       tot.mj += s.metas_janela;      tot.mt += s.metas_total;
     }
     return `<tr>
       <td><strong>${b.id}</strong></td><td>${b.nome || "—"}</td><td>${b.cidade || "—"}</td>
-      ${cel(s,"associados")}${cel(s,"boasvindas")}${cel(s,"metas")}
+      ${cel(s,"associados")}${cel(s,"consumos")}${cel(s,"boasvindas")}${cel(s,"metas")}
       <td style="white-space:nowrap">
         <button class="btn-x" style="color:#D6D4CC;border-color:#4A4A4A" onclick="abrirQrBar('${b.id}')">QR / Link</button>
         <button class="btn-x" style="color:var(--ambar);border-color:#5A4A1A" onclick="baixarDisplayBar('${b.id}', this)">Display</button>
@@ -854,6 +855,7 @@ function renderBares(){
   const totalRow = `<tr style="border-top:2px solid #3A3A3A">
     <td colspan="3" style="font-weight:800; color:var(--ambar)">TOTAL</td>
     <td class="num" style="font-weight:800">${tot.aj} / ${tot.at}</td>
+    <td class="num" style="font-weight:800">${tot.cj} / ${tot.ct}</td>
     <td class="num" style="font-weight:800">${tot.bj} / ${tot.bt}</td>
     <td class="num" style="font-weight:800">${tot.mj} / ${tot.mt}</td>
     <td></td><td></td>
