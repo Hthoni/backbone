@@ -327,8 +327,8 @@ function boasVindas(c){
   try{ localStorage.setItem("bb_ja_cadastrou", "1"); }catch(e){}
 
   const botaoWallet = ehIOS
-    ? '<a class="btn btn-verde" href="' + SERVER + '/cartao/' + c.telefone + '">Guardar na Wallet do seu telefone</a>'
-    : '<a class="btn btn-verde" href="' + SERVER + '/gwallet/' + c.telefone + '">Guardar na Wallet do seu telefone</a>';
+    ? '<a class="btn btn-verde" style="margin-top:14px" href="' + SERVER + '/cartao/' + c.telefone + '">Guardar na Wallet do seu telefone</a>'
+    : '<a class="btn btn-verde" style="margin-top:14px" href="' + SERVER + '/gwallet/' + c.telefone + '">Guardar na Wallet do seu telefone</a>';
 
   alvo.innerHTML = `
     <h1 style="font-size:28px">Seja bem-vindo, ${c.nome}!</h1>
@@ -390,7 +390,7 @@ function boasVindas(c){
       </div>
     </div>
 
-    <a class="btn" style="background:transparent; border:2px solid #4A4A4A; color:#fff; margin-top:10px"
+    <a class="btn" style="background:var(--ambar); color:#151000; margin-top:14px"
        href="perfil.html?tel=${c.telefone}">Ver meus dados no clube</a>
   `;
 
