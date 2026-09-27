@@ -792,6 +792,51 @@ def admin_colabs():
     return jsonify(colabs)
 
 
+@app.route("/admin/colabs/stats")
+def admin_colabs_stats():
+    """
+    Estatisticas por colab: cadastros (fichas web originadas pelo QR do
+    colab) e ativos (chopp de boas-vindas confirmado no bar), no mesmo
+    padrao janela/total ja usado em /admin/bares/stats e
+    /admin/garcons/stats.
+    ?dias=30 define a janela recente (default 30).
+    """
+    from datetime import timedelta
+    dias = int(request.args.get("dias", 30))
+    corte = (datetime.now(timezone.utc) - timedelta(days=dias)).isoformat()
+
+    colab_do_telefone = {}
+    for c in storage.listar_consumidores():
+        cid = c.get("colab")
+        if cid:
+            colab_do_telefone[c["telefone"]] = cid
+
+    stats = {}
+    def _s(colab_id):
+        return stats.setdefault(colab_id, {
+            "cadastros_total": 0, "cadastros_janela": 0,
+            "ativos_total": 0, "ativos_janela": 0,
+        })
+
+    for ev in storage.listar_eventos():
+        cid = colab_do_telefone.get(ev.get("telefone"))
+        if not cid:
+            continue
+        tipo = ev.get("tipo")
+        if tipo == "cadastro":
+            cat = "cadastros"
+        elif tipo == "resgate" and ev.get("tipo_recompensa") == "boas_vindas":
+            cat = "ativos"
+        else:
+            continue
+        e = _s(cid)
+        e[cat + "_total"] += 1
+        if (ev.get("data") or "") >= corte:
+            e[cat + "_janela"] += 1
+
+    return jsonify({"dias": dias, "colabs": stats})
+
+
 @app.route("/admin/colabs", methods=["POST"])
 def admin_criar_colab():
     dados = request.get_json()
