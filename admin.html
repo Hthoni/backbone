@@ -322,7 +322,7 @@
   <p class="mini" style="margin:-6px 0 14px">Cada célula mostra <strong>últimos X dias / total</strong>. Cadastros = cadastros do bar · Ativos = chopp de boas-vindas confirmado no bar · Consumos = chopps pagos marcados · Resgates = chopps de cartela cheia entregues.</p>
   <div class="cartao" style="padding:0; overflow-x:auto">
     <table>
-      <thead><tr><th>NOME</th><th>CIDADE</th><th class="num">CADASTROS</th><th class="num">ATIVOS</th><th class="num">CONSUMOS</th><th class="num">RESGATES</th><th></th><th></th></tr></thead>
+      <thead><tr><th>NOME</th><th>CIDADE</th><th class="num">CADASTROS</th><th class="num">ATIVOS</th><th class="num">CONSUMOS</th><th class="num">RESGATES</th><th></th></tr></thead>
       <tbody id="t-bares"><tr><td colspan="3" class="carregando">Carregando…</td></tr></tbody>
     </table>
   </div>
@@ -487,10 +487,20 @@
 <section class="aba" id="aba-colabs">
   <h2>Colabs</h2>
   <p class="sub">Parceiros externos (estabelecimentos ao redor dos bares) que cadastram clientes pelo QR próprio. O cadastro só "completa" quando o cliente é escaneado de verdade no bar.</p>
+  <div class="linha">
+    <div style="max-width:200px">
+      <label>JANELA (DIAS)</label>
+      <input id="al-dias" type="number" min="1" max="365" value="30">
+    </div>
+    <div style="flex:0">
+      <button class="btn sec" id="b-colabs-atualizar">Atualizar</button>
+    </div>
+  </div>
+  <p class="mini" style="margin:-6px 0 14px">Cada célula mostra <strong>últimos X dias / total</strong>. Cadastros = fichas originadas pelo QR do colab · Ativos = chopp de boas-vindas confirmado no bar.</p>
   <div class="cartao" style="padding:0; overflow-x:auto">
     <table>
-      <thead><tr><th>ID (login)</th><th>NOME</th><th>TELEFONE</th><th>BAR</th><th>STATUS</th><th></th><th></th></tr></thead>
-      <tbody id="t-colabs"><tr><td colspan="7" class="carregando">Carregando…</td></tr></tbody>
+      <thead><tr><th>ID (login)</th><th>NOME</th><th>TELEFONE</th><th>BAR</th><th class="num">CADASTROS</th><th class="num">ATIVOS</th><th>STATUS</th><th></th><th></th></tr></thead>
+      <tbody id="t-colabs"><tr><td colspan="9" class="carregando">Carregando…</td></tr></tbody>
     </table>
   </div>
   <div class="cartao">
@@ -819,7 +829,7 @@ async function carregarBares(){
 
     renderBares();
   }catch(e){
-    $("t-bares").innerHTML = '<tr><td colspan="8" class="carregando">Erro ao carregar.</td></tr>';
+    $("t-bares").innerHTML = '<tr><td colspan="7" class="carregando">Erro ao carregar.</td></tr>';
   }
 }
 
@@ -829,7 +839,7 @@ function renderBares(){
   const cel = (s, cat) => s ? `<td class="num">${s[cat+"_janela"]} / ${s[cat+"_total"]}</td>` : '<td class="num">0 / 0</td>';
 
   if(!lista.length){
-    $("t-bares").innerHTML = '<tr><td colspan="8" class="carregando">Nenhum bar cadastrado.</td></tr>';
+    $("t-bares").innerHTML = '<tr><td colspan="7" class="carregando">Nenhum bar cadastrado.</td></tr>';
     return;
   }
 
@@ -845,11 +855,12 @@ function renderBares(){
     return `<tr>
       <td><strong>${b.nome || "—"}</strong></td><td>${b.cidade || "—"}</td>
       ${cel(s,"associados")}${cel(s,"boasvindas")}${cel(s,"consumos")}${cel(s,"metas")}
-      <td style="white-space:nowrap">
+      <td style="white-space:nowrap; text-align:right">
         <button class="btn-x btn-x-sm" style="color:#D6D4CC;border-color:#4A4A4A" onclick="abrirQrBar('${b.id}')">QR/link</button>
         <button class="btn-x btn-x-sm" style="color:var(--ambar);border-color:#5A4A1A" onclick="baixarDisplayBar('${b.id}', this)">Display</button>
+        <button class="btn-x btn-x-sm" style="color:var(--ambar);border-color:#5A4A1A" onclick='editarBar("${b.id}")'>editar</button>
+        <button class="btn-x btn-x-sm" onclick="apagarBar('${b.id}')">apagar</button>
       </td>
-      <td style="white-space:nowrap"><button class="btn-x btn-x-sm" style="color:var(--ambar);border-color:#5A4A1A" onclick='editarBar("${b.id}")'>editar</button> <button class="btn-x btn-x-sm" onclick="apagarBar('${b.id}')">apagar</button></td>
     </tr>`;
   }).join("");
 
@@ -859,7 +870,7 @@ function renderBares(){
     <td class="num" style="font-weight:800">${tot.bj} / ${tot.bt}</td>
     <td class="num" style="font-weight:800">${tot.cj} / ${tot.ct}</td>
     <td class="num" style="font-weight:800">${tot.mj} / ${tot.mt}</td>
-    <td></td><td></td>
+    <td></td>
   </tr>`;
 
   $("t-bares").innerHTML = linhas + totalRow;
@@ -1280,26 +1291,36 @@ function apagarAdmin(id, nome){
 /* ── colabs ── */
 let colabsLista = [];
 async function carregarColabs(){
+  const dias = parseInt($("al-dias")?.value || "30", 10);
   try{
-    const r = await fetch(API + "/admin/colabs");
-    colabsLista = await r.json();
+    const [rc, rs] = await Promise.all([
+      fetch(API + "/admin/colabs"),
+      fetch(API + "/admin/colabs/stats?dias=" + dias)
+    ]);
+    colabsLista = await rc.json();
+    const colabsStats = (await rs.json()).colabs || {};
+    const cel = (s, cat) => s ? `<td class="num">${s[cat+"_janela"]} / ${s[cat+"_total"]}</td>` : '<td class="num">0 / 0</td>';
     const nomeBar = id => (baresLista.find(b => b.id === id) || {}).nome || id || "—";
     $("t-colabs").innerHTML = colabsLista.length
-      ? colabsLista.map(a => `<tr>
+      ? colabsLista.map(a => {
+          const s = colabsStats[a.id];
+          return `<tr>
           <td><strong>${a.id}</strong></td><td>${a.nome || "—"}</td><td>${a.telefone || "—"}</td>
           <td>${nomeBar(a.bar_id)}</td>
+          ${cel(s,"cadastros")}${cel(s,"ativos")}
           <td>${a.ativo === false ? '<span class="pill neutro">inativo</span>' : '<span class="pill ok">ativo</span>'}</td>
           <td>
             <button class="btn-x" style="color:#D6D4CC;border-color:#4A4A4A" onclick="abrirQrColab('${a.id}')">QR/link</button>
             <button class="btn-x" style="color:var(--ambar);border-color:#5A4A1A" onclick="baixarDisplayColab('${a.id}', this)">Display</button>
           </td>
           <td><button class="btn-x" style="color:var(--ambar);border-color:#5A4A1A" onclick='editarColab("${a.id}")'>editar</button> <button class="btn-x" onclick="apagarColab('${a.id}', '${(a.nome || "").replace(/'/g, "")}')">apagar</button></td>
-        </tr>`).join("")
-      : '<tr><td colspan="7" class="carregando">Nenhum colab cadastrado.</td></tr>';
+        </tr>`;}).join("")
+      : '<tr><td colspan="9" class="carregando">Nenhum colab cadastrado.</td></tr>';
   }catch(e){
-    $("t-colabs").innerHTML = '<tr><td colspan="7" class="carregando">Erro ao carregar.</td></tr>';
+    $("t-colabs").innerHTML = '<tr><td colspan="9" class="carregando">Erro ao carregar.</td></tr>';
   }
 }
+$("b-colabs-atualizar").onclick = carregarColabs;
 
 let editandoColabId = null;
 function editarColab(id){
