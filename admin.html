@@ -403,6 +403,7 @@
     </div>
     <button class="btn" id="b-criar-garcom">Criar garçom</button>
     <button class="btn sec" id="b-cancelar-garcom" style="display:none; width:auto; margin-left:8px; padding:13px 22px">Cancelar edição</button>
+    <button class="btn sec" id="b-alternar-garcom" style="display:none; width:auto; margin-left:8px; padding:13px 22px; border-color:var(--rubro); color:var(--rubro)"></button>
     <div class="msg" id="m-garcom"></div>
   </div>
 </section>
@@ -446,6 +447,7 @@
     </div>
     <button class="btn" id="b-criar-gestor">Criar gestor</button>
     <button class="btn sec" id="b-cancelar-gestor" style="display:none; width:auto; margin-left:8px; padding:13px 22px">Cancelar edição</button>
+    <button class="btn sec" id="b-alternar-gestor" style="display:none; width:auto; margin-left:8px; padding:13px 22px; border-color:var(--rubro); color:var(--rubro)"></button>
     <div class="msg" id="m-gestor"></div>
   </div>
   <p class="mini">Se o gestor tiver só 1 bar marcado, o painel dele pula direto pro dashboard. Com mais de 1, ele vê uma tela de seleção antes.</p>
@@ -479,6 +481,7 @@
     </div>
     <button class="btn" id="b-criar-admin">Criar admin</button>
     <button class="btn sec" id="b-cancelar-admin" style="display:none; width:auto; margin-left:8px; padding:13px 22px">Cancelar edição</button>
+    <button class="btn sec" id="b-alternar-admin" style="display:none; width:auto; margin-left:8px; padding:13px 22px; border-color:var(--rubro); color:var(--rubro)"></button>
     <div class="msg" id="m-admin"></div>
   </div>
 </section>
@@ -499,8 +502,8 @@
   <p class="mini" style="margin:-6px 0 14px">Cada célula mostra <strong>últimos X dias / total</strong>. Cadastros = fichas originadas pelo QR do colab · Ativos = chopp de boas-vindas confirmado no bar.</p>
   <div class="cartao" style="padding:0; overflow-x:auto">
     <table>
-      <thead><tr><th>ID (login)</th><th>NOME</th><th>TELEFONE</th><th>BAR</th><th class="num">CADASTROS</th><th class="num">ATIVOS</th><th>STATUS</th><th></th><th></th></tr></thead>
-      <tbody id="t-colabs"><tr><td colspan="9" class="carregando">Carregando…</td></tr></tbody>
+      <thead><tr><th>ID (login)</th><th>NOME</th><th>TELEFONE</th><th>BAR</th><th class="num">CADASTROS</th><th class="num">ATIVOS</th><th>STATUS</th><th></th></tr></thead>
+      <tbody id="t-colabs"><tr><td colspan="8" class="carregando">Carregando…</td></tr></tbody>
     </table>
   </div>
   <div class="cartao">
@@ -529,6 +532,7 @@
     </div>
     <button class="btn" id="b-criar-colab">Criar colab</button>
     <button class="btn sec" id="b-cancelar-colab" style="display:none; width:auto; margin-left:8px; padding:13px 22px">Cancelar edição</button>
+    <button class="btn sec" id="b-alternar-colab" style="display:none; width:auto; margin-left:8px; padding:13px 22px; border-color:var(--rubro); color:var(--rubro)"></button>
     <div class="msg" id="m-colab"></div>
   </div>
 </section>
@@ -1014,6 +1018,8 @@ function editarGarcom(id){
   $("garcom-form-titulo").textContent = "Editar garçom — " + g.id;
   $("b-criar-garcom").textContent = "Salvar alterações";
   $("b-cancelar-garcom").style.display = "inline-block";
+  $("b-alternar-garcom").style.display = "inline-block";
+  $("b-alternar-garcom").textContent = (g.ativo === false) ? "Ativar garçom" : "Desativar garçom";
   $("aba-garcons").scrollIntoView({behavior:"smooth", block:"start"});
 }
 function cancelarEdicaoGarcom(){
@@ -1023,9 +1029,32 @@ function cancelarEdicaoGarcom(){
   $("garcom-form-titulo").textContent = "Novo garçom";
   $("b-criar-garcom").textContent = "Criar garçom";
   $("b-cancelar-garcom").style.display = "none";
+  $("b-alternar-garcom").style.display = "none";
   $("m-garcom").textContent = "";
 }
 $("b-cancelar-garcom").onclick = cancelarEdicaoGarcom;
+
+$("b-alternar-garcom").onclick = async () => {
+  const g = garconsLista.find(x => x.id === editandoGarcomId);
+  if(!g) return;
+  const novoAtivo = g.ativo === false;
+  const btn = $("b-alternar-garcom");
+  const textoOriginal = btn.textContent;
+  btn.disabled = true; btn.textContent = "Salvando…";
+  try{
+    const corpo = {id: g.id, nome: g.nome, bar_id: g.bar_id, bar_nome: g.bar_nome, telefone: g.telefone || "", ativo: novoAtivo};
+    const r = await fetch(API + "/admin/garcons", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify(corpo)
+    });
+    if(!r.ok) throw 0;
+    cancelarEdicaoGarcom();
+    carregarGarcons();
+  }catch(e){
+    btn.disabled = false; btn.textContent = textoOriginal;
+    alert("Não foi possível alterar o status. Tente de novo.");
+  }
+};
 
 $("b-criar-garcom").onclick = async () => {
   const m = $("m-garcom");
@@ -1160,6 +1189,8 @@ function editarGestor(id){
   $("gestor-form-titulo").textContent = "Editar gestor — " + g.id;
   $("b-criar-gestor").textContent = "Salvar alterações";
   $("b-cancelar-gestor").style.display = "inline-block";
+  $("b-alternar-gestor").style.display = "inline-block";
+  $("b-alternar-gestor").textContent = (g.ativo === false) ? "Ativar gestor" : "Desativar gestor";
   $("aba-gestores").scrollIntoView({behavior:"smooth", block:"start"});
 }
 function cancelarEdicaoGestor(){
@@ -1171,9 +1202,32 @@ function cancelarEdicaoGestor(){
   $("gestor-form-titulo").textContent = "Novo gestor";
   $("b-criar-gestor").textContent = "Criar gestor";
   $("b-cancelar-gestor").style.display = "none";
+  $("b-alternar-gestor").style.display = "none";
   $("m-gestor").textContent = "";
 }
 $("b-cancelar-gestor").onclick = cancelarEdicaoGestor;
+
+$("b-alternar-gestor").onclick = async () => {
+  const g = gestoresLista.find(x => x.id === editandoGestorId);
+  if(!g) return;
+  const novoAtivo = g.ativo === false;
+  const btn = $("b-alternar-gestor");
+  const textoOriginal = btn.textContent;
+  btn.disabled = true; btn.textContent = "Salvando…";
+  try{
+    const corpo = {id: g.id, nome: g.nome, bar_ids: g.bar_ids || [], telefone: g.telefone || "", ativo: novoAtivo};
+    const r = await fetch(API + "/admin/gestores", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify(corpo)
+    });
+    if(!r.ok) throw 0;
+    cancelarEdicaoGestor();
+    carregarGestores();
+  }catch(e){
+    btn.disabled = false; btn.textContent = textoOriginal;
+    alert("Não foi possível alterar o status. Tente de novo.");
+  }
+};
 
 $("b-criar-gestor").onclick = async () => {
   const m = $("m-gestor");
@@ -1243,6 +1297,8 @@ function editarAdmin(id){
   $("admin-form-titulo").textContent = "Editar admin — " + a.id;
   $("b-criar-admin").textContent = "Salvar alterações";
   $("b-cancelar-admin").style.display = "inline-block";
+  $("b-alternar-admin").style.display = "inline-block";
+  $("b-alternar-admin").textContent = (a.ativo === false) ? "Ativar admin" : "Desativar admin";
   $("aba-admins").scrollIntoView({behavior:"smooth", block:"start"});
 }
 function cancelarEdicaoAdmin(){
@@ -1252,9 +1308,32 @@ function cancelarEdicaoAdmin(){
   $("admin-form-titulo").textContent = "Novo admin";
   $("b-criar-admin").textContent = "Criar admin";
   $("b-cancelar-admin").style.display = "none";
+  $("b-alternar-admin").style.display = "none";
   $("m-admin").textContent = "";
 }
 $("b-cancelar-admin").onclick = cancelarEdicaoAdmin;
+
+$("b-alternar-admin").onclick = async () => {
+  const a = adminsLista.find(x => x.id === editandoAdminId);
+  if(!a) return;
+  const novoAtivo = a.ativo === false;
+  const btn = $("b-alternar-admin");
+  const textoOriginal = btn.textContent;
+  btn.disabled = true; btn.textContent = "Salvando…";
+  try{
+    const corpo = {id: a.id, nome: a.nome, ativo: novoAtivo};
+    const r = await fetch(API + "/admin/admins", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify(corpo)
+    });
+    if(!r.ok) throw 0;
+    cancelarEdicaoAdmin();
+    carregarAdmins();
+  }catch(e){
+    btn.disabled = false; btn.textContent = textoOriginal;
+    alert("Não foi possível alterar o status. Tente de novo.");
+  }
+};
 
 $("b-criar-admin").onclick = async () => {
   const m = $("m-admin");
@@ -1309,15 +1388,16 @@ async function carregarColabs(){
           <td>${nomeBar(a.bar_id)}</td>
           ${cel(s,"cadastros")}${cel(s,"ativos")}
           <td>${a.ativo === false ? '<span class="pill neutro">inativo</span>' : '<span class="pill ok">ativo</span>'}</td>
-          <td>
-            <button class="btn-x" style="color:#D6D4CC;border-color:#4A4A4A" onclick="abrirQrColab('${a.id}')">QR/link</button>
-            <button class="btn-x" style="color:var(--ambar);border-color:#5A4A1A" onclick="baixarDisplayColab('${a.id}', this)">Display</button>
+          <td style="white-space:nowrap; text-align:right">
+            <button class="btn-x btn-x-sm" style="color:#D6D4CC;border-color:#4A4A4A" onclick="abrirQrColab('${a.id}')">QR/link</button>
+            <button class="btn-x btn-x-sm" style="color:var(--ambar);border-color:#5A4A1A" onclick="baixarDisplayColab('${a.id}', this)">Display</button>
+            <button class="btn-x btn-x-sm" style="color:var(--ambar);border-color:#5A4A1A" onclick='editarColab("${a.id}")'>editar</button>
+            <button class="btn-x btn-x-sm" onclick="apagarColab('${a.id}', '${(a.nome || "").replace(/'/g, "")}')">apagar</button>
           </td>
-          <td><button class="btn-x" style="color:var(--ambar);border-color:#5A4A1A" onclick='editarColab("${a.id}")'>editar</button> <button class="btn-x" onclick="apagarColab('${a.id}', '${(a.nome || "").replace(/'/g, "")}')">apagar</button></td>
         </tr>`;}).join("")
-      : '<tr><td colspan="9" class="carregando">Nenhum colab cadastrado.</td></tr>';
+      : '<tr><td colspan="8" class="carregando">Nenhum colab cadastrado.</td></tr>';
   }catch(e){
-    $("t-colabs").innerHTML = '<tr><td colspan="9" class="carregando">Erro ao carregar.</td></tr>';
+    $("t-colabs").innerHTML = '<tr><td colspan="8" class="carregando">Erro ao carregar.</td></tr>';
   }
 }
 $("b-colabs-atualizar").onclick = carregarColabs;
@@ -1336,6 +1416,8 @@ function editarColab(id){
   $("colab-form-titulo").textContent = "Editar colab — " + a.id;
   $("b-criar-colab").textContent = "Salvar alterações";
   $("b-cancelar-colab").style.display = "inline-block";
+  $("b-alternar-colab").style.display = "inline-block";
+  $("b-alternar-colab").textContent = (a.ativo === false) ? "Ativar colab" : "Desativar colab";
   $("aba-colabs").scrollIntoView({behavior:"smooth", block:"start"});
 }
 function cancelarEdicaoColab(){
@@ -1345,9 +1427,32 @@ function cancelarEdicaoColab(){
   $("colab-form-titulo").textContent = "Novo colab";
   $("b-criar-colab").textContent = "Criar colab";
   $("b-cancelar-colab").style.display = "none";
+  $("b-alternar-colab").style.display = "none";
   $("m-colab").textContent = "";
 }
 $("b-cancelar-colab").onclick = cancelarEdicaoColab;
+
+$("b-alternar-colab").onclick = async () => {
+  const a = colabsLista.find(x => x.id === editandoColabId);
+  if(!a) return;
+  const novoAtivo = a.ativo === false;
+  const btn = $("b-alternar-colab");
+  const textoOriginal = btn.textContent;
+  btn.disabled = true; btn.textContent = "Salvando…";
+  try{
+    const corpo = {id: a.id, nome: a.nome, bar_id: a.bar_id, bar_nome: a.bar_nome, telefone: a.telefone || "", ativo: novoAtivo};
+    const r = await fetch(API + "/admin/colabs", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify(corpo)
+    });
+    if(!r.ok) throw 0;
+    cancelarEdicaoColab();
+    carregarColabs();
+  }catch(e){
+    btn.disabled = false; btn.textContent = textoOriginal;
+    alert("Não foi possível alterar o status. Tente de novo.");
+  }
+};
 
 $("b-criar-colab").onclick = async () => {
   const m = $("m-colab");
