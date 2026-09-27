@@ -834,18 +834,31 @@ def colab_resumo(colab_id):
     que este colab trouxe (nao por bar/garcom de quem escaneou).
     ?mes=2026-07 (default: mes corrente)
     ?mes=todos   (agrega TODOS os eventos, sem filtro de data)
+
+    fichas_total / ativos_total: totais VITALICIOS (independem do ?mes
+    pedido) — usados pra tela do colab mostrar "do mes / total", no
+    mesmo padrao janela/total ja usado em /admin/bares/stats e
+    /admin/garcons/stats. "ativos" = boas-vindas confirmado no bar
+    (chave "cadastros" dentro de totais, por compatibilidade com o
+    formato ja usado em bar_resumo/colab_historico).
     """
     mes = request.args.get("mes") or datetime.now(timezone.utc).strftime("%Y-%m")
     todos_os_tempos = (mes == "todos")
     telefones = _telefones_do_colab(colab_id)
 
     totais = {"fichas": 0, "cadastros": 0, "pontuacao": 0, "resgates": 0}
+    fichas_total = 0
+    ativos_total = 0
     for ev in storage.listar_eventos():
         if ev.get("telefone") not in telefones:
             continue
+        tipo = ev.get("tipo")
+        if tipo == "cadastro":
+            fichas_total += 1
+        elif tipo == "resgate" and ev.get("tipo_recompensa") == "boas_vindas":
+            ativos_total += 1
         if not todos_os_tempos and not (ev.get("data") or "").startswith(mes):
             continue
-        tipo = ev.get("tipo")
         if tipo == "cadastro":
             totais["fichas"] += 1
         elif tipo == "punch":
@@ -855,7 +868,8 @@ def colab_resumo(colab_id):
             totais[cat] += 1
 
     return jsonify({"colab_id": colab_id, "mes": mes, "totais": totais,
-                     "total_clientes": len(telefones)})
+                     "fichas_total": fichas_total, "ativos_total": ativos_total,
+                     "fichas_total": fichas_total, "total_clientes": len(telefones)})
 
 
 @app.route("/colab/<colab_id>/historico")
