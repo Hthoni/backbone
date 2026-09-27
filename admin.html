@@ -373,7 +373,7 @@
   <p class="mini" style="margin:-6px 0 14px">Cada célula mostra <strong>últimos X dias / total</strong>. Ativos = chopp de boas-vindas confirmado no bar · Consumos = chopps pagos marcados · Resgates = prêmios de meta entregues.</p>
   <div class="cartao" style="padding:0; overflow-x:auto">
     <table>
-      <thead><tr><th>ID (login)</th><th>NOME</th><th>TELEFONE</th><th>BAR</th><th class="num">ATIVOS</th><th class="num">CONSUMOS</th><th class="num">RESGATES</th><th>STATUS</th><th></th></tr></thead>
+      <thead><tr><th>NOME</th><th>TELEFONE</th><th>BAR</th><th class="num">ATIVOS</th><th class="num">CONSUMOS</th><th class="num">RESGATES</th><th>STATUS</th><th></th></tr></thead>
       <tbody id="t-garcons"><tr><td colspan="4" class="carregando">Carregando…</td></tr></tbody>
     </table>
   </div>
@@ -414,8 +414,8 @@
   <p class="sub">Usuários do painel do dono/gerente do bar (Histórico, Atual, Atividade, Garçons). Um gestor pode administrar mais de um bar.</p>
   <div class="cartao" style="padding:0; overflow-x:auto">
     <table>
-      <thead><tr><th>ID (login)</th><th>NOME</th><th>TELEFONE</th><th>BARES</th><th>STATUS</th><th></th></tr></thead>
-      <tbody id="t-gestores"><tr><td colspan="6" class="carregando">Carregando…</td></tr></tbody>
+      <thead><tr><th>NOME</th><th>TELEFONE</th><th>BARES</th><th>STATUS</th><th></th></tr></thead>
+      <tbody id="t-gestores"><tr><td colspan="5" class="carregando">Carregando…</td></tr></tbody>
     </table>
   </div>
   <div class="cartao">
@@ -459,8 +459,8 @@
   <p class="sub">Acesso total: abre o admin.html e o gestor.html como gestor master (vê "Todos os bares"). Use com moderação.</p>
   <div class="cartao" style="padding:0; overflow-x:auto">
     <table>
-      <thead><tr><th>ID (login)</th><th>NOME</th><th>STATUS</th><th></th></tr></thead>
-      <tbody id="t-admins"><tr><td colspan="4" class="carregando">Carregando…</td></tr></tbody>
+      <thead><tr><th>NOME</th><th>STATUS</th><th></th></tr></thead>
+      <tbody id="t-admins"><tr><td colspan="3" class="carregando">Carregando…</td></tr></tbody>
     </table>
   </div>
   <div class="cartao">
@@ -502,8 +502,8 @@
   <p class="mini" style="margin:-6px 0 14px">Cada célula mostra <strong>últimos X dias / total</strong>. Cadastros = fichas originadas pelo QR do colab · Ativos = chopp de boas-vindas confirmado no bar.</p>
   <div class="cartao" style="padding:0; overflow-x:auto">
     <table>
-      <thead><tr><th>ID (login)</th><th>NOME</th><th>TELEFONE</th><th>BAR</th><th class="num">CADASTROS</th><th class="num">ATIVOS</th><th>STATUS</th><th></th></tr></thead>
-      <tbody id="t-colabs"><tr><td colspan="8" class="carregando">Carregando…</td></tr></tbody>
+      <thead><tr><th>NOME</th><th>TELEFONE</th><th>BAR</th><th class="num">CADASTROS</th><th class="num">ATIVOS</th><th>STATUS</th><th></th></tr></thead>
+      <tbody id="t-colabs"><tr><td colspan="7" class="carregando">Carregando…</td></tr></tbody>
     </table>
   </div>
   <div class="cartao">
@@ -994,12 +994,12 @@ function renderGarcons(){
           ? `<span class="mini">gerencie na aba ${g.tipo === "Admin" ? "Admins" : "Gestores"}</span>`
           : `<button class="btn-x" style="color:var(--ambar);border-color:#5A4A1A" onclick='editarGarcom("${g.id}")'>editar</button> <button class="btn-x" onclick="apagarGarcom('${g.id}', '${(g.nome || "").replace(/'/g, "")}')">apagar</button>`;
         return `<tr>
-        <td><strong>${g.id}</strong></td><td>${g.nome || "—"}</td><td>${g.telefone || "—"}</td><td>${barCel}</td>
+        <td><strong>${g.nome || "—"}</strong></td><td>${g.telefone || "—"}</td><td>${barCel}</td>
         ${cel(s,"cadastros")}${cel(s,"consumos")}${cel(s,"resgates")}
         <td>${statusCel}</td>
         <td>${acoesCel}</td>
       </tr>`;}).join("")
-    : '<tr><td colspan="9" class="carregando">Nenhum garçom encontrado.</td></tr>';
+    : '<tr><td colspan="8" class="carregando">Nenhum garçom encontrado.</td></tr>';
 }
 $("g-filtro-bar").onchange = renderGarcons;
 $("g-busca").oninput = renderGarcons;
@@ -1163,14 +1163,14 @@ async function carregarGestores(){
     const nomeBar = id => id === "*" ? "Todos os bares" : (baresLista.find(b => b.id === id) || {}).nome || id;
     $("t-gestores").innerHTML = gestoresLista.length
       ? gestoresLista.map(g => `<tr>
-          <td><strong>${g.id}</strong></td><td>${g.nome || "—"}</td><td>${g.telefone || "—"}</td>
+          <td><strong>${g.nome || "—"}</strong></td><td>${g.telefone || "—"}</td>
           <td>${(g.bar_ids || []).map(nomeBar).join(", ") || "—"}</td>
           <td>${g.ativo === false ? '<span class="pill neutro">inativo</span>' : '<span class="pill ok">ativo</span>'}</td>
           <td><button class="btn-x" style="color:var(--ambar);border-color:#5A4A1A" onclick='editarGestor("${g.id}")'>editar</button> <button class="btn-x" onclick="apagarGestor('${g.id}', '${(g.nome || "").replace(/'/g, "")}')">apagar</button></td>
         </tr>`).join("")
-      : '<tr><td colspan="6" class="carregando">Nenhum gestor cadastrado.</td></tr>';
+      : '<tr><td colspan="5" class="carregando">Nenhum gestor cadastrado.</td></tr>';
   }catch(e){
-    $("t-gestores").innerHTML = '<tr><td colspan="6" class="carregando">Erro ao carregar.</td></tr>';
+    $("t-gestores").innerHTML = '<tr><td colspan="5" class="carregando">Erro ao carregar.</td></tr>';
   }
 }
 
@@ -1275,13 +1275,13 @@ async function carregarAdmins(){
     adminsLista = await r.json();
     $("t-admins").innerHTML = adminsLista.length
       ? adminsLista.map(a => `<tr>
-          <td><strong>${a.id}</strong></td><td>${a.nome || "—"}</td>
+          <td><strong>${a.nome || "—"}</strong></td>
           <td>${a.ativo === false ? '<span class="pill neutro">inativo</span>' : '<span class="pill ok">ativo</span>'}</td>
           <td><button class="btn-x" style="color:var(--ambar);border-color:#5A4A1A" onclick='editarAdmin("${a.id}")'>editar</button> <button class="btn-x" onclick="apagarAdmin('${a.id}', '${(a.nome || "").replace(/'/g, "")}')">apagar</button></td>
         </tr>`).join("")
-      : '<tr><td colspan="4" class="carregando">Nenhum admin cadastrado.</td></tr>';
+      : '<tr><td colspan="3" class="carregando">Nenhum admin cadastrado.</td></tr>';
   }catch(e){
-    $("t-admins").innerHTML = '<tr><td colspan="4" class="carregando">Erro ao carregar.</td></tr>';
+    $("t-admins").innerHTML = '<tr><td colspan="3" class="carregando">Erro ao carregar.</td></tr>';
   }
 }
 
@@ -1384,7 +1384,7 @@ async function carregarColabs(){
       ? colabsLista.map(a => {
           const s = colabsStats[a.id];
           return `<tr>
-          <td><strong>${a.id}</strong></td><td>${a.nome || "—"}</td><td>${a.telefone || "—"}</td>
+          <td><strong>${a.nome || "—"}</strong></td><td>${a.telefone || "—"}</td>
           <td>${nomeBar(a.bar_id)}</td>
           ${cel(s,"cadastros")}${cel(s,"ativos")}
           <td>${a.ativo === false ? '<span class="pill neutro">inativo</span>' : '<span class="pill ok">ativo</span>'}</td>
@@ -1395,9 +1395,9 @@ async function carregarColabs(){
             <button class="btn-x btn-x-sm" onclick="apagarColab('${a.id}', '${(a.nome || "").replace(/'/g, "")}')">apagar</button>
           </td>
         </tr>`;}).join("")
-      : '<tr><td colspan="8" class="carregando">Nenhum colab cadastrado.</td></tr>';
+      : '<tr><td colspan="7" class="carregando">Nenhum colab cadastrado.</td></tr>';
   }catch(e){
-    $("t-colabs").innerHTML = '<tr><td colspan="8" class="carregando">Erro ao carregar.</td></tr>';
+    $("t-colabs").innerHTML = '<tr><td colspan="7" class="carregando">Erro ao carregar.</td></tr>';
   }
 }
 $("b-colabs-atualizar").onclick = carregarColabs;
