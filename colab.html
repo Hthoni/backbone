@@ -146,10 +146,11 @@ function nomeMes(m){
   const nomes = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
   return nomes[parseInt(mes, 10) - 1] + " de " + ano;
 }
-function gridMetricas(t){
+function gridMetricas(t, ativosTotal){
+  const ativos = (ativosTotal === undefined) ? t.cadastros : `${t.cadastros} / ${ativosTotal}`;
   return `<div class="grid-metricas" style="grid-template-columns:repeat(4,1fr)">
-    <div class="metrica"><span class="n">${t.fichas ?? 0}</span><span class="r">Ficha</span></div>
-    <div class="metrica"><span class="n">${t.cadastros}</span><span class="r">Sócio</span></div>
+    <div class="metrica"><span class="n">${t.fichas ?? 0}</span><span class="r">Cadastros</span></div>
+    <div class="metrica"><span class="n">${ativos}</span><span class="r">Ativos</span></div>
     <div class="metrica"><span class="n">${t.pontuacao}</span><span class="r">Pontos</span></div>
     <div class="metrica"><span class="n">${t.resgates}</span><span class="r">Resgate</span></div>
   </div>`;
@@ -223,7 +224,7 @@ async function carregarHistorico(){
 
     html += d.meses.length ? d.meses.map(m => `<div class="card" onclick='abrirMes("${m.mes}")'>
         <div class="titulo">${nomeMes(m.mes)}</div>
-        ${gridMetricas(m)}
+        ${gridMetricas(m, d.totais.cadastros)}
       </div>`).join("") : '<div class="carregando">Nenhum cadastro registrado ainda.</div>';
 
     $("hist-corpo").innerHTML = html;
@@ -249,7 +250,7 @@ async function carregarAtual(){
     $("atual-corpo").innerHTML = `<div class="titulo-secao">${nomeMes(mesSelecionado)}</div>
       <div class="card somatorio">
         <div class="titulo">${colab.nome}</div>
-        ${gridMetricas(d.totais)}
+        ${gridMetricas(d.totais, d.ativos_total)}
         <div class="sub" style="margin-top:10px">${d.total_clientes} cliente(s) indicado(s) no total</div>
       </div>`;
   }catch(e){
