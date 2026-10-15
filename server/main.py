@@ -840,12 +840,8 @@ def admin_colabs_stats():
 @app.route("/admin/colabs", methods=["POST"])
 def admin_criar_colab():
     dados = request.get_json()
-    tel_a = so_digitos(dados.get("telefone", ""))
-    if tel_a and storage.carregar_consumidor(tel_a):
-        return jsonify({"erro": "telefone_de_associado",
-                        "detalhe": "Este telefone pertence a um associado. "
-                                   "Colab não pode ser associado — apague o cadastro dele antes."}), 409
-    dados["telefone"] = tel_a
+    # Colab pode ser associado (unica trava de telefone: cliente x garcom)
+    dados["telefone"] = so_digitos(dados.get("telefone", ""))
 
     existente = storage.carregar_colab(dados.get("id")) if dados.get("id") else None
     if existente and not dados.get("senha"):
