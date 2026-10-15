@@ -78,8 +78,28 @@ def cadastro(bar, telefone, nome, dia, mes, time):
     # indicador vem por query string: ?ind=5521999887766
     indicador_tel = so_digitos(request.args.get("padrinho", ""))
     palavra_chave = (request.args.get("palavra", "") or "").strip()
+    cep = so_digitos(request.args.get("cep", ""))[:8]
     if indicador_tel == telefone:
         indicador_tel = ""  # auto-indicacao bloqueada
+
+    # colab que originou este cadastro (QR do parceiro externo) —
+    # so grava se o id realmente existe, pra nao guardar lixo
+    colab_id = (request.args.get("colab", "") or "").strip()
+    colab = storage.carregar_colab(colab_id) if colab_id else None
+    if colab_id and not colab:
+        colab_id = ""
+
+    # TRAVA ANTIFRAUDE: lista fria POR BAR (numeros vetados pelo dono)
+    for b in storage.carregar_bloqueados():
+        if b["telefone"] == telefone and (b["bar"] == "*" or b["bar"] == bar):
+            return jsonify({"status": "nao_permitido",
+                            "motivo": "Cadastro não disponível para este telefone."}), 403
+
+    # TRAVA ANTIFRAUDE: funcionario (garcom) nao pode ser associado
+    for _g in storage.listar_garcons():
+        if _g.get("telefone") and so_digitos(_g["telefone"]) == telefone:
+            return jsonify({"status": "nao_permitido",
+                            "motivo": "Telefone vinculado a um funcionário."}), 403
 
     existente = storage.carregar_consumidor(telefone)
     if existente:
@@ -93,7 +113,9 @@ def cadastro(bar, telefone, nome, dia, mes, time):
         "telefone": telefone,
         "nome": nome,
         "indicador": bar,
+        "colab": colab_id or None,
         "palavra_chave": palavra_chave,
+        "cep": cep,
         "nascimento_dia": dia,
         "nascimento_mes": mes,
         "time": time,
@@ -130,6 +152,7 @@ def cadastro(bar, telefone, nome, dia, mes, time):
     storage.salvar_evento({
         "id": str(uuid.uuid4()), "tipo": "cadastro", "telefone": telefone,
         "bar": bar, "garcom_id": None, "padrinho": consumidor["padrinho"],
+        "colab": colab_id or None,
         "data": agora(),
     })
 
@@ -204,16 +227,40 @@ def scan():
     if not consumidor:
         return jsonify({"erro": "consumidor_nao_encontrado"}), 404
 
+    # quem esta escaneando pode ser um garcom, um gestor, OU um admin
+    # (admin e gestor entram no scanner com a propria credencial, sem
+    # precisar de um cadastro de garcom a parte)
     garcom = storage.carregar_garcom(garcom_id)
-    if not garcom:
-        return jsonify({"erro": "garcom_nao_encontrado"}), 404
-    if not _garcom_pertence_bar(garcom, bar):
-        return jsonify({"erro": "bar_diferente"}), 403
+    if garcom:
+        if not _garcom_pertence_bar(garcom, bar):
+            return jsonify({"erro": "bar_diferente"}), 403
+    else:
+        gestor = storage.carregar_gestor(garcom_id)
+        if gestor:
+            if "*" not in gestor.get("bar_ids", []) and bar not in gestor.get("bar_ids", []):
+                return jsonify({"erro": "bar_diferente"}), 403
+        else:
+            admin = storage.carregar_admin(garcom_id)
+            if not admin:
+                return jsonify({"erro": "garcom_nao_encontrado"}), 404
+            # admin pode escanear em qualquer bar, sem checagem adicional
 
     config = storage.carregar_config()
     consumidor.setdefault("recompensas", [])
     consumidor.setdefault("meta", int(config["punches_para_recompensa"]))
     consumidor.setdefault("temporada", config["temporada_vigente"])
+
+    # contador vitalicio de chopps consumidos (nunca zera, ao contrario
+    # de "punches" que reinicia a cada cartela). Base para o marco das
+    # arvores plantadas a cada 100 chopps.
+    consumidor["chopps_totais"] = consumidor.get("chopps_totais", 0) + 1
+    marco_arvore = None
+    if consumidor["chopps_totais"] % 100 == 0:
+        marco_arvore = consumidor["chopps_totais"]
+        consumidor.setdefault("arvores", []).append({
+            "marco": marco_arvore, "detectada_em": agora(),
+            "plantada": False, "plantada_em": None,
+        })
 
     pendentes = _disponiveis(consumidor)
 
@@ -247,6 +294,10 @@ def scan():
             # boas-vindas: NAO mexe na cartela nem gera punch
             aviso = "Chopp de boas-vindas resgatado! Agora é só juntar pontos."
 
+        if marco_arvore:
+            aviso = (f"Você chegou a {marco_arvore} chopps! 🌳 Vamos plantar uma muda de "
+                      f"árvore da Mata Atlântica em seu nome, na Serra da Mantiqueira.")
+
         push = _notificar(consumidor, aviso)
         storage.salvar_evento({
             "id": str(uuid.uuid4()), "tipo": "resgate", "tipo_recompensa": tipo,
@@ -279,6 +330,10 @@ def scan():
     else:
         faltam = meta - consumidor["punches"]
         aviso = f"Chopp registrado! Faltam {faltam} para o seu chopp grátis."
+
+    if marco_arvore:
+        aviso = (f"Você chegou a {marco_arvore} chopps! 🌳 Vamos plantar uma muda de "
+                  f"árvore da Mata Atlântica em seu nome, na Serra da Mantiqueira.")
 
     push = _notificar(consumidor, aviso)
 
@@ -450,7 +505,27 @@ def login():
     return jsonify({
         "status": "ok", "garcom_id": garcom["id"], "nome": garcom["nome"],
         "bar_id": garcom["bar_id"], "bar_nome": garcom.get("bar_nome", ""),
+        "tutorial_visto": garcom.get("tutorial_visto", False),
     })
+
+
+@app.route("/garcom/<garcom_id>/tutorial-visto", methods=["POST"])
+def marcar_tutorial_visto(garcom_id):
+    """
+    Marca (ou desmarca, via {"visto": false} no corpo) se o garcom ja viu
+    o tutorial de 'Como funciona'. O reset e usado pelo gestor quando o
+    garcom troca de aparelho ou precisa rever o tutorial.
+    So mexe nesse campo — preserva todo o resto do cadastro
+    (senha, telefone, bar, etc.), ao contrario de reusar o POST de
+    criacao/edicao que sobrescreveria o registro inteiro.
+    """
+    garcom = storage.carregar_garcom(garcom_id)
+    if not garcom:
+        return jsonify({"erro": "nao_encontrado"}), 404
+    dados = request.get_json(silent=True) or {}
+    garcom["tutorial_visto"] = bool(dados.get("visto", True))
+    storage.salvar_garcom(garcom)
+    return jsonify({"status": "ok"})
 
 
 @app.route("/admin/bares")
@@ -474,6 +549,17 @@ def admin_garcons():
 @app.route("/admin/garcons", methods=["POST"])
 def admin_criar_garcom():
     dados = request.get_json()
+    tel_g = so_digitos(dados.get("telefone", ""))
+    if tel_g and storage.carregar_consumidor(tel_g):
+        return jsonify({"erro": "telefone_de_associado",
+                        "detalhe": "Este telefone pertence a um associado. "
+                                   "Funcionário não pode ser associado — apague o cadastro dele antes."}), 409
+    dados["telefone"] = tel_g
+
+    existente = storage.carregar_garcom(dados.get("id")) if dados.get("id") else None
+    if existente and not dados.get("senha"):
+        dados["senha"] = existente.get("senha")  # edicao sem trocar senha: mantem a atual
+
     dados.setdefault("id", str(uuid.uuid4())[:8])
     storage.salvar_garcom(dados)
     return jsonify({"status": "ok", "garcom": dados})
@@ -485,9 +571,23 @@ def admin_consumidores():
     todos = storage.listar_consumidores()
     if bar_filtro:
         todos = [c for c in todos if c.get("indicador") == bar_filtro]
+
+    # dias distintos que cada telefone teve o QR escaneado (punch ou
+    # resgate) — cadastro nao conta, e o mesmo dia com varios scans conta 1
+    dias_por_telefone = {}
+    for ev in storage.listar_eventos():
+        if ev.get("tipo") not in ("punch", "resgate"):
+            continue
+        tel = ev.get("telefone")
+        data = (ev.get("data") or "")[:10]  # YYYY-MM-DD
+        if not tel or not data:
+            continue
+        dias_por_telefone.setdefault(tel, set()).add(data)
+
     for c in todos:
         c["recompensas_disponiveis"] = len(_disponiveis(c))
         c["total_indicados"] = len(c.get("indicados", []))
+        c["dias_visitados"] = len(dias_por_telefone.get(c.get("telefone"), ()))
         c.pop("auth_token", None)   # nunca expor
     return jsonify(todos)
 
@@ -543,6 +643,307 @@ def admin_apagar_garcom(garcom_id):
     return jsonify({"status": "apagado", "id": garcom_id})
 
 
+# ══════════════════════════════════════════════════════════════
+#  GESTORES — login e cadastro do dono/gerente do bar
+#  (painel Historico / Atual / Atividade / Garcons)
+# ══════════════════════════════════════════════════════════════
+
+@app.route("/login-gestor", methods=["POST"])
+def login_gestor():
+    """
+    Login do painel do gestor. Separado do /login do garcom porque o
+    papel e os dados devolvidos sao diferentes (bar_ids em vez de um bar so).
+    """
+    dados = request.get_json() or {}
+    gestor = storage.carregar_gestor(dados.get("id"))
+    if not gestor or gestor.get("senha") != dados.get("senha"):
+        return jsonify({"erro": "credenciais_invalidas"}), 401
+    if not gestor.get("ativo", True):
+        return jsonify({"erro": "gestor_inativo"}), 403
+
+    bar_ids = gestor.get("bar_ids", [])
+    bares_map = {b["id"]: b.get("nome", b["id"]) for b in storage.listar_bares()}
+    bares_map["*"] = "Todos os bares"
+
+    return jsonify({
+        "status": "ok",
+        "gestor_id": gestor["id"],
+        "nome": gestor["nome"],
+        # se so tiver 1 bar, o front pode pular a tela de selecao e ir direto
+        "bares": [{"id": bid, "nome": bares_map.get(bid, bid)} for bid in bar_ids],
+    })
+
+
+@app.route("/admin/gestores")
+def admin_gestores():
+    gestores = storage.listar_gestores()
+    for g in gestores:
+        g.pop("senha", None)   # nunca expor
+    return jsonify(gestores)
+
+
+@app.route("/admin/gestores", methods=["POST"])
+def admin_criar_gestor():
+    """
+    Body: {"nome":..., "id":..., "senha":..., "telefone":..., "bar_ids": [...]}
+    Sem trava de associado aqui (diferente do garcom): um associado
+    PODE ser gestor — sao papeis diferentes, sem conflito de fluxo.
+    """
+    dados = request.get_json()
+    dados["telefone"] = so_digitos(dados.get("telefone", ""))
+
+    existente = storage.carregar_gestor(dados.get("id")) if dados.get("id") else None
+    if existente and not dados.get("senha"):
+        dados["senha"] = existente.get("senha")  # edicao sem trocar senha: mantem a atual
+
+    dados.setdefault("id", str(uuid.uuid4())[:8])
+    dados.setdefault("bar_ids", [])
+    dados.setdefault("ativo", True)
+    storage.salvar_gestor(dados)
+
+    resposta = dict(dados)
+    resposta.pop("senha", None)
+    return jsonify({"status": "ok", "gestor": resposta})
+
+
+@app.route("/admin/gestores/<gestor_id>", methods=["DELETE"])
+def admin_apagar_gestor(gestor_id):
+    g = storage.carregar_gestor(gestor_id)
+    if not g:
+        return jsonify({"erro": "nao_encontrado"}), 404
+    storage.apagar_gestor(gestor_id)
+    return jsonify({"status": "apagado", "id": gestor_id})
+
+
+# ══════════════════════════════════════════════════════════════
+#  ADMINS — acesso total (login.html tenta garcom, depois gestor,
+#  depois admin). Um admin acessa o admin.html E o gestor.html
+#  (como gestor master, ve "*" = todos os bares).
+# ══════════════════════════════════════════════════════════════
+
+@app.route("/login-admin", methods=["POST"])
+def login_admin():
+    dados = request.get_json() or {}
+    admin = storage.carregar_admin(dados.get("id"))
+    if not admin or admin.get("senha") != dados.get("senha"):
+        return jsonify({"erro": "credenciais_invalidas"}), 401
+    if not admin.get("ativo", True):
+        return jsonify({"erro": "admin_inativo"}), 403
+    return jsonify({"status": "ok", "admin_id": admin["id"], "nome": admin["nome"]})
+
+
+@app.route("/admin/admins")
+def admin_listar_admins():
+    admins = storage.listar_admins()
+    for a in admins:
+        a.pop("senha", None)
+    return jsonify(admins)
+
+
+@app.route("/admin/admins", methods=["POST"])
+def admin_criar_admin():
+    dados = request.get_json()
+    existente = storage.carregar_admin(dados.get("id")) if dados.get("id") else None
+    if existente and not dados.get("senha"):
+        dados["senha"] = existente.get("senha")
+    dados.setdefault("id", str(uuid.uuid4())[:8])
+    dados.setdefault("ativo", True)
+    storage.salvar_admin(dados)
+    resposta = dict(dados)
+    resposta.pop("senha", None)
+    return jsonify({"status": "ok", "admin": resposta})
+
+
+@app.route("/admin/admins/<admin_id>", methods=["DELETE"])
+def admin_apagar_admin(admin_id):
+    a = storage.carregar_admin(admin_id)
+    if not a:
+        return jsonify({"erro": "nao_encontrado"}), 404
+    storage.apagar_admin(admin_id)
+    return jsonify({"status": "apagado", "id": admin_id})
+
+
+# ══════════════════════════════════════════════════════════════
+#  COLABS — parceiros externos (estabelecimentos ao redor dos bares)
+#  que originam cadastros por QR proprio. Nao escaneiam consumo —
+#  so cadastram. O painel deles mostra cadastros/boas-vindas/resgates
+#  dos clientes que eles trouxeram, no mesmo formato do gestor.
+# ══════════════════════════════════════════════════════════════
+
+@app.route("/login-colab", methods=["POST"])
+def login_colab():
+    dados = request.get_json() or {}
+    colab = storage.carregar_colab(dados.get("id"))
+    if not colab or colab.get("senha") != dados.get("senha"):
+        return jsonify({"erro": "credenciais_invalidas"}), 401
+    if not colab.get("ativo", True):
+        return jsonify({"erro": "colab_inativo"}), 403
+    return jsonify({
+        "status": "ok", "colab_id": colab["id"], "nome": colab["nome"],
+        "bar_id": colab.get("bar_id", ""), "bar_nome": colab.get("bar_nome", ""),
+    })
+
+
+@app.route("/admin/colabs")
+def admin_colabs():
+    colabs = storage.listar_colabs()
+    for a in colabs:
+        a.pop("senha", None)
+    return jsonify(colabs)
+
+
+@app.route("/admin/colabs/stats")
+def admin_colabs_stats():
+    """
+    Estatisticas por colab: cadastros (fichas web originadas pelo QR do
+    colab) e ativos (chopp de boas-vindas confirmado no bar), no mesmo
+    padrao janela/total ja usado em /admin/bares/stats e
+    /admin/garcons/stats.
+    ?dias=30 define a janela recente (default 30).
+    """
+    from datetime import timedelta
+    dias = int(request.args.get("dias", 30))
+    corte = (datetime.now(timezone.utc) - timedelta(days=dias)).isoformat()
+
+    colab_do_telefone = {}
+    for c in storage.listar_consumidores():
+        cid = c.get("colab")
+        if cid:
+            colab_do_telefone[c["telefone"]] = cid
+
+    stats = {}
+    def _s(colab_id):
+        return stats.setdefault(colab_id, {
+            "cadastros_total": 0, "cadastros_janela": 0,
+            "ativos_total": 0, "ativos_janela": 0,
+        })
+
+    for ev in storage.listar_eventos():
+        cid = colab_do_telefone.get(ev.get("telefone"))
+        if not cid:
+            continue
+        tipo = ev.get("tipo")
+        if tipo == "cadastro":
+            cat = "cadastros"
+        elif tipo == "resgate" and ev.get("tipo_recompensa") == "boas_vindas":
+            cat = "ativos"
+        else:
+            continue
+        e = _s(cid)
+        e[cat + "_total"] += 1
+        if (ev.get("data") or "") >= corte:
+            e[cat + "_janela"] += 1
+
+    return jsonify({"dias": dias, "colabs": stats})
+
+
+@app.route("/admin/colabs", methods=["POST"])
+def admin_criar_colab():
+    dados = request.get_json()
+    # Colab pode ser associado (unica trava de telefone: cliente x garcom)
+    dados["telefone"] = so_digitos(dados.get("telefone", ""))
+
+    existente = storage.carregar_colab(dados.get("id")) if dados.get("id") else None
+    if existente and not dados.get("senha"):
+        dados["senha"] = existente.get("senha")  # edicao sem trocar senha: mantem a atual
+
+    dados.setdefault("id", str(uuid.uuid4())[:8])
+    dados.setdefault("ativo", True)
+    storage.salvar_colab(dados)
+    resposta = dict(dados)
+    resposta.pop("senha", None)
+    return jsonify({"status": "ok", "colab": resposta})
+
+
+@app.route("/admin/colabs/<colab_id>", methods=["DELETE"])
+def admin_apagar_colab(colab_id):
+    a = storage.carregar_colab(colab_id)
+    if not a:
+        return jsonify({"erro": "nao_encontrado"}), 404
+    storage.apagar_colab(colab_id)
+    return jsonify({"status": "apagado", "id": colab_id})
+
+
+def _telefones_do_colab(colab_id):
+    return {c["telefone"] for c in storage.listar_consumidores() if c.get("colab") == colab_id}
+
+
+@app.route("/colab/<colab_id>/resumo")
+def colab_resumo(colab_id):
+    """
+    Mesma logica do /bar/<id>/resumo, so que filtrando pelos CLIENTES
+    que este colab trouxe (nao por bar/garcom de quem escaneou).
+    ?mes=2026-07 (default: mes corrente)
+    ?mes=todos   (agrega TODOS os eventos, sem filtro de data)
+
+    fichas_total / ativos_total: totais VITALICIOS (independem do ?mes
+    pedido) — usados pra tela do colab mostrar "do mes / total", no
+    mesmo padrao janela/total ja usado em /admin/bares/stats e
+    /admin/garcons/stats. "ativos" = boas-vindas confirmado no bar
+    (chave "cadastros" dentro de totais, por compatibilidade com o
+    formato ja usado em bar_resumo/colab_historico).
+    """
+    mes = request.args.get("mes") or datetime.now(timezone.utc).strftime("%Y-%m")
+    todos_os_tempos = (mes == "todos")
+    telefones = _telefones_do_colab(colab_id)
+
+    totais = {"fichas": 0, "cadastros": 0, "pontuacao": 0, "resgates": 0}
+    fichas_total = 0
+    ativos_total = 0
+    for ev in storage.listar_eventos():
+        if ev.get("telefone") not in telefones:
+            continue
+        tipo = ev.get("tipo")
+        if tipo == "cadastro":
+            fichas_total += 1
+        elif tipo == "resgate" and ev.get("tipo_recompensa") == "boas_vindas":
+            ativos_total += 1
+        if not todos_os_tempos and not (ev.get("data") or "").startswith(mes):
+            continue
+        if tipo == "cadastro":
+            totais["fichas"] += 1
+        elif tipo == "punch":
+            totais["pontuacao"] += 1
+        elif tipo == "resgate":
+            cat = "cadastros" if ev.get("tipo_recompensa") == "boas_vindas" else "resgates"
+            totais[cat] += 1
+
+    return jsonify({"colab_id": colab_id, "mes": mes, "totais": totais,
+                     "fichas_total": fichas_total, "ativos_total": ativos_total,
+                     "fichas_total": fichas_total, "total_clientes": len(telefones)})
+
+
+@app.route("/colab/<colab_id>/historico")
+def colab_historico(colab_id):
+    """Mesma logica do /bar/<id>/historico, filtrado pelos clientes do colab."""
+    telefones = _telefones_do_colab(colab_id)
+
+    totais_geral = {"fichas": 0, "cadastros": 0, "pontuacao": 0, "resgates": 0}
+    por_mes = {}
+    for ev in storage.listar_eventos():
+        if ev.get("telefone") not in telefones:
+            continue
+        data = ev.get("data") or ""
+        if len(data) < 7:
+            continue
+        mes = data[:7]
+        tipo = ev.get("tipo")
+        if tipo == "cadastro":
+            cat = "fichas"
+        elif tipo == "punch":
+            cat = "pontuacao"
+        elif tipo == "resgate":
+            cat = "cadastros" if ev.get("tipo_recompensa") == "boas_vindas" else "resgates"
+        else:
+            continue
+        totais_geral[cat] += 1
+        m = por_mes.setdefault(mes, {"mes": mes, "fichas": 0, "cadastros": 0, "pontuacao": 0, "resgates": 0})
+        m[cat] += 1
+
+    meses = sorted(por_mes.values(), key=lambda m: m["mes"], reverse=True)
+    return jsonify({"colab_id": colab_id, "totais": totais_geral, "meses": meses})
+
+
 @app.route("/gwallet/<telefone>")
 def gwallet_link(telefone):
     """Redireciona para o link 'Salvar no Google Wallet' do consumidor."""
@@ -561,6 +962,20 @@ def gwallet_criar_classe():
     """Cria a classe do programa no Google (rodar uma vez)."""
     try:
         return jsonify(gwallet.garantir_classe())
+    except Exception as e:
+        return jsonify({"erro": str(e)}), 500
+
+
+@app.route("/admin/migrar-eventos", methods=["POST"])
+def admin_migrar_eventos():
+    """
+    RODAR UMA VEZ, logo apos subir esta versao.
+    Junta os eventos antigos (1 arquivo por evento) num log unico
+    (eventos/log.jsonl) — e o que deixa o painel do gestor rapido.
+    Nao apaga nenhum arquivo antigo. Seguro chamar de novo (nao duplica).
+    """
+    try:
+        return jsonify(storage.migrar_eventos_para_log())
     except Exception as e:
         return jsonify({"erro": str(e)}), 500
 
@@ -640,7 +1055,8 @@ def push_lote():
 def qr_universal(telefone):
     """
     Destino do QR do cartao quando lido por uma CAMERA comum.
-    Redireciona para o convite wa.me do dono do cartao (member gets member).
+    Redireciona para a pagina de cadastro, com o bar do dono (indicador)
+    e o dono como padrinho (member gets member).
     O scanner do garcom NAO passa por aqui — ele extrai o telefone da URL.
     """
     from urllib.parse import quote
@@ -648,12 +1064,437 @@ def qr_universal(telefone):
     c = storage.carregar_consumidor(tel)
     if not c:
         return Response("Cartao nao encontrado.", status=404, mimetype="text/plain")
-    palavra = c.get("palavra_chave", "") or ""
-    whatsapp = os.environ.get("WHATSAPP_NUM", "")
-    msg = (f"Quero participar do Clube Backbone {palavra}, "
-           f"a convite do associado padrinho:{tel}")
-    return Response(status=302,
-                    headers={"Location": f"https://wa.me/{whatsapp}?text={quote(msg)}"})
+    indicador = c.get("indicador", "") or ""
+    destino = (f"https://hthoni.github.io/backbone/cadastro.html"
+               f"?indicador={quote(indicador)}&padrinho={tel}")
+    return Response(status=302, headers={"Location": destino})
+
+
+@app.route("/c/<colab_id>")
+def qr_colab(colab_id):
+    """
+    Destino do QR que o Colab (parceiro externo) expoe no
+    estabelecimento dele. Redireciona pro cadastro ja com o bar do
+    colab preenchido, e marcando a origem — o cadastro so "completa"
+    de verdade quando o cliente for escaneado de fato no bar (mesmo
+    fluxo de sempre: boas-vindas fica pendente ate o garcom escanear).
+    """
+    from urllib.parse import quote
+    colab = storage.carregar_colab(colab_id)
+    if not colab:
+        return Response("Link invalido.", status=404, mimetype="text/plain")
+    destino = (f"https://hthoni.github.io/backbone/cadastro.html"
+               f"?indicador={quote(colab.get('bar_id',''))}&colab={quote(colab_id)}")
+    return Response(status=302, headers={"Location": destino})
+
+
+@app.route("/admin/bares/stats")
+def bares_stats():
+    """
+    Estatisticas por bar: associados (cadastros), consumos (chopps
+    pagos, punch) e resgates, separando chopp de boas-vindas de
+    chopp de meta atingida.
+    ?dias=30 define a janela recente (default 30).
+    """
+    from datetime import timedelta
+    dias = int(request.args.get("dias", 30))
+    corte = (datetime.now(timezone.utc) - timedelta(days=dias)).isoformat()
+
+    stats = {}
+    def _s(bar):
+        return stats.setdefault(bar or "—", {
+            "associados_total": 0, "associados_janela": 0,
+            "consumos_total": 0, "consumos_janela": 0,
+            "boasvindas_total": 0, "boasvindas_janela": 0,
+            "metas_total": 0, "metas_janela": 0,
+        })
+
+    for ev in storage.listar_eventos():
+        tipo = ev.get("tipo")
+        if tipo == "punch":
+            cat = "consumos"
+        elif tipo == "resgate":
+            cat = "boasvindas" if ev.get("tipo_recompensa") == "boas_vindas" else "metas"
+        else:
+            continue
+        e = _s(ev.get("bar"))
+        e[cat + "_total"] += 1
+        if (ev.get("data") or "") >= corte:
+            e[cat + "_janela"] += 1
+
+    for c in storage.listar_consumidores():
+        e = _s(c.get("indicador"))
+        e["associados_total"] += 1
+        if (c.get("cadastro_em") or "") >= corte:
+            e["associados_janela"] += 1
+
+    return jsonify({"dias": dias, "bares": stats})
+
+
+@app.route("/admin/bloqueados")
+def admin_bloqueados():
+    return jsonify(storage.carregar_bloqueados())
+
+
+@app.route("/admin/bloqueados", methods=["POST"])
+def admin_bloquear():
+    """Body: {"telefones": [...], "bar": "<bar_id>" ou "*"} — bloqueia no bar indicado."""
+    dados = request.get_json(silent=True) or {}
+    bar_alvo = (dados.get("bar") or "*").strip() or "*"
+    novos = [so_digitos(str(t)) for t in (dados.get("telefones") or [])]
+    novos = [t for t in novos if 10 <= len(t) <= 13]
+    lista = storage.carregar_bloqueados()
+    lista.extend({"telefone": t, "bar": bar_alvo} for t in novos)
+    storage.salvar_bloqueados(lista)
+    return jsonify({"status": "ok", "adicionados": len(novos), "bar": bar_alvo})
+
+
+@app.route("/admin/bloqueados/<telefone>", methods=["DELETE"])
+def admin_desbloquear(telefone):
+    """?bar=<bar_id> remove o bloqueio daquele bar; sem bar, remove todos do numero."""
+    tel = so_digitos(telefone)
+    bar_alvo = request.args.get("bar")
+    lista = storage.carregar_bloqueados()
+    if bar_alvo:
+        lista = [b for b in lista if not (b["telefone"] == tel and b["bar"] == bar_alvo)]
+    else:
+        lista = [b for b in lista if b["telefone"] != tel]
+    storage.salvar_bloqueados(lista)
+    return jsonify({"status": "ok", "total": len(lista)})
+
+
+@app.route("/bar/<bar_id>/atividade")
+def atividade_bar(bar_id):
+    """
+    Feed de leituras do bar — usado na aba Atividade do scanner e no
+    painel do gestor (aba Atividade e detalhe por garcom).
+
+    ?limite=30      (max 100, default 30 — bloco do scroll infinito)
+    ?offset=0       (posicao inicial; manda offset+limite do bloco anterior
+                     para carregar o proximo)
+    ?mes=2026-07    (opcional; filtra pelo mes do evento)
+    ?garcom_id=g01  (opcional; filtra por garcom — usado na tela de
+                     detalhe do garcom, aberta a partir do card na aba Atual)
+
+    Resposta: {eventos:[...], offset, limite, total, tem_mais}
+    tem_mais indica se ha mais eventos para o proximo bloco.
+    """
+    limite = min(int(request.args.get("limite", 30)), 100)
+    offset = max(int(request.args.get("offset", 0)), 0)
+    mes = request.args.get("mes")
+    garcom_filtro = request.args.get("garcom_id")
+
+    eventos = [e for e in storage.listar_eventos()
+               if (bar_id == "*" or e.get("bar") == bar_id) and e.get("tipo") in ("punch", "resgate")]
+
+    if mes and mes != "todos":
+        eventos = [e for e in eventos if (e.get("data") or "").startswith(mes)]
+    if garcom_filtro:
+        eventos = [e for e in eventos if e.get("garcom_id") == garcom_filtro]
+
+    eventos.sort(key=lambda e: e.get("data", ""), reverse=True)
+    total = len(eventos)
+    pagina = eventos[offset:offset + limite]
+
+    nomes = {}
+    for tel in {e.get("telefone") for e in pagina if e.get("telefone")}:
+        c = storage.carregar_consumidor(tel)
+        if c:
+            nomes[tel] = c.get("nome", "")
+
+    garcons = {g["id"]: g.get("nome", g["id"]) for g in storage.listar_garcons()}
+    garcons.update({g["id"]: g.get("nome", g["id"]) for g in storage.listar_gestores()})
+    garcons.update({a["id"]: a.get("nome", a["id"]) for a in storage.listar_admins()})
+
+    return jsonify({
+        "eventos": [{
+            "nome": nomes.get(e.get("telefone")) or e.get("telefone") or "—",
+            "data": e.get("data"),
+            "garcom": garcons.get(e.get("garcom_id"), e.get("garcom_id") or "—"),
+            "tipo": e.get("tipo"),
+            "tipo_recompensa": e.get("tipo_recompensa"),
+        } for e in pagina],
+        "offset": offset,
+        "limite": limite,
+        "total": total,
+        "tem_mais": (offset + limite) < total,
+    })
+
+
+@app.route("/bar/<bar_id>/totais")
+def bar_totais(bar_id):
+    """
+    Versao ENXUTA do /bar/<id>/resumo — so os 4 numeros agregados,
+    sem quebra por garcom nem por colab. Usada na tela de "trocar de
+    bar" do gestor, que so mostra esses numeros nos cards e nao
+    precisa (nem usava) a quebra detalhada. Como nao precisa de
+    listar_consumidores/garcons/gestores/admins/colabs — so o log de
+    eventos — fica rapida mesmo com muitos socios cadastrados.
+
+    ?mes=2026-07 (default: mes corrente)
+    ?mes=todos   (agrega TODOS os eventos, sem filtro de data)
+    """
+    mes = request.args.get("mes") or datetime.now(timezone.utc).strftime("%Y-%m")
+    todos_os_tempos = (mes == "todos")
+
+    totais = {"fichas": 0, "cadastros": 0, "pontuacao": 0, "resgates": 0}
+    for ev in storage.listar_eventos():
+        if bar_id != "*" and ev.get("bar") != bar_id:
+            continue
+        if not todos_os_tempos and not (ev.get("data") or "").startswith(mes):
+            continue
+        tipo = ev.get("tipo")
+        if tipo == "cadastro":
+            totais["fichas"] += 1
+        elif tipo == "punch":
+            totais["pontuacao"] += 1
+        elif tipo == "resgate":
+            cat = "cadastros" if ev.get("tipo_recompensa") == "boas_vindas" else "resgates"
+            totais[cat] += 1
+
+    return jsonify({"bar_id": bar_id, "mes": mes, "totais": totais})
+
+
+@app.route("/bar/<bar_id>/resumo")
+def bar_resumo(bar_id):
+    """
+    Resumo do bar num periodo + quebra por garcom e por colab.
+    Alimenta as abas Atual (mes corrente) e Historico (mes selecionado,
+    ou "Desde o inicio" quando ?mes=todos) do painel do gestor.
+
+    ?mes=2026-07  (default: mes corrente, formato YYYY-MM)
+    ?mes=todos    (agrega TODOS os eventos, sem filtro de data)
+
+    Categorias:
+      fichas    -> cadastros feitos na web (ainda nao completados no bar) — nao existe pra garcom
+      cadastros -> resgates de boas_vindas (o cadastro "completa" e vira socio)
+      pontuacao -> punches (chopps de rotina)
+      resgates  -> resgates de premio (meta atingida)
+    """
+    mes = request.args.get("mes") or datetime.now(timezone.utc).strftime("%Y-%m")
+    todos_os_tempos = (mes == "todos")
+
+    garcons_map = {g["id"]: g.get("nome", g["id"]) for g in storage.listar_garcons()}
+    garcons_map.update({g["id"]: g.get("nome", g["id"]) for g in storage.listar_gestores()})
+    garcons_map.update({a["id"]: a.get("nome", a["id"]) for a in storage.listar_admins()})
+    colabs_map = {a["id"]: a.get("nome", a["id"]) for a in storage.listar_colabs()}
+
+    totais = {"fichas": 0, "cadastros": 0, "pontuacao": 0, "resgates": 0}
+    por_garcom = {}
+    por_colab = {}
+
+    # todo garcom/colab do bar aparece desde ja, mesmo com zero atividade —
+    # senao um cadastro recem-criado some da lista ate ter movimento
+    if bar_id != "*":
+        for g in storage.listar_garcons():
+            if g.get("bar_id") == bar_id:
+                por_garcom[g["id"]] = {
+                    "garcom_id": g["id"], "nome": g.get("nome", g["id"]),
+                    "cadastros": 0, "pontuacao": 0, "resgates": 0,
+                }
+        for a in storage.listar_colabs():
+            if a.get("bar_id") == bar_id:
+                por_colab[a["id"]] = {
+                    "colab_id": a["id"], "nome": a.get("nome", a["id"]),
+                    "fichas": 0, "cadastros": 0, "pontuacao": 0, "resgates": 0,
+                }
+
+    # telefone -> colab que o trouxe (so dos colabs deste bar)
+    colab_do_telefone = {}
+    if bar_id == "*" or por_colab:
+        ids_colabs_do_bar = set(por_colab.keys()) if bar_id != "*" else None
+        for c in storage.listar_consumidores():
+            al = c.get("colab")
+            if al and (ids_colabs_do_bar is None or al in ids_colabs_do_bar):
+                colab_do_telefone[c["telefone"]] = al
+
+    for ev in storage.listar_eventos():
+        if bar_id != "*" and ev.get("bar") != bar_id:
+            continue
+        if not todos_os_tempos and not (ev.get("data") or "").startswith(mes):
+            continue
+
+        tipo = ev.get("tipo")
+        if tipo == "cadastro":
+            totais["fichas"] += 1
+            aid = colab_do_telefone.get(ev.get("telefone"))
+            if aid:
+                a = por_colab.setdefault(aid, {
+                    "colab_id": aid, "nome": colabs_map.get(aid, aid),
+                    "fichas": 0, "cadastros": 0, "pontuacao": 0, "resgates": 0,
+                })
+                a["fichas"] += 1
+            continue
+        elif tipo == "punch":
+            cat = "pontuacao"
+        elif tipo == "resgate":
+            cat = "cadastros" if ev.get("tipo_recompensa") == "boas_vindas" else "resgates"
+        else:
+            continue
+
+        totais[cat] += 1
+
+        gid = ev.get("garcom_id")
+        if gid:
+            g = por_garcom.setdefault(gid, {
+                "garcom_id": gid, "nome": garcons_map.get(gid, gid),
+                "cadastros": 0, "pontuacao": 0, "resgates": 0,
+            })
+            g[cat] += 1
+
+        aid = colab_do_telefone.get(ev.get("telefone"))
+        if aid:
+            a = por_colab.setdefault(aid, {
+                "colab_id": aid, "nome": colabs_map.get(aid, aid),
+                "fichas": 0, "cadastros": 0, "pontuacao": 0, "resgates": 0,
+            })
+            a[cat] += 1
+
+    return jsonify({
+        "bar_id": bar_id,
+        "mes": mes,
+        "totais": totais,
+        "garcons": sorted(por_garcom.values(), key=lambda g: g["nome"]),
+        "colabs": sorted(por_colab.values(), key=lambda a: a["nome"]),
+    })
+
+
+@app.route("/bar/<bar_id>/historico")
+def bar_historico(bar_id):
+    """
+    Alimenta a aba Historico do painel do gestor numa chamada so:
+    o total geral do bar (todos os meses) + a lista de meses com
+    totais, do mais recente para o mais antigo — cada item vira
+    direto um card na tela, sem precisar de 1 request por mes.
+    """
+    totais_geral = {"fichas": 0, "cadastros": 0, "pontuacao": 0, "resgates": 0}
+    por_mes = {}
+
+    for ev in storage.listar_eventos():
+        if bar_id != "*" and ev.get("bar") != bar_id:
+            continue
+        data = ev.get("data") or ""
+        if len(data) < 7:
+            continue
+        mes = data[:7]  # YYYY-MM
+
+        tipo = ev.get("tipo")
+        if tipo == "cadastro":
+            cat = "fichas"
+        elif tipo == "punch":
+            cat = "pontuacao"
+        elif tipo == "resgate":
+            cat = "cadastros" if ev.get("tipo_recompensa") == "boas_vindas" else "resgates"
+        else:
+            continue
+
+        totais_geral[cat] += 1
+        m = por_mes.setdefault(mes, {"mes": mes, "fichas": 0, "cadastros": 0, "pontuacao": 0, "resgates": 0})
+        m[cat] += 1
+
+    meses = sorted(por_mes.values(), key=lambda m: m["mes"], reverse=True)
+
+    return jsonify({
+        "bar_id": bar_id,
+        "totais": totais_geral,
+        "meses": meses,
+    })
+
+
+@app.route("/admin/arvores")
+def admin_arvores():
+    """
+    Lista sócios com marco de 100 chopps atingido e ainda NAO plantado.
+    Cada item vira uma linha na aba Árvores do admin.
+    """
+    pendentes = []
+    for c in storage.listar_consumidores():
+        for arv in c.get("arvores", []):
+            if not arv.get("plantada"):
+                pendentes.append({
+                    "telefone": c["telefone"], "nome": c.get("nome", "—"),
+                    "marco": arv["marco"], "detectada_em": arv.get("detectada_em"),
+                })
+    pendentes.sort(key=lambda a: a.get("detectada_em") or "")
+    return jsonify(pendentes)
+
+
+@app.route("/admin/arvores/marcar", methods=["POST"])
+def admin_marcar_arvore():
+    """
+    Marca um marco especifico como plantado (nao dispara push — o
+    aviso de "arvore plantada de verdade" e manual, feito por fora,
+    junto com foto/Instagram/etc.).
+    Body: {"telefone": "...", "marco": 100}
+    """
+    dados = request.get_json(silent=True) or {}
+    tel = so_digitos(dados.get("telefone", ""))
+    marco = dados.get("marco")
+    c = storage.carregar_consumidor(tel)
+    if not c:
+        return jsonify({"erro": "nao_encontrado"}), 404
+    achou = False
+    for arv in c.get("arvores", []):
+        if arv["marco"] == marco and not arv.get("plantada"):
+            arv["plantada"] = True
+            arv["plantada_em"] = agora()
+            achou = True
+            break
+    if not achou:
+        return jsonify({"erro": "marco_nao_encontrado_ou_ja_plantado"}), 404
+    storage.salvar_consumidor(c)
+    return jsonify({"status": "ok"})
+
+
+# ══════════════════════════════════════════════════════════════
+#  MENSAGENS — canal livre do socio pra pedir resgate ou tirar duvida,
+#  direto na pagina de perfil. Aparecem na aba Mensagens do admin,
+#  que pode marcar como "lida" quando ja tomou providencia.
+# ══════════════════════════════════════════════════════════════
+
+@app.route("/mensagens", methods=["POST"])
+def criar_mensagem():
+    """Body: {"telefone": "...", "nome": "...", "texto": "..."}"""
+    dados = request.get_json(silent=True) or {}
+    telefone = so_digitos(dados.get("telefone", ""))
+    texto = (dados.get("texto") or "").strip()
+    if not telefone or not texto:
+        return jsonify({"erro": "telefone_e_texto_obrigatorios"}), 400
+
+    nome = (dados.get("nome") or "").strip()
+    if not nome:
+        c = storage.carregar_consumidor(telefone)
+        nome = c.get("nome", "") if c else ""
+
+    mensagem = {
+        "telefone": telefone,
+        "nome": nome,
+        "texto": texto,
+        "data": agora(),
+        "lida": False,
+    }
+    storage.salvar_mensagem(mensagem)
+    return jsonify({"status": "ok", "mensagem": mensagem})
+
+
+@app.route("/admin/mensagens")
+def admin_mensagens():
+    mensagens = storage.listar_mensagens()
+    mensagens.sort(key=lambda m: m.get("data", ""), reverse=True)
+    return jsonify(mensagens)
+
+
+@app.route("/admin/mensagens/marcar", methods=["POST"])
+def admin_marcar_mensagem():
+    """Body: {"id": "..."}"""
+    dados = request.get_json(silent=True) or {}
+    mid = dados.get("id")
+    if not mid:
+        return jsonify({"erro": "id_obrigatorio"}), 400
+    ok = storage.marcar_mensagem_lida(mid)
+    if not ok:
+        return jsonify({"erro": "nao_encontrada"}), 404
+    return jsonify({"status": "ok"})
 
 
 @app.route("/")
