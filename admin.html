@@ -343,6 +343,13 @@
       </div>
     </div>
     <div class="mini" style="margin:-4px 0 14px">ID sem espaços nem acentos. Ex.: Backbone_Partage</div>
+    <label for="b-pratos" style="display:flex; align-items:flex-start; gap:12px; background:#10203F; border:1px solid #2F62E6; border-radius:10px; padding:12px; cursor:pointer; margin:0 0 14px; text-transform:none; letter-spacing:0; font-size:14px">
+      <input id="b-pratos" type="checkbox" style="width:22px; height:22px; margin:2px 0 0; accent-color:#2F62E6; flex-shrink:0">
+      <span style="display:flex; flex-direction:column; gap:3px">
+        <span style="font-size:15px; font-weight:800; color:#FFF">Aceita pratos</span>
+        <span style="font-size:13px; color:#CFE0FF; line-height:1.4; font-weight:400">Liga o botão "Escanear prato" para os garçons deste bar. Os colabs deste bar ganham 1 prato executivo a cada 10 pratos dos indicados.</span>
+      </span>
+    </label>
     <button class="btn" id="b-criar-bar">Criar bar</button>
     <button class="btn sec" id="b-cancelar-bar" style="display:none; width:auto; margin-left:8px; padding:13px 22px">Cancelar edição</button>
     <div class="msg" id="m-bar"></div>
@@ -502,8 +509,8 @@
   <p class="mini" style="margin:-6px 0 14px">Cada célula mostra <strong>últimos X dias / total</strong>. Cadastros = fichas originadas pelo QR do colab · Ativos = chopp de boas-vindas confirmado no bar.</p>
   <div class="cartao" style="padding:0; overflow-x:auto">
     <table>
-      <thead><tr><th>NOME</th><th>TELEFONE</th><th>BAR</th><th class="num">CADASTROS</th><th class="num">ATIVOS</th><th>STATUS</th><th></th></tr></thead>
-      <tbody id="t-colabs"><tr><td colspan="7" class="carregando">Carregando…</td></tr></tbody>
+      <thead><tr><th>NOME</th><th>TELEFONE</th><th>BAR</th><th class="num">CADASTROS</th><th class="num">ATIVOS</th><th class="num">PRATOS</th><th>STATUS</th><th></th></tr></thead>
+      <tbody id="t-colabs"><tr><td colspan="8" class="carregando">Carregando…</td></tr></tbody>
     </table>
   </div>
   <div class="cartao">
@@ -857,7 +864,7 @@ function renderBares(){
       tot.mj += s.metas_janela;      tot.mt += s.metas_total;
     }
     return `<tr>
-      <td><strong>${b.nome || "—"}</strong></td><td>${b.cidade || "—"}</td>
+      <td><strong>${b.nome || "—"}</strong>${b.pratos ? ' <span style="font-size:10px;font-weight:800;color:#7FA3FF;letter-spacing:.06em;vertical-align:middle">PRATOS</span>' : ""}</td><td>${b.cidade || "—"}</td>
       ${cel(s,"associados")}${cel(s,"boasvindas")}${cel(s,"consumos")}${cel(s,"metas")}
       <td style="white-space:nowrap; text-align:right">
         <button class="btn-x btn-x-sm" style="color:#D6D4CC;border-color:#4A4A4A" onclick="abrirQrBar('${b.id}')">QR/link</button>
@@ -890,6 +897,7 @@ function editarBar(id){
   $("b-id").value = b.id; $("b-id").disabled = true;
   $("b-nome").value = b.nome || "";
   $("b-cidade").value = b.cidade || "";
+  $("b-pratos").checked = !!b.pratos;
   $("bar-form-titulo").textContent = "Editar bar — " + b.id;
   $("b-criar-bar").textContent = "Salvar alterações";
   $("b-cancelar-bar").style.display = "inline-block";
@@ -898,7 +906,7 @@ function editarBar(id){
 function cancelarEdicaoBar(){
   editandoBarId = null; editandoBarOriginal = null;
   $("b-id").value = ""; $("b-id").disabled = false;
-  $("b-nome").value = ""; $("b-cidade").value = "";
+  $("b-nome").value = ""; $("b-cidade").value = ""; $("b-pratos").checked = false;
   $("bar-form-titulo").textContent = "Novo bar";
   $("b-criar-bar").textContent = "Criar bar";
   $("b-cancelar-bar").style.display = "none";
@@ -911,6 +919,7 @@ $("b-criar-bar").onclick = async () => {
   const id = ($("b-id").value || "").trim();
   const nome = ($("b-nome").value || "").trim();
   const cidade = ($("b-cidade").value || "").trim();
+  const pratos = $("b-pratos").checked;
   if(!id || !nome){ m.className = "msg erro"; m.textContent = "Preencha o ID e o nome."; return; }
   if(/[\s]/.test(id)){ m.className = "msg erro"; m.textContent = "O ID não pode ter espaços."; return; }
   m.className = "msg"; m.textContent = editandoBarId ? "Salvando…" : "Criando…";
@@ -918,7 +927,7 @@ $("b-criar-bar").onclick = async () => {
   try{
     const r = await fetch(API + "/admin/bares", {
       method:"POST", headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({id, nome, cidade, criado_em})
+      body: JSON.stringify({id, nome, cidade, criado_em, pratos})
     });
     if(!r.ok) throw 0;
     m.className = "msg ok"; m.textContent = editandoBarId ? "Bar atualizado." : "Bar criado.";
@@ -1380,13 +1389,21 @@ async function carregarColabs(){
     const colabsStats = (await rs.json()).colabs || {};
     const cel = (s, cat) => s ? `<td class="num">${s[cat+"_janela"]} / ${s[cat+"_total"]}</td>` : '<td class="num">0 / 0</td>';
     const nomeBar = id => (baresLista.find(b => b.id === id) || {}).nome || id || "—";
+    // coluna PRATOS: "7 de 10 · 4 entregues" (vermelho em "10 de 10 · a entregar"); "—" se o bar nao aceita pratos
+    const celPratos = s => {
+      if(!s || !s.bar_aceita_pratos) return '<td class="num" style="color:#6E6E68">—</td>';
+      const meta = s.pratos_para_premio || 10;
+      return s.prato_liberado
+        ? `<td class="num" style="white-space:nowrap"><strong style="color:#FF6B6B">${meta} de ${meta}</strong><br><span style="font-size:10px;font-weight:800;color:#FF6B6B;letter-spacing:.04em">A ENTREGAR</span></td>`
+        : `<td class="num" style="white-space:nowrap"><strong>${s.pratos_ciclo || 0} de ${meta}</strong><br><span style="font-size:10px;color:#A8A8A2;letter-spacing:.04em">${s.pratos_entregues || 0} ENTREGUES</span></td>`;
+    };
     $("t-colabs").innerHTML = colabsLista.length
       ? colabsLista.map(a => {
           const s = colabsStats[a.id];
           return `<tr>
           <td><strong>${a.nome || "—"}</strong></td><td>${a.telefone || "—"}</td>
           <td>${nomeBar(a.bar_id)}</td>
-          ${cel(s,"cadastros")}${cel(s,"ativos")}
+          ${cel(s,"cadastros")}${cel(s,"ativos")}${celPratos(s)}
           <td>${a.ativo === false ? '<span class="pill neutro">inativo</span>' : '<span class="pill ok">ativo</span>'}</td>
           <td style="white-space:nowrap; text-align:right">
             <button class="btn-x btn-x-sm" style="color:#D6D4CC;border-color:#4A4A4A" onclick="abrirQrColab('${a.id}')">QR/link</button>
@@ -1395,9 +1412,9 @@ async function carregarColabs(){
             <button class="btn-x btn-x-sm" onclick="apagarColab('${a.id}', '${(a.nome || "").replace(/'/g, "")}')">apagar</button>
           </td>
         </tr>`;}).join("")
-      : '<tr><td colspan="7" class="carregando">Nenhum colab cadastrado.</td></tr>';
+      : '<tr><td colspan="8" class="carregando">Nenhum colab cadastrado.</td></tr>';
   }catch(e){
-    $("t-colabs").innerHTML = '<tr><td colspan="7" class="carregando">Erro ao carregar.</td></tr>';
+    $("t-colabs").innerHTML = '<tr><td colspan="8" class="carregando">Erro ao carregar.</td></tr>';
   }
 }
 $("b-colabs-atualizar").onclick = carregarColabs;
