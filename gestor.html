@@ -581,6 +581,14 @@ function escolherBarPorId(id){
 function escolherBar(bar){
   barAtivo = bar;
   scnAplicarPratos();  // bar.pratos vem do /login-gestor (ou do /resumo, na aba Atual)
+  // sempre confere "aceita pratos" no servidor: sessoes salvas antes dessa
+  // versao nao tem o campo, e o admin pode ligar/desligar a qualquer hora
+  if(bar.id !== "*"){
+    fetch(API + "/admin/bares").then(r => r.json()).then(bares => {
+      const b = (bares || []).find(x => x.id === bar.id);
+      if(barAtivo && barAtivo.id === bar.id){ barAtivo.pratos = !!(b && b.pratos); scnAplicarPratos(); }
+    }).catch(() => {});
+  }
   $("dash-nome").innerHTML = gestor.nome + "<small>" + bar.nome + "</small>";
   $("b-trocar").style.display = (gestor.bares.length > 1) ? "flex" : "none";
   $("b-painel").style.display = localStorage.getItem("bb_admin") ? "flex" : "none";
@@ -859,7 +867,10 @@ async function salvarColab(corpo){
 $("b-salvar-colab").onclick = async () => {
   const erro = $("nc-erro");
   const btn = $("b-salvar-colab");
-  const id = ($("nc-id").value || "").trim().toLowerCase().replace(/[^a-z0-9_.-]/g, "");
+  // editando: o ID e o que ja existe (pode ter maiusculas); criando: normaliza
+  const id = colabEditando
+    ? colabEditando.colab_id
+    : ($("nc-id").value || "").trim().toLowerCase().replace(/[^a-z0-9_.-]/g, "");
   const nome = ($("nc-nome").value || "").trim();
   const senha = $("nc-senha").value;
   const telefone = ($("nc-tel").value || "").replace(/\D/g, "");
@@ -1009,6 +1020,15 @@ $("b-resetar-tutorial").onclick = async () => {
   }
 };
 
+/* erros do /scan-prato em linguagem de garcom */
+function mensagemErroPrato(erro){
+  return ({
+    bar_nao_aceita_pratos: "Este bar não está com pratos ligado. Fale com o gerente.",
+    consumidor_nao_encontrado: "Esse cliente não está cadastrado no Clube.",
+    bar_diferente: "Seu acesso é de outro bar.",
+  })[erro] || (erro || "Tente novamente.");
+}
+
 /* ══ SCANNER EMBUTIDO ══ */
 let scnLeitor = null;
 let scnPendente = null;
@@ -1126,12 +1146,16 @@ async function scnConsultarPrato(telefone){
     if(!r.ok){ scnConcluir("erro", "Cartão não encontrado", "Esse cliente não está cadastrado no Clube."); return; }
     const c = await r.json();
     let plano;
+    // colab de origem deste bar, existente e ativo — senao o backend nao credita
+    let pc = null;
     if(c.colab && c.colab_bar_id === barAtivo.id){
-      let ciclo = 0, liberado = false;
       try{
         const rc = await fetch(API + "/colab/" + encodeURIComponent(c.colab) + "/pratos");
-        if(rc.ok){ const pc = await rc.json(); ciclo = pc.pratos_ciclo || 0; liberado = !!pc.prato_liberado; }
+        if(rc.ok){ pc = await rc.json(); if(pc.ativo === false) pc = null; }
       }catch(e){}
+    }
+    if(pc){
+      const ciclo = pc.pratos_ciclo || 0, liberado = !!pc.prato_liberado;
       const vira = liberado ? ciclo : ciclo + 1;
       plano = { cor:"prato", acao:"REGISTRAR PRATO", sub:"Indicado por " + c.colab_nome,
         frase: liberado ? c.colab_nome + " já tem o prato grátis liberado"
@@ -1221,7 +1245,7 @@ $("scn-confirmar").onclick = async () => {
         body: JSON.stringify({ telefone: scnPendente.telefone, garcom_id: gestor.gestor_id, bar: barAtivo.id })
       });
       const d = await r.json();
-      if(!r.ok){ scnConcluir("erro", "Não deu certo", d.erro || "Tente novamente."); return; }
+      if(!r.ok){ scnConcluir("erro", "Não deu certo", mensagemErroPrato(d.erro)); return; }
       scnSetModoPrato(false);
       scnConcluir("prato", "Prato registrado", d.mensagem_garcom || "");
       return;

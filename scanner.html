@@ -88,9 +88,10 @@
   body.modo-prato .dica{font-size:22px; line-height:1.3; text-wrap:balance}
   .btn-prato{
     background:transparent; color:var(--branco); border:3px solid var(--azul);
-    padding:20px; font-size:21px; display:flex; align-items:center; justify-content:center; gap:12px;
+    padding:20px; font-size:21px; display:none; align-items:center; justify-content:center; gap:12px;
   }
   .btn-prato svg{flex-shrink:0}
+  body.tem-pratos .btn-prato{display:flex}
   body.modo-prato .btn-prato{display:none}
   #b-modo-chopp{display:none; padding:20px; font-size:21px}
   body.modo-prato #b-modo-chopp{display:block}
@@ -216,7 +217,7 @@
     <div id="cam"></div>
     <p class="dica" id="dica">Aponte a câmera<br>para o QR do cliente</p>
     <!-- so aparece em bar que aceita pratos (garcom.pratos) -->
-    <button class="btn btn-prato" id="b-modo-prato" style="display:none" aria-label="Escanear prato">
+    <button class="btn btn-prato" id="b-modo-prato" aria-label="Escanear prato">
       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2F62E6" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="4.5"></circle></svg>
       ESCANEAR PRATO
     </button>
@@ -373,20 +374,23 @@ function entrar(){
 
 /* ── MODO PRATO ──
    O botao "ESCANEAR PRATO" so existe em bar com "aceita pratos" ligado.
-   O /login ja devolve garcom.pratos; sessoes salvas antes dessa versao
-   (ou a entrada do gestor pela URL) nao tem o campo — nesse caso
-   consulta a lista de bares uma vez e grava. */
+   O /login devolve garcom.pratos, mas o admin pode ligar/desligar a
+   qualquer hora e sessoes antigas (ou a entrada do gestor pela URL)
+   nao tem o campo — entao sempre confere no servidor ao entrar,
+   usando o valor salvo so enquanto a resposta nao chega. */
 async function aplicarPratos(){
-  if(garcom.pratos === undefined){
-    try{
-      const r = await fetch(API + "/admin/bares");
-      const bares = await r.json();
-      const b = (bares || []).find(x => x.id === garcom.bar_id);
-      garcom.pratos = !!(b && b.pratos);
-      if(localStorage.getItem("bb_garcom")) localStorage.setItem("bb_garcom", JSON.stringify(garcom));
-    }catch(e){ garcom.pratos = false; }
-  }
-  $("b-modo-prato").style.display = garcom.pratos ? "flex" : "none";
+  pintarPratos();
+  try{
+    const r = await fetch(API + "/admin/bares");
+    const bares = await r.json();
+    const b = (bares || []).find(x => x.id === garcom.bar_id);
+    garcom.pratos = !!(b && b.pratos);
+    if(localStorage.getItem("bb_garcom")) localStorage.setItem("bb_garcom", JSON.stringify(garcom));
+  }catch(e){ if(garcom.pratos === undefined) garcom.pratos = false; }
+  pintarPratos();
+}
+function pintarPratos(){
+  document.body.classList.toggle("tem-pratos", !!garcom.pratos);
   if(!garcom.pratos) setModoPrato(false);
 }
 
@@ -642,14 +646,16 @@ async function consultarPrato(telefone){
     const c = await r.json();
 
     let plano;
-    const colabDesteBar = c.colab && c.colab_bar_id === garcom.bar_id;
-    if(colabDesteBar){
-      // contagem atual do colab, pra mostrar "prato N de 10"
-      let ciclo = 0, liberado = false;
+    // colab de origem deste bar, existente e ativo — senao o backend nao credita
+    let pc = null;
+    if(c.colab && c.colab_bar_id === garcom.bar_id){
       try{
         const rc = await fetch(API + "/colab/" + encodeURIComponent(c.colab) + "/pratos");
-        if(rc.ok){ const pc = await rc.json(); ciclo = pc.pratos_ciclo || 0; liberado = !!pc.prato_liberado; }
+        if(rc.ok){ pc = await rc.json(); if(pc.ativo === false) pc = null; }
       }catch(e){}
+    }
+    if(pc){
+      const ciclo = pc.pratos_ciclo || 0, liberado = !!pc.prato_liberado;
       const vira = liberado ? ciclo : ciclo + 1;
       plano = {
         cor:"prato", acao:"REGISTRAR PRATO", sub:"Indicado por " + c.colab_nome,
@@ -753,6 +759,15 @@ function pintar(nome, p){
 
 $("b-cancelar").onclick = () => { pendente = null; mostrar("scan"); iniciarCamera(); };
 
+/* erros do /scan-prato em linguagem de garcom */
+function mensagemErroPrato(erro){
+  return ({
+    bar_nao_aceita_pratos: "Este bar não está com pratos ligado. Fale com o gerente.",
+    consumidor_nao_encontrado: "Esse cliente não está cadastrado no Clube.",
+    bar_diferente: "Seu acesso é de outro bar.",
+  })[erro] || (erro || "Tente novamente.");
+}
+
 /* ── CONFIRMA ── */
 $("b-confirmar").onclick = async () => {
   if(!pendente) return;
@@ -765,7 +780,7 @@ $("b-confirmar").onclick = async () => {
         body: JSON.stringify({ telefone: pendente.telefone, garcom_id: garcom.garcom_id, bar: garcom.bar_id })
       });
       const d = await r.json();
-      if(!r.ok){ falhar("Não deu certo", d.erro || "Tente novamente."); return; }
+      if(!r.ok){ falhar("Não deu certo", mensagemErroPrato(d.erro)); return; }
       setModoPrato(false);  // o padrao e sempre chopp: prato e uma acao deliberada por vez
       concluir("prato", "Prato registrado", d.mensagem_garcom || "");
       return;
