@@ -156,6 +156,38 @@ function gridMetricas(t, ativosTotal){
   </div>`;
 }
 
+/* ── Pratos dos indicados (so quando o bar do colab aceita pratos) ──
+   A cada 10 pratos que os indicados comem no bar, o colab ganha 1 prato
+   executivo: basta mostrar o QR de indicacao ao garcom. */
+function blocoPratos(p, pratosNoMes){
+  if(!p || !p.bar_aceita_pratos) return "";
+  const meta = p.pratos_para_premio || 10;
+  const ciclo = p.pratos_ciclo || 0;
+  const faltam = meta - ciclo;
+  const barras = Array.from({length: meta}, (_, i) =>
+    `<span style="flex:1;height:10px;border-radius:5px;background:${i < ciclo ? "#2F62E6" : "#24314F"}"></span>`).join("");
+  const destaque = p.prato_liberado
+    ? `<div style="background:#D8232A;border-radius:10px;padding:14px;text-align:center;margin-top:12px">
+         <div style="font-size:20px;font-weight:800;line-height:1.1">Prato executivo liberado!</div>
+         <div style="font-size:13px;color:#FFD3D5;margin-top:6px;line-height:1.35">Mostre o seu QR de indicação ao garçom de ${colab.bar_nome || "seu bar"} para receber. Até resgatar, novos pratos não contam.</div>
+       </div>`
+    : `<div style="background:var(--preto2);border:1px solid var(--linha);border-radius:10px;padding:12px;font-size:13px;color:#D6D4CC;line-height:1.45;margin-top:12px">Ao chegar em ${meta}, mostre o <strong style="color:#FFF">seu QR de indicação</strong> ao garçom de ${colab.bar_nome || "seu bar"} para receber o prato.</div>`;
+  return `<div class="titulo-secao">Pratos dos seus indicados</div>
+    <div class="card" style="border-color:#2F62E6;background:#10203F">
+      <div style="display:flex;align-items:baseline;gap:10px">
+        <div style="font-size:40px;font-weight:800;line-height:1">${ciclo}<span style="font-size:20px;color:#7FA3FF">/${meta}</span></div>
+        <div style="font-size:13px;color:#CFE0FF;line-height:1.3">${p.prato_liberado ? "prato grátis liberado" : "faltam " + faltam + " para o seu<br>prato executivo grátis"}</div>
+      </div>
+      <div style="display:flex;gap:6px;margin-top:12px">${barras}</div>
+      ${destaque}
+      <div class="grid-metricas" style="grid-template-columns:repeat(3,1fr);margin-top:12px">
+        <div class="metrica"><span class="n">${pratosNoMes ?? 0}</span><span class="r">No mês</span></div>
+        <div class="metrica"><span class="n">${p.pratos_totais || 0}</span><span class="r">Desde o início</span></div>
+        <div class="metrica"><span class="n">${p.pratos_entregues || 0}</span><span class="r">Recebidos</span></div>
+      </div>
+    </div>`;
+}
+
 /* ══ LOGIN ══ */
 $("b-entrar").onclick = async () => {
   const id = $("i-id").value.trim();
@@ -252,7 +284,8 @@ async function carregarAtual(){
         <div class="titulo">${colab.nome}</div>
         ${gridMetricas(d.totais, d.ativos_total)}
         <div class="sub" style="margin-top:10px">${d.total_clientes} cliente(s) indicado(s) no total</div>
-      </div>`;
+      </div>
+      ${blocoPratos(d.pratos, d.totais.pratos)}`;
   }catch(e){
     $("atual-corpo").innerHTML = '<div class="carregando">Não foi possível carregar.</div>';
   }

@@ -167,6 +167,14 @@ def consultar_consumidor(telefone):
     c["punches_para_recompensa"] = c.get("meta", 10)
     c["recompensas_disponiveis"] = len(_disponiveis(c))
     c["total_indicados"] = len(c.get("indicados", []))
+    # colab de origem (para a tela de PRATO do scanner mostrar quem credita)
+    c["colab_nome"] = None
+    c["colab_bar_id"] = None
+    if c.get("colab"):
+        col = storage.carregar_colab(c["colab"])
+        if col:
+            c["colab_nome"] = col.get("nome", col["id"])
+            c["colab_bar_id"] = col.get("bar_id", "")
     return jsonify(c)
 
 
@@ -372,6 +380,202 @@ def resgatar_legado():
 
 
 # ══════════════════════════════════════════════════════════════
+#  PRATO - remuneracao do colab por refeicoes dos indicados
+# ══════════════════════════════════════════════════════════════
+#
+# Regra unica (nov/2026): num bar com "aceita pratos" ligado, o garcom
+# registra um PRATO no QR do cliente. Se o cliente foi indicado por um
+# colab DESSE bar, o colab ganha +1 prato. Em PRATOS_PARA_PREMIO o colab
+# tem direito a 1 prato executivo; para receber, o garcom escaneia o QR
+# de indicacao do colab (/c/<id>). Enquanto esta em 10 sem resgatar,
+# novos pratos nao contam (mesma regra da cartela de chopp cheia).
+# O cliente comum nao ganha nem perde nada com o prato (pontos: 0) — o
+# evento ja nasce com item + pontos para a futura conta corrente.
+
+PRATOS_PARA_PREMIO = 10
+
+
+def _validar_escaneador(garcom_id, bar):
+    """
+    Mesma checagem do /scan: quem escaneia pode ser garcom (do bar),
+    gestor (com o bar na lista) ou admin (qualquer bar).
+    Devolve (erro, status) ou (None, None).
+    """
+    garcom = storage.carregar_garcom(garcom_id)
+    if garcom:
+        if not _garcom_pertence_bar(garcom, bar):
+            return "bar_diferente", 403
+        return None, None
+    gestor = storage.carregar_gestor(garcom_id)
+    if gestor:
+        if "*" not in gestor.get("bar_ids", []) and bar not in gestor.get("bar_ids", []):
+            return "bar_diferente", 403
+        return None, None
+    if storage.carregar_admin(garcom_id):
+        return None, None
+    return "garcom_nao_encontrado", 404
+
+
+def _bar_aceita_pratos(bar_id):
+    b = storage.carregar_bar(bar_id) if bar_id else None
+    return bool(b and b.get("pratos"))
+
+
+def _pratos_do_colab(colab):
+    """Bloco padrao de contagem de pratos de um colab (para scanner, gestor, painel)."""
+    ciclo = int(colab.get("pratos_ciclo", 0))
+    return {
+        "pratos_ciclo": ciclo,
+        "pratos_para_premio": PRATOS_PARA_PREMIO,
+        "pratos_totais": int(colab.get("pratos_totais", 0)),
+        "pratos_entregues": int(colab.get("pratos_entregues", 0)),
+        "prato_liberado": ciclo >= PRATOS_PARA_PREMIO,
+    }
+
+
+@app.route("/colab/<colab_id>/pratos")
+def colab_pratos(colab_id):
+    """
+    O scanner chama ao ler o QR de indicacao de um colab (/c/<id>):
+    monta a tela "faltam N" ou "RESGATE · PRATO".
+    """
+    colab = storage.carregar_colab(colab_id)
+    if not colab:
+        return jsonify({"erro": "colab_nao_encontrado"}), 404
+    bar = storage.carregar_bar(colab.get("bar_id", "")) or {}
+    resp = {
+        "colab_id": colab["id"], "nome": colab.get("nome", colab["id"]),
+        "bar_id": colab.get("bar_id", ""), "bar_nome": bar.get("nome", colab.get("bar_nome", "")),
+        "bar_aceita_pratos": bool(bar.get("pratos")),
+        "ativo": colab.get("ativo", True),
+    }
+    resp.update(_pratos_do_colab(colab))
+    return jsonify(resp)
+
+
+@app.route("/scan-prato", methods=["POST"])
+def scan_prato():
+    """
+    Registra um PRATO consumido pelo cliente (QR do cartao), em bar que
+    aceita pratos. Separado do /scan de proposito: nunca cai no caminho
+    de resgate de chopp, e nao mexe em punches nem em chopps_totais.
+    """
+    dados = request.get_json() or {}
+    telefone = so_digitos(dados.get("telefone"))
+    garcom_id = dados.get("garcom_id")
+    bar = dados.get("bar")
+
+    if not telefone or not garcom_id or not bar:
+        return jsonify({"erro": "dados_incompletos"}), 400
+
+    erro, status = _validar_escaneador(garcom_id, bar)
+    if erro:
+        return jsonify({"erro": erro}), status
+
+    if not _bar_aceita_pratos(bar):
+        return jsonify({"erro": "bar_nao_aceita_pratos"}), 403
+
+    consumidor = storage.carregar_consumidor(telefone)
+    if not consumidor:
+        return jsonify({"erro": "consumidor_nao_encontrado"}), 404
+
+    # colab de origem deste cliente, se for colab DESTE bar
+    colab = None
+    colab_id = consumidor.get("colab")
+    if colab_id:
+        c = storage.carregar_colab(colab_id)
+        if c and c.get("bar_id") == bar and c.get("ativo", True):
+            colab = c
+
+    creditado = False
+    if colab:
+        ciclo = int(colab.get("pratos_ciclo", 0))
+        if ciclo < PRATOS_PARA_PREMIO:
+            colab["pratos_ciclo"] = ciclo + 1
+            colab["pratos_totais"] = int(colab.get("pratos_totais", 0)) + 1
+            colab["ultimo_prato"] = agora()
+            storage.salvar_colab(colab)
+            creditado = True
+        # ciclo cheio (prato liberado e nao resgatado): o prato NAO conta,
+        # igual a cartela de chopp cheia
+
+    storage.salvar_evento({
+        "id": str(uuid.uuid4()), "tipo": "prato", "item": "prato", "pontos": 0,
+        "telefone": telefone, "bar": bar, "garcom_id": garcom_id,
+        "colab": colab["id"] if colab else None, "colab_credito": creditado,
+        "data": agora(),
+    })
+
+    resp = {
+        "status": "ok", "acao": "prato",
+        "nome": consumidor["nome"],
+        "colab": None,
+    }
+    if colab:
+        info = _pratos_do_colab(colab)
+        info.update({"colab_id": colab["id"], "nome": colab.get("nome", colab["id"]), "creditado": creditado})
+        resp["colab"] = info
+        if info["prato_liberado"]:
+            resp["mensagem_garcom"] = (
+                f"Prato registrado — {consumidor['nome']}. "
+                f"{colab.get('nome', colab['id'])} fechou {PRATOS_PARA_PREMIO} pratos: tem 1 prato grátis a receber."
+            )
+        else:
+            resp["mensagem_garcom"] = (
+                f"Prato registrado — {consumidor['nome']}. "
+                f"{colab.get('nome', colab['id'])}: {info['pratos_ciclo']} de {PRATOS_PARA_PREMIO}."
+            )
+    else:
+        resp["mensagem_garcom"] = f"Prato registrado — {consumidor['nome']} (sem colab)."
+    return jsonify(resp)
+
+
+@app.route("/resgatar-prato", methods=["POST"])
+def resgatar_prato():
+    """
+    O garcom escaneou o QR de indicacao do colab e o colab tem direito
+    ao prato: entrega, zera o ciclo, conta 1 entregue.
+    """
+    dados = request.get_json() or {}
+    colab_id = (dados.get("colab_id") or "").strip()
+    garcom_id = dados.get("garcom_id")
+    bar = dados.get("bar")
+
+    if not colab_id or not garcom_id or not bar:
+        return jsonify({"erro": "dados_incompletos"}), 400
+
+    erro, status = _validar_escaneador(garcom_id, bar)
+    if erro:
+        return jsonify({"erro": erro}), status
+
+    colab = storage.carregar_colab(colab_id)
+    if not colab:
+        return jsonify({"erro": "colab_nao_encontrado"}), 404
+    if colab.get("bar_id") != bar:
+        return jsonify({"erro": "colab_de_outro_bar"}), 403
+    if int(colab.get("pratos_ciclo", 0)) < PRATOS_PARA_PREMIO:
+        return jsonify({"erro": "prato_nao_liberado", **_pratos_do_colab(colab)}), 409
+
+    colab["pratos_ciclo"] = 0
+    colab["pratos_entregues"] = int(colab.get("pratos_entregues", 0)) + 1
+    colab["ultimo_resgate_prato"] = agora()
+    storage.salvar_colab(colab)
+
+    storage.salvar_evento({
+        "id": str(uuid.uuid4()), "tipo": "resgate_prato",
+        "colab": colab["id"], "bar": bar, "garcom_id": garcom_id, "data": agora(),
+    })
+
+    resp = {
+        "status": "ok", "acao": "resgate_prato",
+        "colab_id": colab["id"], "nome": colab.get("nome", colab["id"]),
+        "mensagem_garcom": f"RESGATE — entregue 1 prato executivo grátis para {colab.get('nome', colab['id'])}.",
+    }
+    resp.update(_pratos_do_colab(colab))
+    return jsonify(resp)
+
+
+# ══════════════════════════════════════════════════════════════
 #  CARTAO .pkpass
 # ══════════════════════════════════════════════════════════════
 
@@ -506,6 +710,8 @@ def login():
         "status": "ok", "garcom_id": garcom["id"], "nome": garcom["nome"],
         "bar_id": garcom["bar_id"], "bar_nome": garcom.get("bar_nome", ""),
         "tutorial_visto": garcom.get("tutorial_visto", False),
+        # liga o botao "Escanear prato" no scanner
+        "pratos": _bar_aceita_pratos(garcom["bar_id"]),
     })
 
 
@@ -537,6 +743,13 @@ def admin_bares():
 def admin_criar_bar():
     dados = request.get_json()
     dados.setdefault("id", str(uuid.uuid4())[:8])
+    # "pratos": o bar aceita o modo PRATO no scanner (colabs ganham prato
+    # executivo a cada PRATOS_PARA_PREMIO pratos dos indicados)
+    existente = storage.carregar_bar(dados["id"])
+    if "pratos" in dados:
+        dados["pratos"] = bool(dados["pratos"])
+    elif existente:
+        dados["pratos"] = bool(existente.get("pratos"))
     storage.salvar_bar(dados)
     return jsonify({"status": "ok", "bar": dados})
 
@@ -662,15 +875,19 @@ def login_gestor():
         return jsonify({"erro": "gestor_inativo"}), 403
 
     bar_ids = gestor.get("bar_ids", [])
-    bares_map = {b["id"]: b.get("nome", b["id"]) for b in storage.listar_bares()}
+    todos_bares = storage.listar_bares()
+    bares_map = {b["id"]: b.get("nome", b["id"]) for b in todos_bares}
     bares_map["*"] = "Todos os bares"
+    pratos_map = {b["id"]: bool(b.get("pratos")) for b in todos_bares}
 
     return jsonify({
         "status": "ok",
         "gestor_id": gestor["id"],
         "nome": gestor["nome"],
         # se so tiver 1 bar, o front pode pular a tela de selecao e ir direto
-        "bares": [{"id": bid, "nome": bares_map.get(bid, bid)} for bid in bar_ids],
+        # "pratos": o bar aceita pratos (mostra o bloco de pratos nos colabs)
+        "bares": [{"id": bid, "nome": bares_map.get(bid, bid), "pratos": pratos_map.get(bid, False)}
+                  for bid in bar_ids],
     })
 
 
@@ -816,23 +1033,37 @@ def admin_colabs_stats():
         return stats.setdefault(colab_id, {
             "cadastros_total": 0, "cadastros_janela": 0,
             "ativos_total": 0, "ativos_janela": 0,
+            "pratos_total": 0, "pratos_janela": 0,
         })
 
     for ev in storage.listar_eventos():
-        cid = colab_do_telefone.get(ev.get("telefone"))
-        if not cid:
-            continue
         tipo = ev.get("tipo")
-        if tipo == "cadastro":
-            cat = "cadastros"
-        elif tipo == "resgate" and ev.get("tipo_recompensa") == "boas_vindas":
-            cat = "ativos"
+        if tipo == "prato":
+            # prato creditado ao colab (evento ja carrega o colab)
+            if not ev.get("colab") or not ev.get("colab_credito"):
+                continue
+            cid, cat = ev["colab"], "pratos"
         else:
-            continue
+            cid = colab_do_telefone.get(ev.get("telefone"))
+            if not cid:
+                continue
+            if tipo == "cadastro":
+                cat = "cadastros"
+            elif tipo == "resgate" and ev.get("tipo_recompensa") == "boas_vindas":
+                cat = "ativos"
+            else:
+                continue
         e = _s(cid)
         e[cat + "_total"] += 1
         if (ev.get("data") or "") >= corte:
             e[cat + "_janela"] += 1
+
+    # ciclo atual / entregues (vitalicios, do cadastro do colab) + se o bar aceita pratos
+    bares_pratos = {b["id"]: bool(b.get("pratos")) for b in storage.listar_bares()}
+    for a in storage.listar_colabs():
+        e = _s(a["id"])
+        e.update(_pratos_do_colab(a))
+        e["bar_aceita_pratos"] = bares_pratos.get(a.get("bar_id", ""), False)
 
     return jsonify({"dias": dias, "colabs": stats})
 
@@ -844,8 +1075,18 @@ def admin_criar_colab():
     dados["telefone"] = so_digitos(dados.get("telefone", ""))
 
     existente = storage.carregar_colab(dados.get("id")) if dados.get("id") else None
+    # "novo": o gestor criando pelo painel do bar — nao pode pegar o ID de
+    # um colab de outro bar (ele nao enxerga os outros bares)
+    if dados.pop("novo", False) and existente:
+        return jsonify({"erro": "id_em_uso"}), 409
     if existente and not dados.get("senha"):
         dados["senha"] = existente.get("senha")  # edicao sem trocar senha: mantem a atual
+    if existente:
+        # contadores de prato nunca vem do formulario — preserva os atuais
+        for k in ("pratos_ciclo", "pratos_totais", "pratos_entregues",
+                  "ultimo_prato", "ultimo_resgate_prato"):
+            if k in existente:
+                dados[k] = existente[k]
 
     dados.setdefault("id", str(uuid.uuid4())[:8])
     dados.setdefault("ativo", True)
@@ -887,7 +1128,7 @@ def colab_resumo(colab_id):
     todos_os_tempos = (mes == "todos")
     telefones = _telefones_do_colab(colab_id)
 
-    totais = {"fichas": 0, "cadastros": 0, "pontuacao": 0, "resgates": 0}
+    totais = {"fichas": 0, "cadastros": 0, "pontuacao": 0, "resgates": 0, "pratos": 0}
     fichas_total = 0
     ativos_total = 0
     for ev in storage.listar_eventos():
@@ -907,10 +1148,17 @@ def colab_resumo(colab_id):
         elif tipo == "resgate":
             cat = "cadastros" if ev.get("tipo_recompensa") == "boas_vindas" else "resgates"
             totais[cat] += 1
+        elif tipo == "prato" and ev.get("colab") == colab_id and ev.get("colab_credito"):
+            totais["pratos"] += 1
+
+    # bloco de pratos (vitalicio) — so faz sentido se o bar do colab aceita pratos
+    colab = storage.carregar_colab(colab_id) or {}
+    pratos = _pratos_do_colab(colab)
+    pratos["bar_aceita_pratos"] = _bar_aceita_pratos(colab.get("bar_id", ""))
 
     return jsonify({"colab_id": colab_id, "mes": mes, "totais": totais,
                      "fichas_total": fichas_total, "ativos_total": ativos_total,
-                     "fichas_total": fichas_total, "total_clientes": len(telefones)})
+                     "total_clientes": len(telefones), "pratos": pratos})
 
 
 @app.route("/colab/<colab_id>/historico")
@@ -1185,7 +1433,8 @@ def atividade_bar(bar_id):
     garcom_filtro = request.args.get("garcom_id")
 
     eventos = [e for e in storage.listar_eventos()
-               if (bar_id == "*" or e.get("bar") == bar_id) and e.get("tipo") in ("punch", "resgate")]
+               if (bar_id == "*" or e.get("bar") == bar_id)
+               and e.get("tipo") in ("punch", "resgate", "prato", "resgate_prato")]
 
     if mes and mes != "todos":
         eventos = [e for e in eventos if (e.get("data") or "").startswith(mes)]
@@ -1206,13 +1455,20 @@ def atividade_bar(bar_id):
     garcons.update({g["id"]: g.get("nome", g["id"]) for g in storage.listar_gestores()})
     garcons.update({a["id"]: a.get("nome", a["id"]) for a in storage.listar_admins()})
 
+    # nome do colab (resgate_prato nao tem telefone: o "cliente" e o colab)
+    colabs = {}
+    if any(e.get("colab") for e in pagina):
+        colabs = {a["id"]: a.get("nome", a["id"]) for a in storage.listar_colabs()}
+
     return jsonify({
         "eventos": [{
-            "nome": nomes.get(e.get("telefone")) or e.get("telefone") or "—",
+            "nome": (nomes.get(e.get("telefone")) or e.get("telefone")
+                     or colabs.get(e.get("colab"), e.get("colab")) or "—"),
             "data": e.get("data"),
             "garcom": garcons.get(e.get("garcom_id"), e.get("garcom_id") or "—"),
             "tipo": e.get("tipo"),
             "tipo_recompensa": e.get("tipo_recompensa"),
+            "colab": colabs.get(e.get("colab")) if e.get("colab") else None,
         } for e in pagina],
         "offset": offset,
         "limite": limite,
@@ -1237,7 +1493,7 @@ def bar_totais(bar_id):
     mes = request.args.get("mes") or datetime.now(timezone.utc).strftime("%Y-%m")
     todos_os_tempos = (mes == "todos")
 
-    totais = {"fichas": 0, "cadastros": 0, "pontuacao": 0, "resgates": 0}
+    totais = {"fichas": 0, "cadastros": 0, "pontuacao": 0, "resgates": 0, "pratos": 0}
     for ev in storage.listar_eventos():
         if bar_id != "*" and ev.get("bar") != bar_id:
             continue
@@ -1251,6 +1507,8 @@ def bar_totais(bar_id):
         elif tipo == "resgate":
             cat = "cadastros" if ev.get("tipo_recompensa") == "boas_vindas" else "resgates"
             totais[cat] += 1
+        elif tipo == "prato":
+            totais["pratos"] += 1
 
     return jsonify({"bar_id": bar_id, "mes": mes, "totais": totais})
 
@@ -1277,9 +1535,23 @@ def bar_resumo(bar_id):
     garcons_map = {g["id"]: g.get("nome", g["id"]) for g in storage.listar_garcons()}
     garcons_map.update({g["id"]: g.get("nome", g["id"]) for g in storage.listar_gestores()})
     garcons_map.update({a["id"]: a.get("nome", a["id"]) for a in storage.listar_admins()})
-    colabs_map = {a["id"]: a.get("nome", a["id"]) for a in storage.listar_colabs()}
+    todos_colabs = storage.listar_colabs()
+    colabs_map = {a["id"]: a.get("nome", a["id"]) for a in todos_colabs}
+    colabs_por_id = {a["id"]: a for a in todos_colabs}
+    bar_aceita_pratos = _bar_aceita_pratos(bar_id) if bar_id != "*" else False
 
-    totais = {"fichas": 0, "cadastros": 0, "pontuacao": 0, "resgates": 0}
+    def _novo_colab(aid):
+        a = colabs_por_id.get(aid, {})
+        item = {
+            "colab_id": aid, "nome": colabs_map.get(aid, aid),
+            "telefone": a.get("telefone", ""), "ativo": a.get("ativo", True),
+            "fichas": 0, "cadastros": 0, "pontuacao": 0, "resgates": 0,
+            "pratos": 0,  # pratos dos indicados no periodo pedido
+        }
+        item.update(_pratos_do_colab(a))  # ciclo / totais / entregues / liberado (vitalicios)
+        return item
+
+    totais = {"fichas": 0, "cadastros": 0, "pontuacao": 0, "resgates": 0, "pratos": 0}
     por_garcom = {}
     por_colab = {}
 
@@ -1292,12 +1564,9 @@ def bar_resumo(bar_id):
                     "garcom_id": g["id"], "nome": g.get("nome", g["id"]),
                     "cadastros": 0, "pontuacao": 0, "resgates": 0,
                 }
-        for a in storage.listar_colabs():
+        for a in todos_colabs:
             if a.get("bar_id") == bar_id:
-                por_colab[a["id"]] = {
-                    "colab_id": a["id"], "nome": a.get("nome", a["id"]),
-                    "fichas": 0, "cadastros": 0, "pontuacao": 0, "resgates": 0,
-                }
+                por_colab[a["id"]] = _novo_colab(a["id"])
 
     # telefone -> colab que o trouxe (so dos colabs deste bar)
     colab_do_telefone = {}
@@ -1319,11 +1588,14 @@ def bar_resumo(bar_id):
             totais["fichas"] += 1
             aid = colab_do_telefone.get(ev.get("telefone"))
             if aid:
-                a = por_colab.setdefault(aid, {
-                    "colab_id": aid, "nome": colabs_map.get(aid, aid),
-                    "fichas": 0, "cadastros": 0, "pontuacao": 0, "resgates": 0,
-                })
-                a["fichas"] += 1
+                por_colab.setdefault(aid, _novo_colab(aid))["fichas"] += 1
+            continue
+        elif tipo == "prato":
+            # prato do cliente: conta pro bar e, se creditou, pro colab
+            totais["pratos"] += 1
+            aid = ev.get("colab")
+            if aid and ev.get("colab_credito") and (bar_id == "*" or aid in por_colab):
+                por_colab.setdefault(aid, _novo_colab(aid))["pratos"] += 1
             continue
         elif tipo == "punch":
             cat = "pontuacao"
@@ -1344,15 +1616,12 @@ def bar_resumo(bar_id):
 
         aid = colab_do_telefone.get(ev.get("telefone"))
         if aid:
-            a = por_colab.setdefault(aid, {
-                "colab_id": aid, "nome": colabs_map.get(aid, aid),
-                "fichas": 0, "cadastros": 0, "pontuacao": 0, "resgates": 0,
-            })
-            a[cat] += 1
+            por_colab.setdefault(aid, _novo_colab(aid))[cat] += 1
 
     return jsonify({
         "bar_id": bar_id,
         "mes": mes,
+        "pratos": bar_aceita_pratos,
         "totais": totais,
         "garcons": sorted(por_garcom.values(), key=lambda g: g["nome"]),
         "colabs": sorted(por_colab.values(), key=lambda a: a["nome"]),

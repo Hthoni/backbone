@@ -11,6 +11,7 @@
     --preto:#000; --preto2:#141414; --linha:#2B2B2B;
     --branco:#FFF; --cinza-campo:#E4E2DA; --cinza-txt:#A8A8A2;
     --ambar:#E8A317; --rubro:#D8232A; --verde:#1F7A47;
+    --azul:#2F62E6; /* modo PRATO */
     --sb: env(safe-area-inset-bottom, 0px);
   }
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -108,7 +109,30 @@
   .tag.punch{background:#E8A317; color:#151000}
   .tag.resgate{background:#D8232A; color:#fff}
   .tag.bv{background:#1F7A47; color:#FFF}
+  .tag.prato{background:var(--azul); color:#fff}
+  .tag.prato-resgate{background:#D8232A; color:#fff; box-shadow:0 0 0 2px var(--azul)}
   .feed-fim{text-align:center; color:var(--cinza-txt); font-size:13px; padding:14px 0}
+
+  /* ── COLABS DO BAR (gestão sem admin) + PRATOS ── */
+  .card-colab{cursor:default}
+  .card-colab .topo{display:flex; align-items:center; justify-content:space-between; gap:10px}
+  .card-colab .acoes-colab{display:flex; gap:6px; flex-shrink:0}
+  .btn-x{
+    background:none; border:1px solid #444; color:var(--branco); font-size:12px; font-weight:800;
+    padding:6px 10px; border-radius:8px; font-family:inherit; cursor:pointer;
+  }
+  .btn-x.editar{color:var(--ambar); border-color:#5A4A1A}
+  .linha-pratos{
+    margin-top:10px; background:#10203F; border:1px solid var(--azul); border-radius:10px;
+    padding:10px 12px; display:flex; align-items:center; justify-content:space-between; gap:10px;
+  }
+  .linha-pratos .r{font-size:11px; font-weight:800; letter-spacing:.06em; color:#CFE0FF; text-transform:uppercase}
+  .linha-pratos .n{font-size:14px; font-weight:800}
+  .linha-pratos .n small{color:#7FA3FF; font-weight:700; font-size:14px}
+  .linha-pratos.liberado{background:#3A1416; border-color:var(--rubro)}
+  .linha-pratos.liberado .r{color:#FFD3D5}
+  .linha-pratos.liberado .n{color:#FF6B6B}
+  .inativo{opacity:.5}
 
   /* ── SCANNER EMBUTIDO (aba Scanner) ── */
   .scn-aba{flex:1; display:flex; flex-direction:column; overflow:hidden}
@@ -126,10 +150,34 @@
   }
   .scn-dica{text-align:center; font-size:22px; font-weight:800; line-height:1.25; margin:auto 0; padding:22px 0}
 
+  /* modo PRATO no scanner embutido — mesmas regras do scanner.html */
+  .scn-faixa-prato{display:none; background:var(--azul); color:#fff; text-align:center; font-size:15px; font-weight:900; letter-spacing:.16em; padding:10px 18px}
+  .scn-aba.modo-prato .scn-faixa-prato{display:block}
+  .scn-aba.modo-prato #scn-cam{border-color:var(--azul)}
+  .scn-aba.modo-prato #scn-cam::after{border-color:var(--azul)}
+  .scn-aba.modo-prato .scn-dica{font-size:19px; text-wrap:balance}
+  .scn-btn-prato{
+    display:none; background:transparent; color:var(--branco); border:3px solid var(--azul);
+    padding:16px; font-size:17px; align-items:center; justify-content:center; gap:10px;
+  }
+  .scn-aba.tem-pratos .scn-btn-prato{display:flex}
+  .scn-aba.modo-prato .scn-btn-prato{display:none}
+  #scn-modo-chopp{display:none; padding:16px; font-size:17px}
+  .scn-aba.modo-prato #scn-modo-chopp{display:block}
+
   .scn-flood{flex:1; display:flex; flex-direction:column; justify-content:center; padding:26px 22px; text-align:center; overflow-y:auto}
   .scn-flood.pontuar{background:var(--ambar); color:#150F00}
   .scn-flood.resgatar{background:var(--rubro); color:#fff}
   .scn-flood.boas{background:var(--verde); color:#fff}
+  .scn-flood.prato{background:var(--azul); color:#fff}
+  .scn-flood.colab{background:var(--preto); color:var(--branco)}
+  .scn-flood.colab .scn-pt{border-color:var(--azul)}
+  .scn-flood.colab .scn-pt.cheio{background:var(--azul)}
+  .scn-flood.colab .scn-avisinho{background:var(--preto2); border:1px solid var(--linha); color:#D6D4CC}
+  .scn-sub{font-size:14px; font-weight:700; letter-spacing:.06em; opacity:.85; margin:-6px 0 18px; text-transform:uppercase}
+  .scn-sub:empty{display:none}
+  .scn-pill{display:inline-block; vertical-align:middle; margin-left:8px; background:var(--azul); color:#fff; font-size:13px; font-weight:900; letter-spacing:.12em; padding:5px 10px; border-radius:999px}
+  .scn-selo.prato{background:var(--azul); color:#fff}
   .scn-acao{font-size:20px; font-weight:900; letter-spacing:.12em; margin-bottom:14px}
   .scn-nome{font-size:34px; font-weight:800; line-height:1.05; margin-bottom:18px; word-break:break-word}
   .scn-frase{font-size:24px; line-height:1.25; font-weight:800; margin-bottom:16px}
@@ -243,9 +291,15 @@
   <!-- Scanner (embutido — mesmo header e abas continuam visíveis) -->
   <div class="scn-aba aba-conteudo" id="aba-scanner" style="display:none">
     <div class="scn-estado" id="scn-camera">
+      <div class="scn-faixa-prato">MODO PRATO</div>
       <div class="scn-camera">
         <div id="scn-cam"></div>
-        <p class="scn-dica">Aponte a câmera<br>para o QR do cliente</p>
+        <p class="scn-dica" id="scn-dica">Aponte a câmera<br>para o QR do cliente</p>
+        <button class="btn scn-btn-prato" id="scn-modo-prato">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2F62E6" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="4.5"></circle></svg>
+          ESCANEAR PRATO
+        </button>
+        <button class="btn btn-2" id="scn-modo-chopp">VOLTAR PARA CHOPP</button>
       </div>
     </div>
 
@@ -253,6 +307,7 @@
       <div class="scn-flood" id="scn-flood">
         <div class="scn-acao" id="scn-acao"></div>
         <div class="scn-nome" id="scn-nome"></div>
+        <div class="scn-sub" id="scn-sub"></div>
         <div class="scn-trilha" id="scn-trilha"></div>
         <div class="scn-frase" id="scn-frase"></div>
         <div id="scn-aviso"></div>
@@ -339,6 +394,51 @@
   </div>
 </section>
 
+<!-- ══ NOVO / EDITAR COLAB (gestão pelo próprio bar, sem admin) ══ -->
+<section id="t-colab" class="tela">
+  <div class="cab">
+    <img src="clube_logo.png" alt="Clube Backbone">
+    <button class="sair" id="b-fechar-colab">CANCELAR</button>
+  </div>
+  <div class="conteudo">
+    <h1 style="font-size:22px; font-weight:800; margin-bottom:4px" id="colab-titulo">Novo colab</h1>
+    <p style="font-size:13px; color:var(--cinza-txt); margin-bottom:6px">Bar: <strong id="nc-bar-nome" style="color:var(--branco)"></strong></p>
+    <p style="font-size:13px; color:var(--cinza-txt); margin-bottom:20px; line-height:1.45">Colab é quem indica clientes (porteiro, hotel, agência). Ele recebe um QR de indicação — não tem cartão nem consome.</p>
+
+    <label for="nc-id">ID DO QR / LOGIN (ex.: hotelcopa)</label>
+    <input id="nc-id" type="text" autocapitalize="none" placeholder="hotelcopa">
+
+    <label for="nc-nome">NOME</label>
+    <input id="nc-nome" type="text" placeholder="Hotel Copacabana">
+
+    <label for="nc-senha">SENHA DO PAINEL</label>
+    <input id="nc-senha" type="text" placeholder="senha do colab">
+
+    <label for="nc-tel">TELEFONE (opcional)</label>
+    <input id="nc-tel" type="tel" placeholder="5521999998888">
+
+    <div class="erro-msg" id="nc-erro"></div>
+    <button class="btn btn-1" id="b-salvar-colab">Salvar e mostrar QR</button>
+    <button class="btn btn-2" id="b-alternar-colab" style="display:none; margin-top:12px"></button>
+  </div>
+</section>
+
+<!-- ══ QR DE INDICAÇÃO DO COLAB ══ -->
+<section id="t-qr-colab" class="tela">
+  <div class="cab">
+    <img src="clube_logo.png" alt="Clube Backbone">
+  </div>
+  <div class="conteudo" style="align-items:center; text-align:center">
+    <h1 style="font-size:22px; font-weight:800; margin-bottom:6px" id="qrc-titulo">QR de indicação</h1>
+    <p style="font-size:14px; color:var(--cinza-txt); margin-bottom:22px" id="qrc-nome"></p>
+    <img id="qrc-img" alt="QR de indicação do colab" style="width:220px; height:220px; border-radius:12px; background:#FFF; padding:10px; margin:0 auto 18px; display:block">
+    <p style="font-size:13px; color:var(--cinza-txt); margin-bottom:8px; line-height:1.45">Imprima e entregue ao colab. Cliente novo escaneia para se cadastrar; o garçom escaneia o mesmo QR para entregar o prato grátis do colab.</p>
+    <div style="background:var(--preto2); border:1px solid var(--linha); border-radius:10px; padding:10px 12px; font-size:12px; color:var(--cinza-txt); word-break:break-all; margin-bottom:18px" id="qrc-link"></div>
+    <button class="btn btn-2" id="b-copiar-link-colab" style="margin-bottom:12px">Copiar link</button>
+    <button class="btn btn-1" id="b-concluir-colab">Concluir</button>
+  </div>
+</section>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <script>
 const API = "https://backbone-650557630362.us-central1.run.app";
@@ -377,9 +477,14 @@ function linhaFeed(e){
     tag = e.tipo_recompensa === "boas_vindas"
       ? '<span class="tag bv">boas-vindas</span>'
       : '<span class="tag resgate">resgate</span>';
+  } else if(e.tipo === "prato"){
+    tag = '<span class="tag prato">prato</span>';
+  } else if(e.tipo === "resgate_prato"){
+    tag = '<span class="tag prato-resgate">prato · resgate</span>';
   }
+  const colab = (e.tipo === "prato" && e.colab) ? `<div class="l2">indicado por ${e.colab}</div>` : "";
   return `<div class="lote">
-    <div class="l1">${e.nome}${tag}</div>
+    <div class="l1">${e.nome}${tag}</div>${colab}
     <div class="l2">${horaLocal(e.data)}</div>
     <div class="l3">Garçom: ${e.garcom}</div>
   </div>`;
@@ -475,6 +580,15 @@ function escolherBarPorId(id){
 }
 function escolherBar(bar){
   barAtivo = bar;
+  scnAplicarPratos();  // bar.pratos vem do /login-gestor (ou do /resumo, na aba Atual)
+  // sempre confere "aceita pratos" no servidor: sessoes salvas antes dessa
+  // versao nao tem o campo, e o admin pode ligar/desligar a qualquer hora
+  if(bar.id !== "*"){
+    fetch(API + "/admin/bares").then(r => r.json()).then(bares => {
+      const b = (bares || []).find(x => x.id === bar.id);
+      if(barAtivo && barAtivo.id === bar.id){ barAtivo.pratos = !!(b && b.pratos); scnAplicarPratos(); }
+    }).catch(() => {});
+  }
   $("dash-nome").innerHTML = gestor.nome + "<small>" + bar.nome + "</small>";
   $("b-trocar").style.display = (gestor.bares.length > 1) ? "flex" : "none";
   $("b-painel").style.display = localStorage.getItem("bb_admin") ? "flex" : "none";
@@ -509,7 +623,7 @@ function mudarAba(aba, manterMes){
   document.querySelectorAll(".aba-conteudo").forEach(c => c.style.display = "none");
   $("aba-" + aba).style.display = (aba === "scanner") ? "flex" : "block";
   clearInterval(atividadeTimer);
-  if(aba !== "scanner") scnPararCamera();
+  if(aba !== "scanner"){ scnPararCamera(); scnSetModoPrato(false); }
 
   if(aba === "historico") carregarHistorico();
   if(aba === "atual"){
@@ -569,6 +683,19 @@ function voltarMesAtual(aba){
 
 /* ── Atual (mês corrente ou mês escolhido no Histórico) ── */
 let garconsAtuais = [];
+let colabsAtuais = [];
+const PRATOS_PARA_PREMIO = 10;
+
+/* Linha de pratos do card do colab (so em bar que aceita pratos):
+   "7 de 10 · 4 entregues", ou vermelha "10 de 10 · prato a entregar". */
+function linhaPratos(a){
+  const meta = a.pratos_para_premio || PRATOS_PARA_PREMIO;
+  const ciclo = a.pratos_ciclo || 0;
+  if(a.prato_liberado){
+    return `<div class="linha-pratos liberado"><span class="r">Pratos</span><span class="n">${meta} de ${meta} · prato a entregar</span></div>`;
+  }
+  return `<div class="linha-pratos"><span class="r">Pratos</span><span class="n">${ciclo} de ${meta} <small>· ${a.pratos_entregues || 0} entregue${(a.pratos_entregues || 0) === 1 ? "" : "s"}</small></span></div>`;
+}
 
 async function carregarAtual(){
   const foraDoMesAtual = mesSelecionado !== mesAtual;
@@ -580,7 +707,10 @@ async function carregarAtual(){
     const r = await fetch(API + "/bar/" + encodeURIComponent(barAtivo.id) + "/resumo?mes=" + mesSelecionado);
     const d = await r.json();
     garconsAtuais = d.garcons || [];
-    const colabsAtuais = d.colabs || [];
+    colabsAtuais = d.colabs || [];
+    // o resumo e a fonte da verdade de "aceita pratos" (sessoes salvas antes
+    // dessa versao nao tem o campo no bar)
+    if(barAtivo.id !== "*"){ barAtivo.pratos = !!d.pratos; scnAplicarPratos(); }
 
     let html = `<div class="titulo-secao">${nomeMes(mesSelecionado)}</div>
       <div class="card somatorio">
@@ -598,12 +728,24 @@ async function carregarAtual(){
       html += `<button class="btn" id="b-adicionar-garcom" style="background:var(--verde); color:#fff; margin:6px 0 0">+ Adicionar Garçom</button>`;
     }
 
-    if(colabsAtuais.length){
-      html += `<div class="titulo-secao">Por colab</div>`;
-      html += colabsAtuais.map(a => `<div class="card">
-        <div class="titulo">${a.nome}</div>
+    // ── Colabs do bar: o gestor cria, edita e imprime o QR sem precisar do admin ──
+    const barReal = barAtivo.id !== "*";
+    if(colabsAtuais.length || barReal){
+      html += `<div class="titulo-secao">${barReal ? "Colabs do bar" : "Por colab"}</div>`;
+      html += colabsAtuais.length ? colabsAtuais.map(a => `<div class="card card-colab${a.ativo === false ? " inativo" : ""}">
+        <div class="topo">
+          <div class="titulo">${a.nome}${a.ativo === false ? ' <span style="font-size:11px;color:var(--cinza-txt);font-weight:700">· DESATIVADO</span>' : ""}</div>
+          ${barReal ? `<div class="acoes-colab">
+            <button class="btn-x" onclick='abrirQrColab("${a.colab_id}")'>QR</button>
+            <button class="btn-x editar" onclick='abrirColab("${a.colab_id}")'>editar</button>
+          </div>` : ""}
+        </div>
         ${gridMetricasComFicha(a)}
-      </div>`).join("");
+        ${d.pratos ? linhaPratos(a) : ""}
+      </div>`).join("") : (barReal ? '<div class="carregando" style="padding:14px 20px">Nenhum colab neste bar ainda.</div>' : "");
+      if(barReal){
+        html += `<button class="btn" id="b-adicionar-colab" style="background:var(--verde); color:#fff; margin:6px 0 0">+ Adicionar Colab</button>`;
+      }
     }
 
     $("atual-corpo").innerHTML = html;
@@ -614,6 +756,8 @@ async function carregarAtual(){
       $("ng-erro").textContent = "";
       mostrar("novo-garcom");
     };
+    const btnAddColab = document.getElementById("b-adicionar-colab");
+    if(btnAddColab) btnAddColab.onclick = () => abrirColab(null);
   }catch(e){
     $("atual-corpo").innerHTML = '<div class="carregando">Não foi possível carregar.</div>';
   }
@@ -679,6 +823,118 @@ $("b-copiar-link-garcom").onclick = async () => {
   }catch(e){ alert(link); }
 };
 $("b-concluir-garcom").onclick = () => mostrar("dash");
+
+/* ══ COLABS DO BAR — criar / editar / ativar-desativar / QR ══
+   Usa os mesmos endpoints do admin (/admin/colabs), sempre com o bar
+   do gestor. O QR de indicacao e a URL /c/<id> do backend. */
+let colabEditando = null; // {colab_id, nome, telefone, ativo} ou null (novo)
+
+function abrirColab(colabId){
+  colabEditando = colabId ? colabsAtuais.find(a => a.colab_id === colabId) || null : null;
+  const ed = !!colabEditando;
+  $("colab-titulo").textContent = ed ? "Editar colab" : "Novo colab";
+  $("nc-bar-nome").textContent = barAtivo.nome;
+  $("nc-id").value = ed ? colabEditando.colab_id : "";
+  $("nc-id").readOnly = ed;
+  $("nc-id").style.opacity = ed ? ".6" : "1";
+  $("nc-nome").value = ed ? colabEditando.nome : "";
+  $("nc-senha").value = "";
+  $("nc-senha").placeholder = ed ? "deixe em branco para manter" : "senha do colab";
+  $("nc-tel").value = ed ? (colabEditando.telefone || "") : "";
+  $("nc-erro").textContent = "";
+  const alt = $("b-alternar-colab");
+  alt.style.display = ed ? "block" : "none";
+  if(ed){
+    const ativo = colabEditando.ativo !== false;
+    alt.textContent = ativo ? "Desativar este colab" : "Reativar este colab";
+    alt.style.borderColor = ativo ? "var(--rubro)" : "var(--verde)";
+    alt.style.color = ativo ? "var(--rubro)" : "var(--verde)";
+  }
+  mostrar("colab");
+}
+$("b-fechar-colab").onclick = () => mostrar("dash");
+
+async function salvarColab(corpo){
+  const r = await fetch(API + "/admin/colabs", {
+    method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(corpo),
+  });
+  if(r.status === 409) throw "id_em_uso";
+  if(!r.ok) throw 0;
+  return r.json();
+}
+
+$("b-salvar-colab").onclick = async () => {
+  const erro = $("nc-erro");
+  const btn = $("b-salvar-colab");
+  // editando: o ID e o que ja existe (pode ter maiusculas); criando: normaliza
+  const id = colabEditando
+    ? colabEditando.colab_id
+    : ($("nc-id").value || "").trim().toLowerCase().replace(/[^a-z0-9_.-]/g, "");
+  const nome = ($("nc-nome").value || "").trim();
+  const senha = $("nc-senha").value;
+  const telefone = ($("nc-tel").value || "").replace(/\D/g, "");
+  erro.textContent = "";
+  if(!id || !nome || (!colabEditando && !senha)){
+    erro.textContent = "Preencha ID, nome e senha.";
+    return;
+  }
+  if(!colabEditando && colabsAtuais.some(a => a.colab_id === id)){
+    erro.textContent = "Já existe um colab com esse ID neste bar.";
+    return;
+  }
+  btn.disabled = true; btn.textContent = "Salvando…";
+  try{
+    const corpo = { id, nome, telefone, bar_id: barAtivo.id, bar_nome: barAtivo.nome,
+                    ativo: colabEditando ? colabEditando.ativo !== false : true };
+    if(senha) corpo.senha = senha;
+    if(!colabEditando) corpo.novo = true;  // o backend recusa ID ja usado (em qualquer bar)
+    await salvarColab(corpo);
+    carregarAtual();
+    abrirQrColab(id, nome, !colabEditando);
+  }catch(e){
+    erro.textContent = e === "id_em_uso" ? "Esse ID já está em uso. Escolha outro." : "Não foi possível salvar. Tente de novo.";
+  }finally{
+    btn.disabled = false; btn.textContent = "Salvar e mostrar QR";
+  }
+};
+
+$("b-alternar-colab").onclick = async () => {
+  if(!colabEditando) return;
+  const btn = $("b-alternar-colab");
+  const novoAtivo = colabEditando.ativo === false;
+  btn.disabled = true;
+  try{
+    await salvarColab({ id: colabEditando.colab_id, nome: colabEditando.nome,
+                        telefone: colabEditando.telefone || "", bar_id: barAtivo.id, bar_nome: barAtivo.nome,
+                        ativo: novoAtivo });
+    await carregarAtual();
+    mostrar("dash");
+  }catch(e){
+    $("nc-erro").textContent = "Não foi possível alterar. Tente de novo.";
+  }finally{ btn.disabled = false; }
+};
+
+function abrirQrColab(colabId, nome, recemCriado){
+  const a = colabsAtuais.find(x => x.colab_id === colabId);
+  const n = nome || (a ? a.nome : colabId);
+  const link = API + "/c/" + encodeURIComponent(colabId);
+  $("qrc-titulo").textContent = recemCriado ? "Colab criado!" : "QR de indicação";
+  $("qrc-nome").textContent = n;
+  $("qrc-img").src = "https://api.qrserver.com/v1/create-qr-code/?size=440x440&data=" + encodeURIComponent(link);
+  $("qrc-link").textContent = link;
+  mostrar("qr-colab");
+}
+$("b-copiar-link-colab").onclick = async () => {
+  const link = $("qrc-link").textContent;
+  const b = $("b-copiar-link-colab");
+  try{
+    await navigator.clipboard.writeText(link);
+    b.textContent = "Copiado!";
+    setTimeout(() => b.textContent = "Copiar link", 1500);
+  }catch(e){ alert(link); }
+};
+$("b-concluir-colab").onclick = () => mostrar("dash");
 
 /* ══ FEED GENÉRICO (Atividade da aba, e detalhe do garçom) — scroll infinito em blocos de 30 ══ */
 const feedEstado = {}; // chave -> {offset, temMais, carregando}
@@ -764,9 +1020,19 @@ $("b-resetar-tutorial").onclick = async () => {
   }
 };
 
+/* erros do /scan-prato em linguagem de garcom */
+function mensagemErroPrato(erro){
+  return ({
+    bar_nao_aceita_pratos: "Este bar não está com pratos ligado. Fale com o gerente.",
+    consumidor_nao_encontrado: "Esse cliente não está cadastrado no Clube.",
+    bar_diferente: "Seu acesso é de outro bar.",
+  })[erro] || (erro || "Tente novamente.");
+}
+
 /* ══ SCANNER EMBUTIDO ══ */
 let scnLeitor = null;
 let scnPendente = null;
+let scnModoPrato = false;
 
 function scnMostrar(sub){
   document.querySelectorAll(".scn-estado").forEach(e => e.style.display = "none");
@@ -777,6 +1043,25 @@ function extrairTelefone(texto){
   if(m) return m[1];
   return (texto || "").replace(/\D/g, "");
 }
+/* QR de indicacao de colab: URL /c/<id> */
+function extrairColab(texto){
+  const m = String(texto).match(/\/c\/([A-Za-z0-9_.-]+)/);
+  return m ? m[1] : null;
+}
+/* modo PRATO: so existe em bar com "aceita pratos"; sempre volta pro chopp depois de gravar */
+function scnAplicarPratos(){
+  $("aba-scanner").classList.toggle("tem-pratos", !!(barAtivo && barAtivo.pratos));
+  if(!(barAtivo && barAtivo.pratos)) scnSetModoPrato(false);
+}
+function scnSetModoPrato(on){
+  scnModoPrato = !!on && !!(barAtivo && barAtivo.pratos);
+  $("aba-scanner").classList.toggle("modo-prato", scnModoPrato);
+  $("scn-dica").innerHTML = scnModoPrato
+    ? "Aponte para o QR do cliente que comeu um prato"
+    : "Aponte a câmera<br>para o QR do cliente";
+}
+$("scn-modo-prato").onclick = () => scnSetModoPrato(true);
+$("scn-modo-chopp").onclick = () => scnSetModoPrato(false);
 async function scnIniciarCamera(){
   if(scnLeitor) return;
   scnLeitor = new Html5Qrcode("scn-cam", { verbose:false, formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE] });
@@ -787,7 +1072,13 @@ async function scnIniciarCamera(){
         fps:10, qrbox:{width:220, height:220},
         experimentalFeatures: { useBarCodeDetectorIfSupported: true },
       },
-      texto => { scnPararCamera(); scnConsultar(extrairTelefone(texto)); },
+      texto => {
+        scnPararCamera();
+        const colabId = extrairColab(texto);
+        if(colabId) scnConsultarColab(colabId);
+        else if(scnModoPrato) scnConsultarPrato(extrairTelefone(texto));
+        else scnConsultar(extrairTelefone(texto));
+      },
       () => {}
     );
   }catch(e){
@@ -836,26 +1127,111 @@ async function scnConsultar(telefone){
         pontos:{ cheios:punches, meta, novo: vira - 1 } };
     }
 
-    scnPendente = { telefone, plano };
+    scnPendente = { tipo:"chopp", telefone, plano };
     scnPintar(c.nome, plano);
   }catch(e){
     scnConcluir("erro", "Sem conexão", "Verifique a internet e tente de novo.");
   }
 }
+
+/* modo PRATO (QR do cliente): nunca passa pelo /scan de chopp */
+async function scnConsultarPrato(telefone){
+  scnMostrar("conf");
+  $("scn-flood").className = "scn-flood";
+  $("scn-acao").textContent = ""; $("scn-sub").textContent = "";
+  $("scn-nome").textContent = "Consultando…";
+  $("scn-trilha").innerHTML = ""; $("scn-frase").textContent = ""; $("scn-aviso").innerHTML = "";
+  try{
+    const r = await fetch(API + "/consumidor/" + telefone);
+    if(!r.ok){ scnConcluir("erro", "Cartão não encontrado", "Esse cliente não está cadastrado no Clube."); return; }
+    const c = await r.json();
+    let plano;
+    // colab de origem deste bar, existente e ativo — senao o backend nao credita
+    let pc = null;
+    if(c.colab && c.colab_bar_id === barAtivo.id){
+      try{
+        const rc = await fetch(API + "/colab/" + encodeURIComponent(c.colab) + "/pratos");
+        if(rc.ok){ pc = await rc.json(); if(pc.ativo === false) pc = null; }
+      }catch(e){}
+    }
+    if(pc){
+      const ciclo = pc.pratos_ciclo || 0, liberado = !!pc.prato_liberado;
+      const vira = liberado ? ciclo : ciclo + 1;
+      plano = { cor:"prato", acao:"REGISTRAR PRATO", sub:"Indicado por " + c.colab_nome,
+        frase: liberado ? c.colab_nome + " já tem o prato grátis liberado"
+                        : "Prato " + vira + " de " + PRATOS_PARA_PREMIO + " para o colab",
+        aviso: liberado ? "Este prato NÃO conta para o colab até ele resgatar o prato grátis. Não conta ponto na cartela do cliente."
+             : (vira >= PRATOS_PARA_PREMIO ? "Ao confirmar, " + c.colab_nome + " libera 1 prato grátis. Não conta ponto na cartela do cliente."
+                                           : "Não conta ponto na cartela do cliente. Credita " + c.colab_nome + "."),
+        pontos:{ cheios:ciclo, meta:PRATOS_PARA_PREMIO, novo: liberado ? -1 : ciclo } };
+    } else {
+      plano = { cor:"prato", acao:"REGISTRAR PRATO", sub:"Sem colab de origem",
+        frase:"Registra a refeição no bar",
+        aviso:"Não gera ponto nem prêmio. Fica só na contagem de pratos do bar.", pontos:null };
+    }
+    scnPendente = { tipo:"prato", telefone, plano };
+    scnPintar(c.nome, plano);
+  }catch(e){
+    scnConcluir("erro", "Sem conexão", "Verifique a internet e tente de novo.");
+  }
+}
+
+/* QR de colab (/c/<id>), em qualquer modo: "faltam N" (so VOLTAR) ou RESGATE do prato */
+async function scnConsultarColab(colabId){
+  scnMostrar("conf");
+  $("scn-flood").className = "scn-flood";
+  $("scn-acao").textContent = ""; $("scn-sub").textContent = "";
+  $("scn-nome").textContent = "Consultando…";
+  $("scn-trilha").innerHTML = ""; $("scn-frase").textContent = ""; $("scn-aviso").innerHTML = "";
+  try{
+    const r = await fetch(API + "/colab/" + encodeURIComponent(colabId) + "/pratos");
+    if(!r.ok){ scnConcluir("erro", "QR não reconhecido", "Este QR de colab não existe mais."); return; }
+    const c = await r.json();
+    if(c.bar_id !== barAtivo.id){
+      scnConcluir("erro", "Colab de outro bar", c.nome + " é colab de " + (c.bar_nome || "outro bar") + ". Nada a fazer aqui."); return;
+    }
+    if(!c.bar_aceita_pratos){
+      scnConcluir("erro", "QR de colab", c.nome + " é um colab. Este QR serve para indicar clientes; não registra consumo."); return;
+    }
+    const meta = c.pratos_para_premio || PRATOS_PARA_PREMIO;
+    if(c.prato_liberado){
+      scnPendente = { tipo:"resgate_prato", colab_id:c.colab_id };
+      scnPintar(c.nome, { cor:"resgatar", acao:"RESGATE", pill:"PRATO", sub:"Colab · QR de indicação",
+        frase:"Entregue 1 prato executivo grátis",
+        aviso:"Os indicados dele fecharam " + meta + " pratos. Ao confirmar, a contagem recomeça do zero.",
+        pontos:{ cheios:meta, meta, novo:-1 } });
+    } else {
+      scnPendente = null;
+      const faltam = meta - (c.pratos_ciclo || 0);
+      scnPintar(c.nome, { cor:"colab", acao:"COLAB", sub:"Pratos dos indicados",
+        frase:"Faltam " + faltam + (faltam === 1 ? " prato" : " pratos") + " para o prato grátis",
+        aviso:"Nada a entregar agora. Este QR não registra consumo.",
+        pontos:{ cheios:c.pratos_ciclo || 0, meta, novo:-1 }, somenteVoltar:true });
+    }
+  }catch(e){
+    scnConcluir("erro", "Sem conexão", "Verifique a internet e tente de novo.");
+  }
+}
+
 function scnPintar(nome, p){
   $("scn-flood").className = "scn-flood " + p.cor;
-  $("scn-acao").textContent = p.acao;
+  $("scn-acao").innerHTML = p.acao + (p.pill ? '<span class="scn-pill">' + p.pill + "</span>" : "");
   $("scn-nome").textContent = nome;
+  $("scn-sub").textContent = p.sub || "";
   $("scn-frase").textContent = p.frase;
   $("scn-aviso").innerHTML = '<span class="scn-avisinho">' + p.aviso + "</span>";
   let html = "";
-  for(let i = 0; i < p.pontos.meta; i++){
-    const cls = ["scn-pt"];
-    if(i < p.pontos.cheios) cls.push("cheio");
-    if(i === p.pontos.novo) cls.push("cheio","novo");
-    html += '<span class="' + cls.join(" ") + '"></span>';
+  if(p.pontos){
+    for(let i = 0; i < p.pontos.meta; i++){
+      const cls = ["scn-pt"];
+      if(i < p.pontos.cheios) cls.push("cheio");
+      if(i === p.pontos.novo) cls.push("cheio","novo");
+      html += '<span class="' + cls.join(" ") + '"></span>';
+    }
   }
   $("scn-trilha").innerHTML = html;
+  $("scn-confirmar").style.display = p.somenteVoltar ? "none" : "";
+  $("scn-cancelar").textContent = p.somenteVoltar ? "VOLTAR" : "CANCELAR";
 }
 $("scn-cancelar").onclick = () => { scnPendente = null; scnMostrar("camera"); scnIniciarCamera(); };
 $("scn-confirmar").onclick = async () => {
@@ -863,6 +1239,28 @@ $("scn-confirmar").onclick = async () => {
   $("scn-confirmar").disabled = true;
   $("scn-confirmar").textContent = "GRAVANDO…";
   try{
+    if(scnPendente.tipo === "prato"){
+      const r = await fetch(API + "/scan-prato", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ telefone: scnPendente.telefone, garcom_id: gestor.gestor_id, bar: barAtivo.id })
+      });
+      const d = await r.json();
+      if(!r.ok){ scnConcluir("erro", "Não deu certo", mensagemErroPrato(d.erro)); return; }
+      scnSetModoPrato(false);
+      scnConcluir("prato", "Prato registrado", d.mensagem_garcom || "");
+      return;
+    }
+    if(scnPendente.tipo === "resgate_prato"){
+      const r = await fetch(API + "/resgatar-prato", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ colab_id: scnPendente.colab_id, garcom_id: gestor.gestor_id, bar: barAtivo.id })
+      });
+      const d = await r.json();
+      if(!r.ok){ scnConcluir("erro", "Não deu certo", d.erro === "prato_nao_liberado" ? "O colab ainda não fechou os pratos." : (d.erro || "Tente novamente.")); return; }
+      scnSetModoPrato(false);
+      scnConcluir("ok", "Entregue o prato", d.mensagem_garcom || "");
+      return;
+    }
     const r = await fetch(API + "/scan", {
       method:"POST", headers:{"Content-Type":"application/json"},
       body: JSON.stringify({ telefone: scnPendente.telefone, garcom_id: gestor.gestor_id, bar: barAtivo.id })
@@ -881,7 +1279,7 @@ $("scn-confirmar").onclick = async () => {
 };
 function scnConcluir(tipo, titulo, texto){
   $("scn-selo").className = "scn-selo " + tipo;
-  $("scn-selo").textContent = tipo === "ok" ? "✓" : "!";
+  $("scn-selo").textContent = tipo === "erro" ? "!" : "✓";
   $("scn-titulo").textContent = titulo;
   $("scn-texto").textContent = texto;
   scnPendente = null;

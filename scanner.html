@@ -11,6 +11,7 @@
     --preto:#000; --preto2:#141414; --linha:#333;
     --branco:#FFF; --cinza-campo:#E4E2DA; --cinza-txt:#A8A8A2;
     --ambar:#E8A317; --rubro:#D8232A; --verde:#1F7A47;
+    --azul:#2F62E6; /* modo PRATO — cor que nenhuma outra tela usa */
     --sb: env(safe-area-inset-bottom, 0px);
   }
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -75,6 +76,39 @@
     text-align:center; font-size:30px; font-weight:800; line-height:1.25;
     margin:auto 0; padding:26px 0;
   }
+
+  /* ── MODO PRATO (so em bar que aceita pratos) ── */
+  .faixa-prato{
+    display:none; background:var(--azul); color:#fff; text-align:center;
+    font-size:17px; font-weight:900; letter-spacing:.16em; padding:12px 18px;
+  }
+  body.modo-prato .faixa-prato{display:block}
+  body.modo-prato #cam{border-color:var(--azul)}
+  body.modo-prato #cam::after{border-color:var(--azul)}
+  body.modo-prato .dica{font-size:22px; line-height:1.3; text-wrap:balance}
+  .btn-prato{
+    background:transparent; color:var(--branco); border:3px solid var(--azul);
+    padding:20px; font-size:21px; display:none; align-items:center; justify-content:center; gap:12px;
+  }
+  .btn-prato svg{flex-shrink:0}
+  body.tem-pratos .btn-prato{display:flex}
+  body.modo-prato .btn-prato{display:none}
+  #b-modo-chopp{display:none; padding:20px; font-size:21px}
+  body.modo-prato #b-modo-chopp{display:block}
+  .flood.prato{background:var(--azul); color:#fff}
+  .flood.colab{background:var(--preto); color:var(--branco)}
+  .flood.colab .pt{border-color:var(--azul)}
+  .flood.colab .pt.cheio{background:var(--azul)}
+  .flood.colab .avisinho{background:var(--preto2); border:1px solid var(--linha); color:#D6D4CC}
+  .sub{font-size:16px; font-weight:700; letter-spacing:.06em; opacity:.85; margin:-8px 0 22px; text-transform:uppercase}
+  .sub:empty{display:none}
+  .pill-prato{
+    display:inline-block; vertical-align:middle; margin-left:10px; background:var(--azul); color:#fff;
+    font-size:15px; font-weight:900; letter-spacing:.12em; padding:6px 12px; border-radius:999px;
+  }
+  .selo.prato{background:var(--azul); color:#fff}
+  .tag.prato{background:var(--azul); color:#fff}
+  .tag.prato-resgate{background:#D8232A; color:#fff; box-shadow:0 0 0 2px var(--azul)}
 
   /* ── CONFIRMAÇÃO ── */
   .flood{
@@ -178,9 +212,16 @@
     <button id="ab-atividade">Atividade</button>
     <button id="ab-tutorial">Tutorial</button>
   </div>
+  <div class="faixa-prato">MODO PRATO</div>
   <div class="scan">
     <div id="cam"></div>
-    <p class="dica">Aponte a câmera<br>para o QR do cliente</p>
+    <p class="dica" id="dica">Aponte a câmera<br>para o QR do cliente</p>
+    <!-- so aparece em bar que aceita pratos (garcom.pratos) -->
+    <button class="btn btn-prato" id="b-modo-prato" aria-label="Escanear prato">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2F62E6" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="4.5"></circle></svg>
+      ESCANEAR PRATO
+    </button>
+    <button class="btn btn-2" id="b-modo-chopp">VOLTAR PARA CHOPP</button>
   </div>
 </section>
 
@@ -236,6 +277,7 @@
   <div class="flood" id="flood">
     <div class="acao" id="c-acao"></div>
     <div class="nome" id="c-nome"></div>
+    <div class="sub" id="c-sub"></div>
     <div class="trilha" id="c-trilha"></div>
     <div class="frase" id="c-frase"></div>
     <div id="c-aviso"></div>
@@ -269,6 +311,8 @@ const API = "https://backbone-650557630362.us-central1.run.app";
 let garcom = null;
 let leitor = null;
 let pendente = null;
+let modoPrato = false;   // true so entre "ESCANEAR PRATO" e a gravacao do prato
+const PRATOS_PARA_PREMIO = 10;
 
 const $ = id => document.getElementById(id);
 const digitos = s => (s || "").replace(/\D/g, "");
@@ -319,6 +363,7 @@ $("b-sair").onclick = () => {
 function entrar(){
   const txt = garcom.nome + "<small>" + (garcom.bar_nome || garcom.bar_id) + "</small>";
   ["quem1","quem2","quem-atividade","quem-fim","quem-tutorial"].forEach(k => $(k).innerHTML = txt);
+  aplicarPratos();
   if(!garcom.tutorial_visto){
     abrirTutorial();
   } else {
@@ -327,12 +372,51 @@ function entrar(){
   }
 }
 
+/* ── MODO PRATO ──
+   O botao "ESCANEAR PRATO" so existe em bar com "aceita pratos" ligado.
+   O /login devolve garcom.pratos, mas o admin pode ligar/desligar a
+   qualquer hora e sessoes antigas (ou a entrada do gestor pela URL)
+   nao tem o campo — entao sempre confere no servidor ao entrar,
+   usando o valor salvo so enquanto a resposta nao chega. */
+async function aplicarPratos(){
+  pintarPratos();
+  try{
+    const r = await fetch(API + "/admin/bares");
+    const bares = await r.json();
+    const b = (bares || []).find(x => x.id === garcom.bar_id);
+    garcom.pratos = !!(b && b.pratos);
+    if(localStorage.getItem("bb_garcom")) localStorage.setItem("bb_garcom", JSON.stringify(garcom));
+  }catch(e){ if(garcom.pratos === undefined) garcom.pratos = false; }
+  pintarPratos();
+}
+function pintarPratos(){
+  document.body.classList.toggle("tem-pratos", !!garcom.pratos);
+  if(!garcom.pratos) setModoPrato(false);
+}
+
+function setModoPrato(on){
+  modoPrato = !!on && !!(garcom && garcom.pratos);
+  document.body.classList.toggle("modo-prato", modoPrato);
+  $("dica").innerHTML = modoPrato
+    ? "Aponte para o QR do cliente que comeu um prato"
+    : "Aponte a câmera<br>para o QR do cliente";
+}
+$("b-modo-prato").onclick = () => setModoPrato(true);
+$("b-modo-chopp").onclick = () => setModoPrato(false);
+
 /* Extrai o telefone do QR: aceita a URL /q/<tel> (formato novo)
    e o telefone puro (cartoes antigos). */
 function extrairTelefone(texto){
   const m = String(texto).match(/\/q\/(\d{10,13})/);
   if(m) return m[1];
   return digitos(texto);
+}
+
+/* QR de indicacao de um colab: URL /c/<id>. Nao e cartao de consumo —
+   serve pra mostrar a contagem de pratos ou entregar o prato do colab. */
+function extrairColab(texto){
+  const m = String(texto).match(/\/c\/([A-Za-z0-9_.-]+)/);
+  return m ? m[1] : null;
 }
 
 
@@ -344,6 +428,7 @@ let feedCarregando = false;
 
 function abrirAtividade(){
   pararCamera();
+  setModoPrato(false);
   mostrar("atividade");
   $("quem-atividade").innerHTML = $("quem1").innerHTML;
   carregarFeed(true);
@@ -369,6 +454,7 @@ $("b-sair2").onclick = () => $("b-sair").onclick();
 function abrirTutorial(){
   clearInterval(feedTimer);
   pararCamera();
+  setModoPrato(false);
   mostrar("tutorial");
   const primeiroAcesso = !garcom.tutorial_visto;
   // na revisita (aba Tutorial, já visto antes) fica só os slides — sem botão nenhum
@@ -405,9 +491,14 @@ function linhaFeed(e){
     tag = e.tipo_recompensa === "boas_vindas"
       ? '<span class="tag bv">boas-vindas</span>'
       : '<span class="tag resgate">resgate</span>';
+  } else if(e.tipo === "prato"){
+    tag = '<span class="tag prato">prato</span>';
+  } else if(e.tipo === "resgate_prato"){
+    tag = '<span class="tag prato-resgate">prato · resgate</span>';
   }
+  const colab = (e.tipo === "prato" && e.colab) ? ` · indicado por ${e.colab}` : "";
   return `<div class="lote">
-    <div class="l1">${e.nome}${tag}</div>
+    <div class="l1">${e.nome}${tag}</div>${colab ? `<div class="l2">${colab.slice(3)}</div>` : ""}
     <div class="l2">${horaLocal(e.data)}</div>
     <div class="l3">Garçom: ${e.garcom}</div>
   </div>`;
@@ -465,7 +556,13 @@ async function iniciarCamera(){
         // quando a leitura e de tela de celular (reflexo, contraste baixo)
         experimentalFeatures: { useBarCodeDetectorIfSupported: true },
       },
-      texto => { pararCamera(); consultar(extrairTelefone(texto)); },
+      texto => {
+        pararCamera();
+        const colabId = extrairColab(texto);
+        if(colabId) consultarColab(colabId);
+        else if(modoPrato) consultarPrato(extrairTelefone(texto));
+        else consultar(extrairTelefone(texto));
+      },
       () => {}
     );
   }catch(e){
@@ -484,6 +581,7 @@ async function consultar(telefone){
   $("flood").className = "flood neutro";
   $("c-acao").textContent = "";
   $("c-nome").textContent = "Consultando…";
+  $("c-sub").textContent = "";
   $("c-trilha").innerHTML = ""; $("c-frase").textContent = ""; $("c-aviso").innerHTML = "";
 
   try{
@@ -524,8 +622,114 @@ async function consultar(telefone){
       };
     }
 
-    pendente = { telefone, plano };
+    pendente = { tipo:"chopp", telefone, plano };
     pintar(c.nome, plano);
+  }catch(e){
+    falhar("Sem conexão", "Verifique a internet e tente de novo.");
+  }
+}
+
+/* ── CONSULTA em modo PRATO (QR do cliente) ──
+   Nunca passa pelo /scan de chopp: nao resgata nem pontua o cliente.
+   Mostra quem credita (colab de origem deste bar) e a contagem dele. */
+async function consultarPrato(telefone){
+  mostrar("conf");
+  $("flood").className = "flood neutro";
+  $("c-acao").textContent = "";
+  $("c-nome").textContent = "Consultando…";
+  $("c-sub").textContent = "";
+  $("c-trilha").innerHTML = ""; $("c-frase").textContent = ""; $("c-aviso").innerHTML = "";
+
+  try{
+    const r = await fetch(API + "/consumidor/" + telefone);
+    if(!r.ok){ falhar("Cartão não encontrado", "Esse cliente não está cadastrado no Clube."); return; }
+    const c = await r.json();
+
+    let plano;
+    // colab de origem deste bar, existente e ativo — senao o backend nao credita
+    let pc = null;
+    if(c.colab && c.colab_bar_id === garcom.bar_id){
+      try{
+        const rc = await fetch(API + "/colab/" + encodeURIComponent(c.colab) + "/pratos");
+        if(rc.ok){ pc = await rc.json(); if(pc.ativo === false) pc = null; }
+      }catch(e){}
+    }
+    if(pc){
+      const ciclo = pc.pratos_ciclo || 0, liberado = !!pc.prato_liberado;
+      const vira = liberado ? ciclo : ciclo + 1;
+      plano = {
+        cor:"prato", acao:"REGISTRAR PRATO", sub:"Indicado por " + c.colab_nome,
+        frase: liberado
+          ? c.colab_nome + " já tem o prato grátis liberado"
+          : "Prato " + vira + " de " + PRATOS_PARA_PREMIO + " para o colab",
+        aviso: liberado
+          ? "Este prato NÃO conta para o colab até ele resgatar o prato grátis. Não conta ponto na cartela do cliente."
+          : (vira >= PRATOS_PARA_PREMIO
+              ? "Ao confirmar, " + c.colab_nome + " libera 1 prato grátis. Não conta ponto na cartela do cliente."
+              : "Não conta ponto na cartela do cliente. Credita " + c.colab_nome + "."),
+        pontos:{ cheios:ciclo, meta:PRATOS_PARA_PREMIO, novo: liberado ? -1 : ciclo }
+      };
+    } else {
+      plano = {
+        cor:"prato", acao:"REGISTRAR PRATO", sub:"Sem colab de origem",
+        frase:"Registra a refeição no bar",
+        aviso:"Não gera ponto nem prêmio. Fica só na contagem de pratos do bar.",
+        pontos:null
+      };
+    }
+
+    pendente = { tipo:"prato", telefone, plano };
+    pintar(c.nome, plano);
+  }catch(e){
+    falhar("Sem conexão", "Verifique a internet e tente de novo.");
+  }
+}
+
+/* ── QR DE COLAB (/c/<id>) ──
+   Em qualquer modo. Nao registra consumo: ou mostra "faltam N"
+   (so VOLTAR) ou entrega o prato grátis do colab (RESGATE). */
+async function consultarColab(colabId){
+  mostrar("conf");
+  $("flood").className = "flood neutro";
+  $("c-acao").textContent = "";
+  $("c-nome").textContent = "Consultando…";
+  $("c-sub").textContent = "";
+  $("c-trilha").innerHTML = ""; $("c-frase").textContent = ""; $("c-aviso").innerHTML = "";
+
+  try{
+    const r = await fetch(API + "/colab/" + encodeURIComponent(colabId) + "/pratos");
+    if(!r.ok){ falhar("QR não reconhecido", "Este QR de colab não existe mais."); return; }
+    const c = await r.json();
+
+    if(c.bar_id !== garcom.bar_id){
+      falhar("Colab de outro bar", c.nome + " é colab de " + (c.bar_nome || "outro bar") + ". Nada a fazer aqui.");
+      return;
+    }
+    if(!c.bar_aceita_pratos || !garcom.pratos){
+      falhar("QR de colab", c.nome + " é um colab. Este QR serve para indicar clientes; não registra consumo.");
+      return;
+    }
+
+    const meta = c.pratos_para_premio || PRATOS_PARA_PREMIO;
+    if(c.prato_liberado){
+      pendente = { tipo:"resgate_prato", colab_id:c.colab_id, plano:null };
+      pintar(c.nome, {
+        cor:"resgatar", acao:"RESGATE", pill:"PRATO", sub:"Colab · QR de indicação",
+        frase:"Entregue 1 prato executivo grátis",
+        aviso:"Os indicados dele fecharam " + meta + " pratos. Ao confirmar, a contagem recomeça do zero.",
+        pontos:{ cheios:meta, meta, novo:-1 }
+      });
+    } else {
+      pendente = null;
+      const faltam = meta - (c.pratos_ciclo || 0);
+      pintar(c.nome, {
+        cor:"colab", acao:"COLAB", sub:"Pratos dos indicados",
+        frase:"Faltam " + faltam + (faltam === 1 ? " prato" : " pratos") + " para o prato grátis",
+        aviso:"Nada a entregar agora. Este QR não registra consumo.",
+        pontos:{ cheios:c.pratos_ciclo || 0, meta, novo:-1 },
+        somenteVoltar:true
+      });
+    }
   }catch(e){
     falhar("Sem conexão", "Verifique a internet e tente de novo.");
   }
@@ -533,21 +737,36 @@ async function consultar(telefone){
 
 function pintar(nome, p){
   $("flood").className = "flood " + p.cor;
-  $("c-acao").textContent = p.acao;
+  $("c-acao").innerHTML = p.acao + (p.pill ? '<span class="pill-prato">' + p.pill + "</span>" : "");
   $("c-nome").textContent = nome;
+  $("c-sub").textContent = p.sub || "";
   $("c-frase").textContent = p.frase;
   $("c-aviso").innerHTML = '<span class="avisinho">' + p.aviso + "</span>";
   let html = "";
-  for(let i = 0; i < p.pontos.meta; i++){
-    const cls = ["pt"];
-    if(i < p.pontos.cheios) cls.push("cheio");
-    if(i === p.pontos.novo) cls.push("cheio","novo");
-    html += '<span class="' + cls.join(" ") + '"></span>';
+  if(p.pontos){
+    for(let i = 0; i < p.pontos.meta; i++){
+      const cls = ["pt"];
+      if(i < p.pontos.cheios) cls.push("cheio");
+      if(i === p.pontos.novo) cls.push("cheio","novo");
+      html += '<span class="' + cls.join(" ") + '"></span>';
+    }
   }
   $("c-trilha").innerHTML = html;
+  // tela so de consulta (colab sem prato liberado): um botao VOLTAR, sem confirmar
+  $("b-confirmar").style.display = p.somenteVoltar ? "none" : "";
+  $("b-cancelar").textContent = p.somenteVoltar ? "VOLTAR" : "CANCELAR";
 }
 
 $("b-cancelar").onclick = () => { pendente = null; mostrar("scan"); iniciarCamera(); };
+
+/* erros do /scan-prato em linguagem de garcom */
+function mensagemErroPrato(erro){
+  return ({
+    bar_nao_aceita_pratos: "Este bar não está com pratos ligado. Fale com o gerente.",
+    consumidor_nao_encontrado: "Esse cliente não está cadastrado no Clube.",
+    bar_diferente: "Seu acesso é de outro bar.",
+  })[erro] || (erro || "Tente novamente.");
+}
 
 /* ── CONFIRMA ── */
 $("b-confirmar").onclick = async () => {
@@ -555,6 +774,29 @@ $("b-confirmar").onclick = async () => {
   $("b-confirmar").disabled = true;
   $("b-confirmar").textContent = "GRAVANDO…";
   try{
+    if(pendente.tipo === "prato"){
+      const r = await fetch(API + "/scan-prato", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ telefone: pendente.telefone, garcom_id: garcom.garcom_id, bar: garcom.bar_id })
+      });
+      const d = await r.json();
+      if(!r.ok){ falhar("Não deu certo", mensagemErroPrato(d.erro)); return; }
+      setModoPrato(false);  // o padrao e sempre chopp: prato e uma acao deliberada por vez
+      concluir("prato", "Prato registrado", d.mensagem_garcom || "");
+      return;
+    }
+    if(pendente.tipo === "resgate_prato"){
+      const r = await fetch(API + "/resgatar-prato", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ colab_id: pendente.colab_id, garcom_id: garcom.garcom_id, bar: garcom.bar_id })
+      });
+      const d = await r.json();
+      if(!r.ok){ falhar("Não deu certo", d.erro === "prato_nao_liberado" ? "O colab ainda não fechou os pratos." : (d.erro || "Tente novamente.")); return; }
+      setModoPrato(false);
+      concluir("ok", "Entregue o prato", d.mensagem_garcom || "");
+      return;
+    }
+
     const r = await fetch(API + "/scan", {
       method:"POST", headers:{"Content-Type":"application/json"},
       body: JSON.stringify({ telefone: pendente.telefone, garcom_id: garcom.garcom_id, bar: garcom.bar_id })
@@ -567,7 +809,7 @@ $("b-confirmar").onclick = async () => {
         : (d.recompensa_gerada ? "Cartela fechada!" : "Chopp registrado"),
       d.mensagem_garcom || "");
   }catch(e){
-    falhar("Sem conexão", "O chopp NÃO foi registrado. Tente de novo.");
+    falhar("Sem conexão", (pendente && pendente.tipo === "prato" ? "O prato" : "O chopp") + " NÃO foi registrado. Tente de novo.");
   }finally{
     $("b-confirmar").disabled = false;
     $("b-confirmar").textContent = "CONFIRMAR";
@@ -576,7 +818,7 @@ $("b-confirmar").onclick = async () => {
 
 function concluir(tipo, titulo, texto){
   $("f-selo").className = "selo " + tipo;
-  $("f-selo").textContent = tipo === "ok" ? "✓" : "!";
+  $("f-selo").textContent = tipo === "erro" ? "!" : "✓";
   $("f-titulo").textContent = titulo;
   $("f-texto").textContent = texto;
   pendente = null;
