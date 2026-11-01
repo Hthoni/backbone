@@ -1075,6 +1075,10 @@ def admin_criar_colab():
     dados["telefone"] = so_digitos(dados.get("telefone", ""))
 
     existente = storage.carregar_colab(dados.get("id")) if dados.get("id") else None
+    # "novo": o gestor criando pelo painel do bar — nao pode pegar o ID de
+    # um colab de outro bar (ele nao enxerga os outros bares)
+    if dados.pop("novo", False) and existente:
+        return jsonify({"erro": "id_em_uso"}), 409
     if existente and not dados.get("senha"):
         dados["senha"] = existente.get("senha")  # edicao sem trocar senha: mantem a atual
     if existente:
