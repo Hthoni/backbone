@@ -104,6 +104,13 @@ def garantir_classe():
 
 HERO_BASE = "https://hthoni.github.io/backbone/strips/estilos"
 
+# O Google baixa a imagem UMA vez por URL e guarda a copia dele: trocar o
+# PNG no GitHub com o mesmo nome NAO muda o cartao no Android (foi o que
+# prendeu a arte da promo de outubro/2026). Toda vez que as strips forem
+# trocadas, suba este numero (ou a env var HERO_VERSAO) e chame
+# POST /admin/gwallet/reatualizar para reenviar os objetos.
+HERO_VERSAO = os.environ.get("HERO_VERSAO", "2")
+
 def _hero_uri(consumidor):
     """Mesma logica da strip do Apple: boas-vindas > premio > quadro do progresso."""
     punches = int(consumidor.get("punches", 0))
@@ -115,7 +122,7 @@ def _hero_uri(consumidor):
         nome = "strip_estilos_premio"
     else:
         nome = f"strip_estilos_{min(punches, meta - 1)}-{meta}"
-    return f"{HERO_BASE}/{nome}.png"
+    return f"{HERO_BASE}/{nome}.png?v={HERO_VERSAO}"
 
 
 def _payload_objeto(consumidor):
