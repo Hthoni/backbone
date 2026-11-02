@@ -203,6 +203,14 @@ function mostrarPerfil(c){
 
 /* ══ INÍCIO ══ */
 (function(){
+  // vindo do botao "Meus pontos" do cartao Wallet: perfil.html?tel=5521999998888
+  const params = new URLSearchParams(location.search);
+  const telUrl = (params.get("tel") || "").replace(/\D/g, "");
+  if(telUrl.length >= 12){
+    history.replaceState(null, "", location.pathname);  // tira o telefone da barra
+    buscarEMostrar(telUrl, null, null);
+    return;
+  }
   const salvo = localStorage.getItem(CHAVE_TEL);
   if(salvo){
     buscarEMostrar(salvo, null, null);
