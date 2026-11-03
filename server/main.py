@@ -1214,6 +1214,34 @@ def gwallet_criar_classe():
         return jsonify({"erro": str(e)}), 500
 
 
+@app.route("/admin/gwallet/reatualizar", methods=["POST"])
+def gwallet_reatualizar():
+    """
+    Reenvia ao Google o objeto de TODOS os socios, sem mexer no aviso
+    (nao e um push de texto). Serve para o Android trocar a imagem
+    quando as strips mudam (o Google so baixa a imagem de novo se a
+    URL mudar — ver HERO_VERSAO em gwallet.py).
+    Body opcional: {"telefones": ["5521..."]} para limitar a lista.
+    """
+    dados = request.get_json(silent=True) or {}
+    filtro = {so_digitos(str(t)) for t in (dados.get("telefones") or [])}
+    ok, erros = 0, []
+    for c in storage.listar_consumidores():
+        tel = c.get("telefone", "")
+        if filtro and tel not in filtro:
+            continue
+        try:
+            r = gwallet.atualizar_objeto(c)
+            if r.get("status") == "ok":
+                ok += 1
+            else:
+                erros.append({"telefone": tel, "detalhe": r.get("detalhe", "")[:200]})
+        except Exception as e:
+            erros.append({"telefone": tel, "detalhe": str(e)[:200]})
+    return jsonify({"status": "ok", "reenviados": ok, "erros": erros,
+                    "hero_versao": gwallet.HERO_VERSAO})
+
+
 @app.route("/admin/migrar-eventos", methods=["POST"])
 def admin_migrar_eventos():
     """
