@@ -312,7 +312,11 @@ async function cadastrar(barU, tel, nome, dia, mes, time, cep){
       alvo.innerHTML = "<p class='erro-msg' style='font-size:17px'>" + (d.motivo || "Cadastro não permitido.") + "</p>";
       return;
     }
-    if(d.status !== "cadastrado" && d.status !== "ja_cadastrado"){
+    if(d.status === "ja_cadastrado"){
+      jaEmitido(d.consumidor);
+      return;
+    }
+    if(d.status !== "cadastrado"){
       alvo.innerHTML = "<p class='erro-msg' style='font-size:17px'>Não deu para concluir o cadastro. Tente de novo.</p>";
       return;
     }
@@ -320,6 +324,61 @@ async function cadastrar(barU, tel, nome, dia, mes, time, cep){
   }catch(e){
     alvo.innerHTML = "<p class='erro-msg' style='font-size:17px'>Sem conexão. Verifique a internet e recarregue.</p>";
   }
+}
+
+function jaEmitido(c){
+  // telefone que ja tem cartao: NAO e um cadastro novo e NAO ha chopp de
+  // boas-vindas novo. Mostra a situacao real (cartela, boas-vindas ja
+  // usado ou nao) para o socio e para quem esta ajudando no bar.
+  try{ localStorage.setItem("bb_ja_cadastrou", "1"); }catch(e){}
+
+  const botaoWallet = ehIOS
+    ? '<a class="btn btn-verde" style="margin-top:14px" href="' + SERVER + '/cartao/' + c.telefone + '">Abrir o cartão na Wallet</a>'
+    : '<a class="btn btn-verde" style="margin-top:14px" href="' + SERVER + '/gwallet/' + c.telefone + '">Abrir o cartão na Wallet</a>';
+
+  const cad = c.cadastro_em || "";
+  const desde = cad.length >= 10 ? cad.slice(8,10) + "/" + cad.slice(5,7) + "/" + cad.slice(0,4) : "";
+  const recs = c.recompensas || [];
+  const bv = recs.find(r => r.tipo === "boas_vindas");
+  const bvPendente = bv && !bv.resgatada;
+  const premioPendente = recs.some(r => r.tipo !== "boas_vindas" && !r.resgatada);
+  const punches = c.punches ?? 0, meta = c.meta ?? 10;
+
+  let situacao;
+  if(bvPendente){
+    situacao = "Seu chopp de boas-vindas ainda está disponível — peça para o garçom escanear o QR do cartão.";
+  } else if(premioPendente){
+    situacao = "Você tem um chopp grátis liberado — peça para o garçom escanear o QR do cartão.";
+  } else {
+    const usado = bv && bv.resgatada_em
+      ? " (usado em " + bv.resgatada_em.slice(8,10) + "/" + bv.resgatada_em.slice(5,7) + "/" + bv.resgatada_em.slice(0,4) + ")" : "";
+    situacao = "O chopp de boas-vindas já foi resgatado" + usado + ". A cartela segue de onde parou: "
+      + "<strong>" + punches + " de " + meta + "</strong>. O próximo scan registra um ponto.";
+  }
+
+  alvo.innerHTML = `
+    <h1 style="font-size:28px">Você já é sócio, ${c.nome}!</h1>
+
+    <div class="aviso">
+      <div class="aviso-titulo" style="color:#FF6B6B">Cartão já emitido${desde ? " em " + desde : ""}</div>
+      Este telefone já tem cartão no Clube Backbone — não foi feito um cadastro novo.
+      <br><br>${situacao}
+    </div>
+
+    <div class="premio" style="margin:16px 0 0">
+      <div class="g">${punches}<span style="font-size:14px;color:#6E6E68">/${meta}</span></div>
+      <div style="font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#6E6E68;margin-top:4px">chopps na cartela atual</div>
+    </div>
+
+    ${botaoWallet}
+
+    <a class="btn" style="background:var(--ambar); color:#151000; margin-top:10px"
+       href="perfil.html?tel=${c.telefone}">Ver meus dados no clube</a>
+
+    <p style="font-size:13px;color:var(--cinza);text-align:center;margin-top:16px;line-height:1.4">
+      Não é você? Confira se digitou o seu próprio número. Cada telefone tem um único cartão.
+    </p>
+  `;
 }
 
 function boasVindas(c){
