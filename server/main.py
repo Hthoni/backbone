@@ -1794,6 +1794,169 @@ def admin_marcar_mensagem():
     return jsonify({"status": "ok"})
 
 
+# ══════════════════════════════════════════════════════════════
+#  REEMBOLSO DE CHOPPS AOS BARES
+#  Cada chopp gratis (boas-vindas ou resgate de cartela) e pago pela
+#  Backbone. O bar e reembolsado em desconto na compra de barris.
+#    ENTRADA = chopp gratis dado (evento "resgate"), somado por mes
+#    SAIDA   = desconto concedido (lancado pelo admin)
+#    SALDO   = entradas - saidas (o que ainda falta descontar)
+#  Pratos nao entram: so chopps.
+# ══════════════════════════════════════════════════════════════
+
+_MESES_PT = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho",
+             "agosto", "setembro", "outubro", "novembro", "dezembro"]
+
+
+def _nome_mes(aaaa_mm):
+    ano, mes = aaaa_mm.split("-")
+    return f"{_MESES_PT[int(mes) - 1]}/{ano}"
+
+
+def _entradas_reembolso():
+    """{bar_id: {"2026-09": {"boasvindas": n, "resgates": n}}} — um passe so no log."""
+    por_bar = {}
+    for ev in storage.listar_eventos():
+        if ev.get("tipo") != "resgate":
+            continue
+        bar = ev.get("bar")
+        mes = (ev.get("data") or "")[:7]
+        if not bar or len(mes) != 7:
+            continue
+        cat = "boasvindas" if ev.get("tipo_recompensa") == "boas_vindas" else "resgates"
+        por_bar.setdefault(bar, {}).setdefault(mes, {"boasvindas": 0, "resgates": 0})[cat] += 1
+    return por_bar
+
+
+def _ficha_reembolso(entradas_bar, descontos_bar):
+    """Monta a planilha do bar: linhas em ordem de data, com saldo corrente."""
+    import calendar
+    hoje = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    mes_atual = hoje[:7]
+
+    linhas = []
+    for mes, n in entradas_bar.items():
+        parcial = (mes == mes_atual)
+        if parcial:
+            data = hoje
+        else:
+            ano, m = int(mes[:4]), int(mes[5:7])
+            data = f"{mes}-{calendar.monthrange(ano, m)[1]:02d}"
+        sufixo = " (mês em andamento)" if parcial else ""
+        for cat, rotulo in (("boasvindas", "Boas-vindas"), ("resgates", "Resgates")):
+            if n.get(cat):
+                linhas.append({
+                    "tipo": "entrada", "data": data, "quantidade": n[cat],
+                    "descricao": f"{rotulo} — {_nome_mes(mes)}{sufixo}",
+                    "categoria": cat,
+                })
+    for d in descontos_bar:
+        linhas.append({
+            "tipo": "saida", "id": d.get("id"), "data": d.get("data", ""),
+            "quantidade": int(d.get("quantidade", 0)),
+            "descricao": "Desconto na compra de barris" + (f" — {d['referencia']}" if d.get("referencia") else ""),
+        })
+
+    # mesma data: entradas antes das saidas
+    linhas.sort(key=lambda l: (l["data"], 0 if l["tipo"] == "entrada" else 1))
+
+    saldo = 0
+    dist_bv = dist_rg = reembolsados = 0
+    for l in linhas:
+        if l["tipo"] == "entrada":
+            saldo += l["quantidade"]
+            if l["categoria"] == "boasvindas":
+                dist_bv += l["quantidade"]
+            else:
+                dist_rg += l["quantidade"]
+        else:
+            saldo -= l["quantidade"]
+            reembolsados += l["quantidade"]
+        l["saldo"] = saldo
+
+    return {
+        "linhas": linhas,
+        "totais": {
+            "distribuidos": dist_bv + dist_rg,
+            "boasvindas": dist_bv,
+            "resgates": dist_rg,
+            "reembolsados": reembolsados,
+            "descontos": sum(1 for l in linhas if l["tipo"] == "saida"),
+            "saldo": saldo,
+        },
+    }
+
+
+def _descontos_por_bar():
+    por_bar = {}
+    for d in storage.listar_descontos():
+        por_bar.setdefault(d.get("bar"), []).append(d)
+    return por_bar
+
+
+@app.route("/bar/<bar_id>/reembolsos")
+def bar_reembolsos(bar_id):
+    """Planilha de reembolso de UM bar (admin e gestor leem a mesma)."""
+    if bar_id == "*":
+        return jsonify({"erro": "escolha_um_bar"}), 400
+    entradas = _entradas_reembolso().get(bar_id, {})
+    descontos = _descontos_por_bar().get(bar_id, [])
+    ficha = _ficha_reembolso(entradas, descontos)
+    ficha["bar_id"] = bar_id
+    return jsonify(ficha)
+
+
+@app.route("/admin/reembolsos")
+def admin_reembolsos():
+    """Resumo de todos os bares + totais gerais."""
+    entradas = _entradas_reembolso()
+    descontos = _descontos_por_bar()
+    bares = {b["id"]: b.get("nome", b["id"]) for b in storage.listar_bares()}
+    ids = set(bares) | set(entradas) | set(descontos)
+
+    lista = []
+    geral = {"distribuidos": 0, "reembolsados": 0, "saldo": 0}
+    for bid in ids:
+        t = _ficha_reembolso(entradas.get(bid, {}), descontos.get(bid, []))["totais"]
+        lista.append({"bar_id": bid, "nome": bares.get(bid, bid), **t})
+        for k in geral:
+            geral[k] += t[k]
+    lista.sort(key=lambda b: (-b["saldo"], b["nome"].lower()))
+    return jsonify({"bares": lista, "totais": geral})
+
+
+@app.route("/admin/reembolsos", methods=["POST"])
+def admin_lancar_desconto():
+    """Body: {"bar": "...", "data": "2026-11-07", "quantidade": 37, "referencia": "Pedido 5230"}"""
+    dados = request.get_json(silent=True) or {}
+    bar = (dados.get("bar") or "").strip()
+    if not bar or not storage.carregar_bar(bar):
+        return jsonify({"erro": "bar_invalido"}), 400
+    try:
+        quantidade = int(dados.get("quantidade"))
+        datetime.strptime(dados.get("data", ""), "%Y-%m-%d")
+    except (TypeError, ValueError):
+        return jsonify({"erro": "dados_invalidos"}), 400
+    if quantidade <= 0:
+        return jsonify({"erro": "quantidade_invalida"}), 400
+
+    desconto = storage.salvar_desconto({
+        "bar": bar,
+        "data": dados["data"],
+        "quantidade": quantidade,
+        "referencia": (dados.get("referencia") or "").strip(),
+        "criado_em": agora(),
+    })
+    return jsonify({"status": "ok", "desconto": desconto})
+
+
+@app.route("/admin/reembolsos/<desconto_id>", methods=["DELETE"])
+def admin_estornar_desconto(desconto_id):
+    if not storage.apagar_desconto(desconto_id):
+        return jsonify({"erro": "nao_encontrado"}), 404
+    return jsonify({"status": "ok"})
+
+
 @app.route("/")
 def health():
     return jsonify({"status": "ok", "sistema": "Clube Backbone", "versao": 3})
