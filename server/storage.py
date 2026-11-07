@@ -445,3 +445,27 @@ def marcar_mensagem_lida(mensagem_id: str):
         linhas += "\n"
     _bucket().blob(_LOG_MENSAGENS).upload_from_string(linhas, content_type="application/x-ndjson")
     return True
+
+
+# ── Descontos de reembolso (Backbone -> bar, em compra de barris) ──
+# Um arquivo por desconto: descontos/<id>.json. Sao as SAIDAS da planilha
+# de reembolso; as ENTRADAS (chopps gratis dados pelo bar) saem do log de
+# eventos e nao sao guardadas aqui.
+
+def salvar_desconto(dados: dict):
+    dados.setdefault("id", str(uuid.uuid4()))
+    blob = _bucket().blob(f"descontos/{dados['id']}.json")
+    blob.upload_from_string(json.dumps(dados, ensure_ascii=False), content_type="application/json")
+    return dados
+
+
+def listar_descontos():
+    return _listar_prefixo("descontos/")
+
+
+def apagar_desconto(desconto_id: str):
+    blob = _bucket().blob(f"descontos/{desconto_id}.json")
+    if not blob.exists():
+        return False
+    blob.delete()
+    return True

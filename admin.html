@@ -176,6 +176,7 @@
   <button data-aba="colabs">Colabs</button>
   <button data-aba="arvores">Árvores</button>
   <button data-aba="mensagens">Mensagens</button>
+  <button data-aba="reembolsos">Reembolsos</button>
 </nav>
 
 <main>
@@ -589,6 +590,78 @@
     </table>
   </div>
   <div class="mini" id="mensagens-resumo"></div>
+</section>
+
+<!-- ══ REEMBOLSOS ══ -->
+<section class="aba" id="aba-reembolsos">
+  <h2>Reembolso de chopps aos bares</h2>
+  <p class="sub">Cada chopp grátis (boas-vindas ou resgate de cartela) é pago pela Backbone. O bar é reembolsado em desconto nas próximas compras de barris. Entrada = chopps grátis dados pelo bar (somados por mês, automático). Saída = desconto que você lançou.</p>
+
+  <div class="linha" style="align-items:stretch">
+    <div class="cartao" style="margin-bottom:14px">
+      <div class="mini" style="letter-spacing:.1em; font-weight:700">CHOPPS DISTRIBUÍDOS (TODOS OS BARES)</div>
+      <div id="rb-total-dist" style="font-size:34px; font-weight:800; margin-top:4px">—</div>
+    </div>
+    <div class="cartao" style="margin-bottom:14px">
+      <div class="mini" style="letter-spacing:.1em; font-weight:700">CHOPPS JÁ REEMBOLSADOS</div>
+      <div id="rb-total-reemb" style="font-size:34px; font-weight:800; margin-top:4px; color:#5FD08A">—</div>
+    </div>
+    <div class="cartao" style="margin-bottom:14px; border-color:var(--ambar)">
+      <div class="mini" style="letter-spacing:.1em; font-weight:700">SALDO PENDENTE (A DESCONTAR)</div>
+      <div id="rb-total-saldo" style="font-size:34px; font-weight:800; margin-top:4px; color:var(--ambar)">—</div>
+    </div>
+  </div>
+
+  <div class="linha">
+    <div style="flex:0">
+      <button class="btn sec" id="b-reemb-recarregar">Recarregar</button>
+    </div>
+  </div>
+
+  <div class="cartao" style="padding:0; overflow-x:auto">
+    <table>
+      <thead><tr>
+        <th>BAR</th><th class="num">DISTRIBUÍDOS</th><th class="num">REEMBOLSADOS</th><th class="num">SALDO PENDENTE</th><th></th>
+      </tr></thead>
+      <tbody id="t-reembolsos"><tr><td colspan="5" class="carregando">Carregando…</td></tr></tbody>
+    </table>
+  </div>
+
+  <div id="rb-ficha" style="display:none; margin-top:26px">
+    <h2 id="rb-ficha-titulo">Ficha</h2>
+    <p class="sub" id="rb-ficha-sub"></p>
+
+    <div class="cartao" style="padding:0; overflow-x:auto">
+      <table>
+        <thead><tr>
+          <th>DATA</th><th>DESCRIÇÃO</th><th class="num">ENTRADA</th><th class="num">SAÍDA</th><th class="num">SALDO</th><th></th>
+        </tr></thead>
+        <tbody id="t-rb-ficha"></tbody>
+      </table>
+    </div>
+
+    <div class="cartao">
+      <div class="mini" style="letter-spacing:.1em; font-weight:700; margin-bottom:12px">LANÇAR DESCONTO CONCEDIDO</div>
+      <div class="linha">
+        <div>
+          <label for="rb-data">DATA DO DESCONTO</label>
+          <input id="rb-data" type="date">
+        </div>
+        <div>
+          <label for="rb-qtd">QUANTIDADE DE CHOPPS</label>
+          <input id="rb-qtd" type="number" min="1" step="1" inputmode="numeric">
+        </div>
+        <div>
+          <label for="rb-ref">REFERÊNCIA (NF / PEDIDO)</label>
+          <input id="rb-ref" type="text" placeholder="Ex.: Pedido 5230">
+        </div>
+        <div style="flex:0">
+          <button class="btn" id="b-rb-lancar" style="background:var(--ambar); color:#151000; white-space:nowrap">Lançar como saída</button>
+        </div>
+      </div>
+      <div class="msg" id="rb-msg"></div>
+    </div>
+  </div>
 </section>
 
 </main>
@@ -1689,6 +1762,127 @@ $("b-msg-limpar-filtro").onclick = () => {
 $("b-msg-recarregar").onclick = carregarMensagens;
 
 
+/* ── reembolsos de chopps aos bares ── */
+let reembBarAberto = null;   // {id, nome}
+
+function rbEsc(s){
+  return String(s == null ? "" : s).replace(/[&<>"']/g,
+    c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+function rbNum(n){ return (n || 0).toLocaleString("pt-BR"); }
+function rbData(iso){
+  const p = (iso || "").split("-");
+  return p.length === 3 ? p[2] + "/" + p[1] + "/" + p[0].slice(2) : (iso || "—");
+}
+
+async function carregarReembolsos(){
+  const tb = $("t-reembolsos");
+  tb.innerHTML = '<tr><td colspan="5" class="carregando">Carregando…</td></tr>';
+  try{
+    const r = await fetch(API + "/admin/reembolsos");
+    if(!r.ok) throw 0;
+    const d = await r.json();
+    $("rb-total-dist").textContent = rbNum(d.totais.distribuidos);
+    $("rb-total-reemb").textContent = rbNum(d.totais.reembolsados);
+    $("rb-total-saldo").textContent = rbNum(d.totais.saldo);
+    tb.innerHTML = d.bares.length ? d.bares.map(b => {
+      const aberto = reembBarAberto && reembBarAberto.id === b.bar_id;
+      const corSaldo = b.saldo > 0 ? "var(--ambar)" : "var(--cinza)";
+      return `<tr${aberto ? ' style="background:#1C1A12"' : ""}>
+        <td><strong>${rbEsc(b.nome)}</strong></td>
+        <td class="num">${rbNum(b.distribuidos)}</td>
+        <td class="num" style="color:#5FD08A">${rbNum(b.reembolsados)}</td>
+        <td class="num" style="color:${corSaldo}; font-weight:800">${rbNum(b.saldo)}</td>
+        <td class="num"><button class="btn-x" style="color:var(--ambar); border-color:#5A4A1A"
+          onclick="abrirFichaReembolso('${rbEsc(b.bar_id)}', '${rbEsc(b.nome).replace(/'/g, "")}')">${aberto ? "ficha aberta ↓" : "abrir ficha"}</button></td>
+      </tr>`;
+    }).join("") : '<tr><td colspan="5" class="carregando">Nenhum bar cadastrado.</td></tr>';
+  }catch(e){
+    tb.innerHTML = '<tr><td colspan="5" class="carregando">Erro ao carregar. O servidor pode estar acordando — tente de novo.</td></tr>';
+  }
+}
+
+async function abrirFichaReembolso(id, nome){
+  reembBarAberto = {id, nome};
+  $("rb-ficha").style.display = "block";
+  $("rb-ficha-titulo").textContent = "Ficha — " + nome;
+  $("rb-ficha-sub").textContent = "Carregando…";
+  $("t-rb-ficha").innerHTML = '<tr><td colspan="6" class="carregando">Carregando…</td></tr>';
+  $("rb-msg").textContent = "";
+  $("rb-data").value = new Date().toLocaleDateString("sv-SE"); // AAAA-MM-DD local
+  $("rb-ref").value = "";
+  try{
+    const r = await fetch(API + "/bar/" + encodeURIComponent(id) + "/reembolsos");
+    if(!r.ok) throw 0;
+    const d = await r.json();
+    const t = d.totais;
+    $("rb-ficha-sub").textContent = t.boasvindas + " de boas-vindas + " + t.resgates + " de resgates = " + t.distribuidos + " distribuídos";
+    $("rb-qtd").value = t.saldo > 0 ? t.saldo : "";
+    $("t-rb-ficha").innerHTML = (d.linhas.length ? d.linhas.map(l => {
+      const ent = l.tipo === "entrada";
+      const estorno = ent ? "" :
+        `<button class="btn-x" onclick="estornarDesconto('${rbEsc(l.id)}', ${l.quantidade})">estornar</button>`;
+      return `<tr${ent ? "" : ' style="background:#0F1F16"'}>
+        <td style="white-space:nowrap; color:var(--cinza)">${rbData(l.data)}</td>
+        <td>${rbEsc(l.descricao)}</td>
+        <td class="num" style="color:${ent ? "#FF6B6B" : "var(--cinza)"}">${ent ? "+" + rbNum(l.quantidade) : "—"}</td>
+        <td class="num" style="color:${ent ? "var(--cinza)" : "#5FD08A"}">${ent ? "—" : "−" + rbNum(l.quantidade)}</td>
+        <td class="num"><strong>${rbNum(l.saldo)}</strong></td>
+        <td class="num">${estorno}</td>
+      </tr>`;
+    }).join("") : '<tr><td colspan="6" class="carregando">Nenhum movimento neste bar ainda.</td></tr>') +
+    `<tr style="background:#1C1A12; font-weight:800">
+      <td></td><td>TOTAIS</td>
+      <td class="num" style="color:#FF6B6B">${rbNum(t.distribuidos)}</td>
+      <td class="num" style="color:#5FD08A">${rbNum(t.reembolsados)}</td>
+      <td class="num" style="color:var(--ambar)">${rbNum(t.saldo)}</td><td></td>
+    </tr>`;
+  }catch(e){
+    $("rb-ficha-sub").textContent = "";
+    $("t-rb-ficha").innerHTML = '<tr><td colspan="6" class="carregando">Erro ao carregar a ficha.</td></tr>';
+  }
+}
+
+async function lancarDesconto(){
+  const m = $("rb-msg");
+  const qtd = parseInt($("rb-qtd").value, 10);
+  const data = $("rb-data").value;
+  if(!reembBarAberto){ return; }
+  if(!data){ m.className = "msg erro"; m.textContent = "Informe a data do desconto."; return; }
+  if(!qtd || qtd <= 0){ m.className = "msg erro"; m.textContent = "Informe a quantidade de chopps."; return; }
+  const b = $("b-rb-lancar");
+  b.disabled = true; m.className = "msg"; m.textContent = "Lançando…";
+  try{
+    const r = await fetch(API + "/admin/reembolsos", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({bar: reembBarAberto.id, data, quantidade: qtd, referencia: $("rb-ref").value.trim()})
+    });
+    if(!r.ok) throw 0;
+    m.className = "msg ok"; m.textContent = "Desconto de " + qtd + " chopps lançado.";
+    await abrirFichaReembolso(reembBarAberto.id, reembBarAberto.nome);
+    $("rb-msg").className = "msg ok"; $("rb-msg").textContent = "Desconto de " + qtd + " chopps lançado.";
+    carregarReembolsos();
+  }catch(e){
+    m.className = "msg erro"; m.textContent = "Não foi possível lançar. Tente de novo.";
+  }finally{ b.disabled = false; }
+}
+
+function estornarDesconto(id, qtd){
+  confirmarExclusao(
+    "Estornar desconto?",
+    "O desconto de " + qtd + " chopps será removido da planilha e o saldo do bar volta a subir.",
+    "/admin/reembolsos/" + id,
+    () => { abrirFichaReembolso(reembBarAberto.id, reembBarAberto.nome); carregarReembolsos(); }
+  );
+}
+
+$("b-rb-lancar").onclick = lancarDesconto;
+$("b-reemb-recarregar").onclick = () => {
+  carregarReembolsos();
+  if(reembBarAberto) abrirFichaReembolso(reembBarAberto.id, reembBarAberto.nome);
+};
+
+
 /* ── exclusao com confirmacao ── */
 function fecharModal(){ document.getElementById("modal").classList.remove("on"); }
 function confirmarExclusao(titulo, texto, url, aoTerminar){
@@ -2029,6 +2223,7 @@ carregarGarcons();
 pmCarregar();
 carregarArvores();
 carregarMensagens();
+carregarReembolsos();
 </script>
 
 <div id="modal">
